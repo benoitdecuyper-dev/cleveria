@@ -50,7 +50,7 @@ function split(markdown: string): Part[] {
 
 export default function Markdown({ markdown }: { markdown: string }) {
   return (
-    <>
+    <div className="md">
       {split(markdown).map((part, i) =>
         part.type === "mermaid" ? (
           <MermaidBlock key={i} code={part.content} />
@@ -58,6 +58,6 @@ export default function Markdown({ markdown }: { markdown: string }) {
           <div key={i} dangerouslySetInnerHTML={{ __html: marked.parse(part.content) as string }} />
         ),
       )}
-    </>
+    </div>
   );
 }

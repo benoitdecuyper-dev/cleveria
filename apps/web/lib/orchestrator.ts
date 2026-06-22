@@ -16,6 +16,18 @@ import { emit, type Plan, type PlanStep, type Run, type StepState } from "./runS
 
 const MAX_PARALLEL = 3;
 
+/** Transforme une erreur API brute en message lisible pour l'utilisateur. */
+export function humanError(e: unknown): string {
+  const raw = e instanceof Error ? e.message : String(e ?? "Erreur inconnue");
+  if (/credit balance is too low/i.test(raw))
+    return "Crédit Anthropic insuffisant — ajoute du crédit sur console.anthropic.com → Plans & Billing.";
+  if (/invalid x-api-key|authentication/i.test(raw))
+    return "Clé Anthropic invalide ou manquante (vérifie ANTHROPIC_API_KEY).";
+  if (/rate limit|429/i.test(raw)) return "Limite de débit Anthropic atteinte — réessaie dans un instant.";
+  if (/overloaded|529/i.test(raw)) return "Service Claude momentanément surchargé — réessaie dans un instant.";
+  return raw;
+}
+
 export function resolveModel(model: string | undefined): string {
   switch ((model ?? "").toLowerCase()) {
     case "opus":
@@ -89,33 +101,60 @@ function extractJson(text: string): string {
   return text.trim();
 }
 
-async function plan(client: Anthropic, run: Run): Promise<Plan> {
-  const message = await client.messages.create({
-    model: resolveModel("sonnet"),
-    max_tokens: 2000,
-    system: plannerSystem(),
-    messages: [
+/** Plan de repli si le planificateur échoue : un seul agent généraliste traite tout le besoin. */
+function fallbackPlan(): Plan {
+  const agent = findAgent("factory-product-owner")
+    ? "factory-product-owner"
+    : deliveryRoster()[0]?.name ?? "factory-product-owner";
+  return {
+    summary: "Plan de repli : un agent généraliste traite le besoin de bout en bout.",
+    steps: [
       {
-        role: "user",
-        content: `Voici la note de cadrage validée par le client. Établis le plan de travail de l'équipe.\n\n${run.brief}`,
+        id: "s1",
+        agent,
+        title: "Traiter le besoin",
+        task: "Le planificateur n'a pas pu découper la demande. Prends la note de cadrage et produis le livrable le plus utile possible (analyse, découpage, recommandations concrètes).",
+        dependsOn: [],
       },
     ],
-  });
-  const raw = message.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("\n");
+  };
+}
 
-  const parsed = JSON.parse(extractJson(raw)) as Plan;
-  if (!Array.isArray(parsed.steps) || parsed.steps.length === 0) {
-    throw new Error("Plan vide ou invalide renvoyé par le planificateur.");
+async function plan(client: Anthropic, run: Run): Promise<Plan> {
+  // Deux tentatives : un LLM peut renvoyer du JSON légèrement malformé sur un coup.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const message = await client.messages.create({
+        model: resolveModel("sonnet"),
+        max_tokens: 2000,
+        system: plannerSystem(),
+        messages: [
+          {
+            role: "user",
+            content: `Voici la note de cadrage validée par le client. Établis le plan de travail de l'équipe.\n\n${run.brief}`,
+          },
+        ],
+      });
+      const raw = message.content
+        .filter((b): b is Anthropic.TextBlock => b.type === "text")
+        .map((b) => b.text)
+        .join("\n");
+
+      const parsed = JSON.parse(extractJson(raw)) as Plan;
+      // Ne garde que les étapes dont l'agent existe vraiment ; nettoie les dépendances orphelines.
+      const valid = (parsed.steps ?? []).filter((s) => findAgent(s.agent));
+      const ids = new Set(valid.map((s) => s.id));
+      for (const s of valid) s.dependsOn = (s.dependsOn ?? []).filter((d) => ids.has(d));
+      if (valid.length === 0) throw new Error("Aucune étape exploitable.");
+      return { summary: parsed.summary ?? "Plan de travail de l'équipe.", steps: valid };
+    } catch (e) {
+      // Échec d'API (crédit, réseau) → on remonte ; échec de parsing → on retente une fois.
+      const raw = e instanceof Error ? e.message : "";
+      if (/credit balance|authentication|invalid x-api-key/i.test(raw)) throw e;
+      if (attempt === 1) break;
+    }
   }
-  // Ne garde que les étapes dont l'agent existe vraiment ; nettoie les dépendances orphelines.
-  const valid = parsed.steps.filter((s) => findAgent(s.agent));
-  const ids = new Set(valid.map((s) => s.id));
-  for (const s of valid) s.dependsOn = (s.dependsOn ?? []).filter((d) => ids.has(d));
-  if (valid.length === 0) throw new Error("Aucune étape ne référence un agent connu.");
-  return { summary: parsed.summary ?? "Plan de travail de l'équipe.", steps: valid };
+  return fallbackPlan();
 }
 
 async function runStep(
@@ -237,8 +276,7 @@ async function execute(client: Anthropic, run: Run): Promise<void> {
           done.add(step.id);
         })
         .catch((e: unknown) => {
-          const msg = e instanceof Error ? e.message : "Erreur agent";
-          emit(run, { type: "step.status", id: step.id, status: "error", error: msg });
+          emit(run, { type: "step.status", id: step.id, status: "error", error: humanError(e) });
           failed.add(step.id);
         })
         .finally(() => {
@@ -255,7 +293,8 @@ async function execute(client: Anthropic, run: Run): Promise<void> {
 
 /** Pilote complet d'un run : plan → exécution → synthèse. Émet tout au dashboard. À lancer SANS await (background). */
 export async function orchestrate(run: Run): Promise<void> {
-  const client = new Anthropic();
+  // Retries SDK intégrés (429/5xx/réseau) avant de remonter une erreur.
+  const client = new Anthropic({ maxRetries: 4 });
   try {
     emit(run, { type: "run.status", status: "planning" });
     const p = await plan(client, run);
@@ -273,7 +312,6 @@ export async function orchestrate(run: Run): Promise<void> {
     emit(run, { type: "synthesis", output: synthesis });
     emit(run, { type: "run.status", status: "done" });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Erreur d'orchestration";
-    emit(run, { type: "run.status", status: "error", error: msg });
+    emit(run, { type: "run.status", status: "error", error: humanError(e) });
   }
 }

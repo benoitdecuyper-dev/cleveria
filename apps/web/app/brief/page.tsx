@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import NoteView from "./NoteView";
@@ -15,9 +15,20 @@ type Question = {
 type Msg = { role: "user" | "assistant"; text: string; isNote?: boolean; questions?: Question[] };
 type Answer = { selected: string[]; free: string };
 
+const DEMO_PREFILL =
+  "Je veux transformer une ancienne grange en tiers-lieu : un café associatif ouvert à tous " +
+  "+ des espaces de coworking, dans un village rural. Je ne sais pas par où commencer " +
+  "(statut juridique, budget, travaux, comment attirer du monde).";
+
+const EXAMPLES = [
+  "Un site vitrine pour mon activité d'artisan menuisier.",
+  "Une appli mobile pour organiser des covoiturages entre voisins.",
+  "Monter une association culturelle et trouver des financements.",
+];
+
 export default function BriefPage() {
   const [messages, setMessages] = useState<Msg[]>([]);
-  const [text, setText] = useState(""); // brief initial, ou précision libre / réponse ouverte
+  const [text, setText] = useState("");
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [files, setFiles] = useState<File[]>([]);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -25,44 +36,20 @@ export default function BriefPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [launching, setLaunching] = useState(false);
+  const [demo, setDemo] = useState(false);
 
   const router = useRouter();
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  // Compile l'échange + la note de cadrage validée en un brief unique pour l'orchestrateur.
-  function launchContext(noteIdx: number): string {
-    const transcript = messages
-      .slice(0, noteIdx)
-      .map((m) => `**${m.role === "user" ? "Client" : "Chef de projet"}** : ${m.text}`)
-      .join("\n\n");
-    const note = messages[noteIdx].text;
-    return [
-      "# Échange de cadrage",
-      transcript || "(brief déposé directement)",
-      "",
-      "# Note de cadrage validée par le client",
-      note,
-    ].join("\n");
-  }
-
-  async function launch(noteIdx: number) {
-    setError("");
-    setLaunching(true);
-    try {
-      const res = await fetch("/api/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brief: launchContext(noteIdx) }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erreur au lancement");
-      router.push(`/run/${data.runId}`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur inconnue");
-      setLaunching(false);
+  // Détecte ?demo=1 (sans useSearchParams pour garder la page simple à prerendre).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("demo") === "1") {
+      setDemo(true);
+      setText((t) => t || DEMO_PREFILL);
     }
-  }
+  }, []);
 
   const started = messages.length > 0;
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
@@ -128,7 +115,7 @@ export default function BriefPage() {
     const hasStructured =
       !!activeQuestions &&
       activeQuestions.some((q) => ans(q.id).selected.length > 0 || ans(q.id).free.trim());
-    if (!force && !payload && !audioBlob && files.length === 0 && !hasStructured) {
+    if (!force && !payload && !audioBlob && files.length === 0 && !hasStructured && !demo) {
       setError("Réponds à au moins une question, écris, ou enregistre un message.");
       return;
     }
@@ -138,6 +125,7 @@ export default function BriefPage() {
       fd.append("history", JSON.stringify(messages.map((m) => ({ role: m.role, content: m.text }))));
       fd.append("text", payload);
       if (force) fd.append("force", "1");
+      if (demo) fd.append("demo", "1");
       if (audioBlob) fd.append("audio", audioBlob, "message.webm");
       for (const f of files) fd.append("files", f);
 
@@ -145,8 +133,7 @@ export default function BriefPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erreur serveur");
 
-      const userText =
-        data.userEcho || (force ? "Produis la note de cadrage maintenant." : "(envoi)");
+      const userText = data.userEcho || (force ? "Produis la note de cadrage maintenant." : "(envoi)");
       setMessages((prev) => [
         ...prev,
         { role: "user", text: userText },
@@ -163,18 +150,53 @@ export default function BriefPage() {
     }
   }
 
+  function launchContext(noteIdx: number): string {
+    const transcript = messages
+      .slice(0, noteIdx)
+      .map((m) => `**${m.role === "user" ? "Client" : "Chef de projet"}** : ${m.text}`)
+      .join("\n\n");
+    const note = messages[noteIdx].text;
+    return [
+      "# Échange de cadrage",
+      transcript || "(brief déposé directement)",
+      "",
+      "# Note de cadrage validée par le client",
+      note,
+    ].join("\n");
+  }
+
+  async function launch(noteIdx: number) {
+    setError("");
+    setLaunching(true);
+    try {
+      const res = await fetch("/api/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brief: launchContext(noteIdx), demo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erreur au lancement");
+      router.push(`/run/${data.runId}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur inconnue");
+      setLaunching(false);
+    }
+  }
+
   return (
-    <main>
-      <p>
-        <Link href="/">← Cleveria</Link>
-      </p>
+    <>
+      <p className="eyebrow">{demo ? "Démo" : "Nouveau projet"}</p>
       <h1>Déposer un brief</h1>
+      {demo && (
+        <div className="banner info">
+          ▶️ <strong>Mode démo</strong> — scénario pré-écrit, aucun appel à l'IA (donc gratuit).
+          Envoie le brief, réponds aux questions, puis lance l'équipe pour voir le tableau de bord.
+        </div>
+      )}
       {!started && (
-        <p>
-          <small>
-            Le chef de projet va d'abord te <strong>challenger avec des questions</strong> (cliquables),
-            puis produira une <strong>note de cadrage</strong>.
-          </small>
+        <p className="lead">
+          Le chef de projet te <strong>challenge avec des questions</strong>, puis produit une{" "}
+          <strong>note de cadrage</strong>. Tu valides, et l'équipe se met au travail.
         </p>
       )}
 
@@ -183,132 +205,122 @@ export default function BriefPage() {
         m.role === "assistant" && m.isNote ? (
           <div key={i}>
             <NoteView markdown={m.text} />
-            <div style={{ margin: "0.75rem 0 1.5rem", display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() => launch(i)}
-                disabled={launching}
-                style={{
-                  padding: "0.5rem 0.9rem",
-                  borderRadius: 6,
-                  border: "none",
-                  background: "#2563eb",
-                  color: "#fff",
-                  cursor: launching ? "default" : "pointer",
-                  fontWeight: 600,
-                }}
-              >
+            <div className="toolbar" style={{ margin: "0.8rem 0 1.6rem" }}>
+              <button type="button" className="btn btn-primary btn-lg" onClick={() => launch(i)} disabled={launching}>
                 {launching ? "Lancement…" : "✓ Valider et lancer l'équipe"}
               </button>
-              <small style={{ color: "#666" }}>
-                L'équipe produit les livrables en arrière-plan ; tu suivras l'avancement sur un tableau de bord.
+              <small className="muted">
+                L'équipe produit les livrables en arrière-plan ; tu suis l'avancement sur un tableau de bord.
               </small>
             </div>
           </div>
         ) : (
-          <div
-            key={i}
-            style={{
-              margin: "0.75rem 0",
-              padding: "0.5rem 0.75rem",
-              borderLeft: `3px solid ${m.role === "user" ? "#999" : "#2563eb"}`,
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            <small style={{ color: "#666" }}>{m.role === "user" ? "Toi" : "Chef de projet"}</small>
+          <div key={i} className={`bubble ${m.role === "user" ? "bubble-user" : "bubble-assistant"}`}>
+            <div className="who">{m.role === "user" ? "Toi" : "Chef de projet"}</div>
             <div>{m.text}</div>
           </div>
         ),
       )}
 
+      {/* Exemples (avant de démarrer) */}
+      {!started && (
+        <div style={{ margin: "0.6rem 0 0.2rem" }}>
+          <small className="muted">Quelques idées pour démarrer :</small>
+          <div className="chips">
+            {EXAMPLES.map((ex) => (
+              <button key={ex} type="button" className="chip" onClick={() => setText(ex)}>
+                {ex}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Zone d'entrée */}
-      <div style={{ marginTop: "1.5rem" }}>
-        {/* Questions cliquables (si le CDP en a posé) */}
+      <div className="card" style={{ marginTop: "1rem" }}>
         {activeQuestions?.map((q) => (
-          <div key={q.id} style={{ margin: "0.75rem 0" }}>
-            <div>
-              <strong>{q.text}</strong>
-              {q.type === "multi" && <small style={{ color: "#666" }}> (plusieurs choix possibles)</small>}
+          <div key={q.id} className="qblock">
+            <div className="qtext">
+              {q.text}
+              {q.type === "multi" && <small className="muted"> (plusieurs choix possibles)</small>}
             </div>
-            {q.type !== "open" &&
-              q.options?.map((opt) => {
-                const sel = ans(q.id).selected.includes(opt);
-                return (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => toggleOption(q, opt)}
-                    style={{
-                      margin: "0.25rem 0.25rem 0 0",
-                      padding: "0.3rem 0.6rem",
-                      borderRadius: 6,
-                      border: "1px solid #ccc",
-                      background: sel ? "#2563eb" : "#f1f1f1",
-                      color: sel ? "#fff" : "#000",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {sel ? "✓ " : ""}
-                    {opt}
-                  </button>
-                );
-              })}
+            {q.type !== "open" && (
+              <div className="chips">
+                {q.options?.map((opt) => {
+                  const sel = ans(q.id).selected.includes(opt);
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      className={`chip ${sel ? "selected" : ""}`}
+                      onClick={() => toggleOption(q, opt)}
+                    >
+                      {sel ? "✓ " : ""}
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             {(q.type === "open" || q.allowFreeText) && (
               <input
+                className="input"
                 type="text"
                 value={ans(q.id).free}
                 onChange={(e) => setFree(q.id, e.target.value)}
                 placeholder={q.type === "open" ? "Ta réponse…" : "Autre / compléter…"}
-                style={{ width: "100%", marginTop: "0.35rem" }}
+                style={{ marginTop: "0.4rem" }}
               />
             )}
           </div>
         ))}
 
-        {/* Texte libre : brief initial, précision, ou réponse ouverte */}
         <textarea
+          className="textarea"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          rows={started ? 2 : 6}
-          style={{ width: "100%", marginTop: activeQuestions ? "0.5rem" : 0 }}
+          rows={started ? 2 : 5}
+          style={{ marginTop: activeQuestions ? "0.5rem" : 0 }}
           placeholder={
-            !started
-              ? "Décris ce que tu veux faire…"
-              : activeQuestions
-                ? "Précision libre (optionnel)…"
-                : "Ta réponse…"
+            !started ? "Décris ce que tu veux faire…" : activeQuestions ? "Précision libre (optionnel)…" : "Ta réponse…"
           }
         />
 
-        <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+        <div className="toolbar" style={{ marginTop: "0.6rem" }}>
           {!recording ? (
-            <button onClick={startRecording} type="button">
+            <button onClick={startRecording} type="button" className="btn">
               ● Vocal
             </button>
           ) : (
-            <button onClick={stopRecording} type="button">
+            <button onClick={stopRecording} type="button" className="btn">
               ■ Arrêter
             </button>
           )}
-          {audioBlob && !recording && <span>vocal prêt ✓</span>}
+          {audioBlob && !recording && <span className="muted">vocal prêt ✓</span>}
           {!started && (
             <input type="file" multiple onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
           )}
         </div>
 
-        <div style={{ marginTop: "0.75rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-          <button onClick={() => send(false)} type="button" disabled={loading}>
+        <div className="toolbar" style={{ marginTop: "0.8rem" }}>
+          <button onClick={() => send(false)} type="button" className="btn btn-primary" disabled={loading}>
             {loading ? "…" : started ? "Répondre" : "Envoyer au chef de projet"}
           </button>
           {started && (
-            <button onClick={() => send(true)} type="button" disabled={loading}>
-              J'ai tout dit → produire la note de cadrage
+            <button onClick={() => send(true)} type="button" className="btn" disabled={loading}>
+              J'ai tout dit → produire la note
             </button>
           )}
         </div>
       </div>
 
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
-    </main>
+      {error && <div className="banner err" style={{ marginTop: "0.8rem" }}>{error}</div>}
+
+      <p style={{ marginTop: "1.4rem" }}>
+        <Link href="/" className="muted">
+          ← Retour à l'accueil
+        </Link>
+      </p>
+    </>
   );
 }

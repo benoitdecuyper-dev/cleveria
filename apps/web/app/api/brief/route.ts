@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getChefDeProjet } from "@cleveria/factory";
+import { demoBriefResponse } from "../../../lib/demo";
+import { humanError } from "../../../lib/orchestrator";
 
 // Le lecteur d'agents lit le système de fichiers → runtime Node (pas Edge).
 export const runtime = "nodejs";
@@ -82,15 +84,12 @@ type ContentBlocks = Exclude<Anthropic.MessageParam["content"], string>;
 
 export async function POST(req: Request) {
   try {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      return Response.json({ error: "ANTHROPIC_API_KEY manquante." }, { status: 500 });
-    }
-
     const form = await req.formData();
     const text = (form.get("text") as string | null)?.trim() ?? "";
     const audio = form.get("audio") as File | null;
     const files = form.getAll("files").filter((f): f is File => f instanceof File);
     const force = form.get("force") === "1";
+    const demo = form.get("demo") === "1";
 
     // Historique de la conversation (tours précédents, texte seul).
     let history: { role: "user" | "assistant"; content: string }[] = [];
@@ -98,6 +97,16 @@ export async function POST(req: Request) {
       history = JSON.parse((form.get("history") as string | null) ?? "[]");
     } catch {
       history = [];
+    }
+
+    // Mode démo : réponse scriptée, aucun appel à Claude (marche sans clé ni crédit).
+    if (demo) {
+      const userEcho = text || (files.length ? "[pièces jointes envoyées]" : force ? "Produire la note." : "");
+      return Response.json({ ...demoBriefResponse(history.length, force), userEcho });
+    }
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return Response.json({ error: "ANTHROPIC_API_KEY manquante." }, { status: 500 });
     }
 
     const transcript = audio ? await transcribe(audio) : "";
@@ -188,7 +197,6 @@ export async function POST(req: Request) {
 
     return Response.json({ reply, isNote, questions, userEcho });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Erreur inconnue";
-    return Response.json({ error: msg }, { status: 500 });
+    return Response.json({ error: humanError(e) }, { status: 500 });
   }
 }

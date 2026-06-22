@@ -14,11 +14,11 @@ export default function NoteView({ markdown }: { markdown: string }) {
   }
 
   return (
-    <section style={{ border: "1px solid #ddd", padding: "1rem", marginTop: "0.5rem" }}>
-      <div style={{ marginBottom: "0.5rem" }}>
-        <strong>📄 Note de cadrage</strong>{" "}
-        <button onClick={download} type="button">
-          Télécharger (.md)
+    <section className="note">
+      <div className="note-head">
+        <span className="tag">📄 Note de cadrage</span>
+        <button onClick={download} type="button" className="btn btn-ghost">
+          Télécharger .md
         </button>
       </div>
       <Markdown markdown={markdown} />

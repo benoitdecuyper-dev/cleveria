@@ -165,29 +165,26 @@ export default function RunDashboard() {
     URL.revokeObjectURL(url);
   }
 
+  const doneCount = order.filter((id) => steps[id]?.status === "done").length;
+
   return (
-    <main>
-      <p>
-        <Link href="/brief">← Nouveau brief</Link>
-      </p>
+    <>
+      <p className="eyebrow">Tableau de bord</p>
       <h1>L'équipe au travail</h1>
-      <p>
-        <span
-          style={{
-            display: "inline-block",
-            width: 9,
-            height: 9,
-            borderRadius: "50%",
-            marginRight: 6,
-            background: status === "done" ? "#16a34a" : status === "error" ? "#dc2626" : "#d97706",
-          }}
-        />
-        <strong>{RUN_LABEL[status]}</strong>
-        {working && <span> {/* petit indicateur d'activité */}⟳</span>}
+      <p className="run-status">
+        <span className={`dot ${status === "done" ? "done" : status === "error" ? "error" : "running"}`} />
+        {RUN_LABEL[status]}
+        {order.length > 0 && (
+          <span className="muted" style={{ fontWeight: 500 }}>
+            &nbsp;· {doneCount}/{order.length} étapes
+          </span>
+        )}
       </p>
-      {runError && <p style={{ color: "crimson" }}>{runError}</p>}
-      {summary && (
-        <p style={{ color: "#444", fontStyle: "italic" }}>« {summary} »</p>
+      {runError && <div className="banner err">{runError}</div>}
+      {summary && <p className="muted" style={{ fontStyle: "italic" }}>« {summary} »</p>}
+
+      {working && order.length === 0 && (
+        <div className="card muted">L'orchestrateur compose l'équipe…</div>
       )}
 
       {/* Cartes d'étapes */}
@@ -197,26 +194,21 @@ export default function RunDashboard() {
         const dot = STATUS_DOT[s.status];
         const isOpen = open[sid] ?? false;
         return (
-          <section
-            key={sid}
-            style={{
-              border: "1px solid #e2e2e2",
-              borderLeft: `3px solid ${dot.color}`,
-              borderRadius: 6,
-              padding: "0.6rem 0.8rem",
-              margin: "0.6rem 0",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", flexWrap: "wrap" }}>
-              <span style={{ width: 9, height: 9, borderRadius: "50%", background: dot.color, display: "inline-block" }} />
-              <strong>{s.agentLabel}</strong>
-              <span style={{ color: "#333" }}>{s.title}</span>
-              <small style={{ color: dot.color, marginLeft: "auto" }}>{dot.label}</small>
+          <section key={sid} className={`step ${s.status}`}>
+            <div className="step-head">
+              <span className={`dot ${s.status}`} />
+              <span className="agent">{s.agentLabel}</span>
+              <span className="step-title">{s.title}</span>
+              <span className={`badge ${s.status}`}>{dot.label}</span>
             </div>
-            {s.error && <small style={{ color: "crimson" }}>{s.error}</small>}
+            {s.error && <div className="banner err" style={{ marginTop: "0.4rem" }}>{s.error}</div>}
             {s.output && (
               <div style={{ marginTop: "0.4rem" }}>
-                <button type="button" onClick={() => setOpen((p) => ({ ...p, [sid]: !isOpen }))}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setOpen((p) => ({ ...p, [sid]: !isOpen }))}
+                >
                   {isOpen
                     ? s.status === "running"
                       ? "▾ En train d'écrire…"
@@ -224,9 +216,9 @@ export default function RunDashboard() {
                     : "▸ Voir le livrable"}
                 </button>
                 {isOpen && (
-                  <div style={{ marginTop: "0.5rem", borderTop: "1px dashed #ddd", paddingTop: "0.5rem" }}>
+                  <div style={{ marginTop: "0.5rem", borderTop: "1px dashed var(--border)", paddingTop: "0.6rem" }}>
                     <Markdown markdown={s.output} />
-                    {s.status === "running" && <span style={{ color: "#d97706" }}>▌</span>}
+                    {s.status === "running" && <span className="caret">▌</span>}
                   </div>
                 )}
               </div>
@@ -237,19 +229,22 @@ export default function RunDashboard() {
 
       {/* Synthèse finale */}
       {synthesis && (
-        <section
-          ref={synthRef}
-          style={{ border: "2px solid #2563eb", borderRadius: 6, padding: "1rem", marginTop: "1.2rem" }}
-        >
-          <div style={{ marginBottom: "0.5rem" }}>
-            <strong>✅ Synthèse du chef de projet</strong>{" "}
-            <button type="button" onClick={downloadSynthesis}>
-              Télécharger (.md)
+        <section ref={synthRef} className="synthesis">
+          <div className="note-head">
+            <span className="tag">✅ Synthèse du chef de projet</span>
+            <button type="button" className="btn btn-ghost" onClick={downloadSynthesis}>
+              Télécharger .md
             </button>
           </div>
           <Markdown markdown={synthesis} />
         </section>
       )}
-    </main>
+
+      <p style={{ marginTop: "1.4rem" }}>
+        <Link href="/brief" className="muted">
+          ← Nouveau brief
+        </Link>
+      </p>
+    </>
   );
 }
