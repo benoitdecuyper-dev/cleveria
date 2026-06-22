@@ -1,0 +1,22 @@
+# Déploiement Cleveria sur Render (render.com).
+# Render = vrai serveur Node : l'app lit le miroir d'agents (agents.generated.ts,
+# committé, généré par `npm run sync:agents`) au runtime. Pas de base de données.
+services:
+  - type: web
+    name: cleveria-web
+    runtime: node
+    plan: free
+    # Build depuis la racine du monorepo, puis build du workspace web.
+    buildCommand: npm install && npm run build:web
+    startCommand: npm run start --workspace=@cleveria/web
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Secrets : à renseigner dans le dashboard Render (sync:false = non versionné).
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      # Modèles (surchargeables)
+      - key: CLEVERIA_FACTORY_MODEL
+        value: claude-opus-4-8

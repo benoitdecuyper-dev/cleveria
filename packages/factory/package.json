@@ -1,0 +1,9 @@
+{
+  "name": "@cleveria/factory",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "src/loadAgents.ts",
+  "scripts": {
+    "build": "tsc -p . || true"
+  }
+}

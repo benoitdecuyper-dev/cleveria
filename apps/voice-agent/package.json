@@ -1,0 +1,19 @@
+{
+  "name": "@cleveria/voice-agent",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node src/agent.ts dev",
+    "start": "node src/agent.ts start"
+  },
+  "dependencies": {
+    "@cleveria/factory": "*",
+    "@livekit/agents": "^1.4.8",
+    "@livekit/agents-plugin-deepgram": "^1.4.8",
+    "@livekit/agents-plugin-cartesia": "^1.4.8",
+    "@livekit/agents-plugin-silero": "^1.4.8",
+    "@livekit/agents-plugin-livekit": "^1.4.8",
+    "@anthropic-ai/sdk": "^0.105.0",
+    "dotenv": "^16.4.5"
+  }
+}
