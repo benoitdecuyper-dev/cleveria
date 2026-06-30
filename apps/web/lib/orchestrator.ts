@@ -34,6 +34,9 @@ fichiers, ni second tour, ni dialogue** avec le client.
   reste à dérouler côté équipe.
 - Ton livrable peut être **réutilisé par un agent en aval** : sois précis, structuré, sans renvoyer
   à un échange que l'autre n'a pas vu.
+- **Termine par un bloc \`## Passation\`** : décisions prises, conventions/identifiants à réutiliser
+  tels quels en aval, hypothèses ouvertes, et ce qui reste à faire par les étapes suivantes. C'est le
+  contrat qui fait que les livrables s'emboîtent au lieu d'être re-devinés.
 `.trim();
 
 // Variante pour la SYNTHÈSE finale du CDP : il agrège des livrables produits sans exécution réelle.
