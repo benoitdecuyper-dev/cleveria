@@ -4,7 +4,7 @@
 export const runtime = "nodejs";
 
 // Voix "premade" (utilisable en compte gratuit ; les voix de bibliothèque exigent un plan payant).
-const DEFAULT_VOICE_ID = "EXAVITQu4vr4xnSDxMaL"; // Sarah — claire/assurée (override via env)
+const DEFAULT_VOICE_ID = "nPczCjzI2devNBz1zQrb"; // Brian — grave, posé, rassurant (override via env)
 
 export async function POST(req: Request) {
   const key = process.env.ELEVENLABS_API_KEY;
