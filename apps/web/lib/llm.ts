@@ -89,17 +89,18 @@ async function viaClaudeCode({ system, messages, model, onText }: LlmRequest): P
   ];
   if (streaming) args.push("--include-partial-messages", "--verbose");
 
-  try {
-    return await new Promise<string>((resolve, reject) => {
-      // CRUCIAL : on retire ANTHROPIC_API_KEY (présente dans .env pour la prod) de l'env du CLI.
-      // Sinon Claude Code l'utilise au lieu de l'abonnement OAuth → on tape la clé sans crédit.
-      const env = { ...process.env };
-      delete env.ANTHROPIC_API_KEY;
-      delete env.ANTHROPIC_AUTH_TOKEN;
+  // CRUCIAL : on retire ANTHROPIC_API_KEY (présente dans .env pour la prod) de l'env du CLI.
+  // Sinon Claude Code l'utilise au lieu de l'abonnement OAuth → on tape la clé sans crédit.
+  const env = { ...process.env };
+  delete env.ANTHROPIC_API_KEY;
+  delete env.ANTHROPIC_AUTH_TOKEN;
 
+  const spawnOnce = () =>
+    new Promise<string>((resolve, reject) => {
       const child = spawn("claude", args, {
         cwd: tmpdir(), // pas de CLAUDE.md projet chargé
         shell: process.platform === "win32", // résout le shim claude.cmd
+        windowsHide: true,
         env,
       });
       let buf = "";
@@ -109,6 +110,7 @@ async function viaClaudeCode({ system, messages, model, onText }: LlmRequest): P
       let rawOut = "";
       let stderr = "";
 
+      child.stdin.on("error", () => {}); // process mort avant de lire stdin → pas de crash EPIPE
       child.stdin.end(prompt, "utf8");
       child.stdout.on("data", (chunk: Buffer) => {
         const s = chunk.toString("utf8");
@@ -168,6 +170,21 @@ async function viaClaudeCode({ system, messages, model, onText }: LlmRequest): P
         }
       });
     });
+
+  try {
+    // Retry sur échec d'INITIALISATION du process (rien produit) — typiquement 0xC0000142 transitoire
+    // sur Windows (AV/EDR). On ne retente PAS une vraie erreur CLI (qui, elle, a produit une sortie).
+    let lastErr: Error | null = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await spawnOnce();
+      } catch (e) {
+        lastErr = e as Error;
+        if (!/sortie vide|3221225794|spawn|ENOENT|EBUSY|ETXTBSY/i.test(lastErr.message)) throw lastErr;
+        if (attempt === 0) await new Promise((r) => setTimeout(r, 300));
+      }
+    }
+    throw lastErr ?? new Error("claude-code : échec inconnu");
   } finally {
     void unlink(sysFile).catch(() => {});
   }
