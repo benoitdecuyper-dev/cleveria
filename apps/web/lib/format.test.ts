@@ -41,6 +41,14 @@ describe("parseStream", () => {
     expect(r.body).toBe("Première ligne\nVOIX: pas un en-tête");
   });
 
+  it("détecte un BOARD précédé d'une ligne vide (régression : sinon le board n'arrive qu'à la fin)", () => {
+    const r = parseStream("MODE: direct\nVOIX: Voilà\n\nBOARD: Mail\n\nObjet : Merci");
+    expect(r.board).toBe(true);
+    expect(r.boardTitle).toBe("Mail");
+    expect(r.spoken).toBe("Voilà");
+    expect(r.body).toBe("Objet : Merci");
+  });
+
   it("gère le streaming partiel (en-tête pas encore complet)", () => {
     expect(parseStream("BOARD: Titre en cours").body).toBe("");
     expect(parseStream("BOARD: Titre en cours").board).toBe(true);

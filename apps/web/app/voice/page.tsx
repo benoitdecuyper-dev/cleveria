@@ -158,7 +158,9 @@ export default function VoicePage() {
 
   // Joue une réponse à la demande (clic "Écouter"). idx = message lu, pour l'état du bouton.
   const speak = useCallback(
-    async (raw: string, idx: number | null = null) => {
+    // silent = true pour l'auto-lecture : on ne montre PAS de bannière d'erreur si la
+    // voix est indisponible (pas de clé, quota, autoplay bloqué) — ça resterait muet.
+    async (raw: string, idx: number | null = null, silent = false) => {
       const txt = speakable(raw);
       if (!txt) return;
       stopAudio(); // coupe toute lecture/chargement en cours
@@ -174,7 +176,7 @@ export default function VoicePage() {
         });
         if (ctrl.signal.aborted) return;
         if (!res.ok) {
-          setError("Voix indisponible (clé ElevenLabs manquante ou quota atteint).");
+          if (!silent) setError("Voix indisponible (clé ElevenLabs manquante ou quota atteint).");
           setPlayingIdx(null);
           return;
         }

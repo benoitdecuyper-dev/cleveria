@@ -19,6 +19,10 @@ export function parseStream(raw: string): ParsedStream {
   let spoken = "";
   for (; i < lines.length; i++) {
     const ln = lines[i];
+    // Lignes vides en tête : on les saute (le modèle insère parfois un saut entre
+    // MODE/VOIX/BOARD). Sinon on s'arrêterait avant un BOARD: qui suit une ligne
+    // vide → le board n'apparaîtrait qu'à la fin du flux (bug "a posteriori").
+    if (ln.trim() === "") continue;
     if (/^MODE:/i.test(ln)) continue;
     const vm = /^\s*VOIX\s*:\s*(.*)$/i.exec(ln);
     if (vm) {
