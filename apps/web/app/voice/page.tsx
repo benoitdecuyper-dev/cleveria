@@ -390,7 +390,7 @@ export default function VoicePage() {
           ) : (
             <div key={i} className={`msg ${m.role === "user" ? "me" : "bot"}`}>
               {m.role === "assistant" && <div className="who">Chef de projet</div>}
-              {m.role === "assistant" && m.mode === "direct" ? <Markdown markdown={m.text} /> : <div>{m.text}</div>}
+              {m.role === "assistant" ? <Markdown markdown={m.text} /> : <div>{m.text}</div>}
               {m.questions && m.questions.length > 0 && i === messages.length - 1 && (
                 <div className="chips" style={{ marginTop: "0.5rem" }}>
                   {m.questions.flatMap((q) =>

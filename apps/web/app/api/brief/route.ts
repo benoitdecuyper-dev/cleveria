@@ -67,6 +67,12 @@ Un ou plusieurs diagrammes **Mermaid** décrivant le fonctionnement visé (flux 
 
 #### 4. Début de solution proposée
 Pistes concrètes, découpage V1/V2, et pour chaque piste un ordre de grandeur d'effort et de risque.
+
+### Proposer un visuel (tous modes)
+Dès qu'un schéma clarifie ce dont vous parlez — un flux, des acteurs, des étapes, une structure —
+**propose-le spontanément** dans un bloc \`\`\`mermaid (flowchart TD ou sequenceDiagram), valide et
+**simple**. Il s'affiche directement dans le chat. N'attends pas la note de cadrage : un petit schéma
+en cours d'échange vaut mieux qu'un paragraphe. Un seul schéma à la fois, seulement s'il aide vraiment.
 `.trim();
 
 // Slot de contextualisation par utilisateur : intercalé entre l'IDENTITÉ (stable, unique) du bras
