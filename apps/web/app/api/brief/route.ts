@@ -17,6 +17,10 @@ Tu es le **bras droit** de l'utilisateur, son point d'entrée unique. À CHAQUE 
 par TRIER la demande dans l'un de ces trois modes, et tu écris ce mode en TOUTE PREMIÈRE LIGNE,
 contenant EXACTEMENT \`MODE: direct\`, \`MODE: questions\` ou \`MODE: cadrage\`, puis le contenu en dessous.
 
+**Ne répète JAMAIS la demande en préambule** (« Tu veux… », « Si je comprends bien… », « Pour ton activité de plombier… ») : l'utilisateur vient de l'écrire, ça ne lui apprend rien. Va droit à la substance.
+
+**Voix vs écrit (important).** Juste après la ligne MODE, ajoute une ligne \`VOIX: <une à deux phrases orales, naturelles et fluides>\` — c'est ce qui sera **lu à voix haute** : enrobé, conversationnel, le ton d'un vrai bras droit qui te parle. Le reste (ce qui s'affiche **à l'écran**) reste **concis et structuré** : un résumé court + les questions, ou le livrable. La voix raconte ; l'écrit synthétise. La ligne VOIX n'apparaît pas à l'écran.
+
 ### Comment trier
 - **direct** — la demande est à ta portée immédiate : tu peux la traiter TOI-MÊME, tout de suite,
   sans mobiliser l'équipe ni un travail profond. Ex : rédiger ou relire un mail/texte, répondre à une
@@ -41,8 +45,8 @@ bénéficiaires/utilisateurs, périmètre (ce qui est dans / hors scope), exista
 (techniques, légales, budget, délai), critères de succès, risques et conditions bloquantes. Ne passe
 PAS au cadrage tant qu'il reste des zones d'ombre importantes.
 
-Tes questions doivent être **cliquables**. Après la ligne \`MODE: questions\`, écris 1-2 phrases
-d'intro, puis un bloc \`\`\`json (valide, sans commentaires) :
+Tes questions doivent être **cliquables**. À l'écran, **une ligne d'intro au maximum** (la version
+parlée, plus chaleureuse, est dans VOIX), puis un bloc \`\`\`json (valide, sans commentaires) :
 { "questions": [
     { "id": "q1", "text": "…", "type": "single" | "multi" | "open",
       "options": ["…","…"], "allowFreeText": true }
@@ -56,17 +60,15 @@ par salve.
 Quand tu as assez d'éléments (ou si l'utilisateur te demande de conclure), produis la NOTE DE
 CADRAGE (Markdown, en français, prête à publier) qui contient, dans cet ordre :
 
-#### 1. Compte rendu du besoin
-Synthèse de l'échange : ce qui a été demandé, les réponses clés obtenues.
+#### 1. Ce que j'ai compris
+Reformulation **brève** de l'objectif, des bénéficiaires et du périmètre (in / hors scope) — tu
+**interprètes**, tu ne recopies pas la demande. Pas de « compte rendu » qui répète l'échange.
 
-#### 2. Ce que j'ai compris du besoin
-Reformulation claire de l'objectif, des bénéficiaires, et du périmètre (in / hors scope).
-
-#### 3. Schémas fonctionnels
+#### 2. Schémas fonctionnels
 Un ou plusieurs diagrammes **Mermaid** décrivant le fonctionnement visé (flux utilisateur, acteurs,
 étapes…). Utilise des blocs \`\`\`mermaid valides et simples (flowchart TD ou sequenceDiagram).
 
-#### 4. Début de solution proposée
+#### 3. Début de solution proposée
 Pistes concrètes, découpage V1/V2, et pour chaque piste un ordre de grandeur d'effort et de risque.
 
 ### Proposer un visuel (tous modes)
@@ -117,14 +119,28 @@ type ContentBlocks = Exclude<Anthropic.MessageParam["content"], string>;
 
 type Mode = "direct" | "questions" | "cadrage";
 
-// Extrait le mode (1re ligne `MODE: …`) + le bloc JSON de questions du texte complet du bras droit.
-function parseReply(input: string): { reply: string; mode: Mode; isNote: boolean; questions: unknown } {
+// Extrait le mode (1re ligne `MODE: …`), la ligne `VOIX:` (texte parlé) et le bloc JSON de questions.
+function parseReply(input: string): {
+  reply: string;
+  mode: Mode;
+  isNote: boolean;
+  questions: unknown;
+  spoken: string | null;
+} {
   let reply = input.trim();
   const firstLine = reply.split("\n", 1)[0] ?? "";
   const modeMatch = /^MODE:\s*(direct|questions|cadrage)/i.exec(firstLine);
   const mode = (modeMatch?.[1]?.toLowerCase() ?? "questions") as Mode;
   const isNote = mode === "cadrage";
   if (modeMatch) reply = reply.slice(firstLine.length).trim();
+
+  // Ligne VOIX : version orale (lue à voix haute), retirée de l'affichage écran.
+  let spoken: string | null = null;
+  const voix = /^VOIX\s*:\s*(.+?)(?:\n|$)/i.exec(reply);
+  if (voix) {
+    spoken = voix[1].trim();
+    reply = reply.slice(voix[0].length).trim();
+  }
 
   let questions: unknown = null;
   if (mode === "questions") {
@@ -139,7 +155,7 @@ function parseReply(input: string): { reply: string; mode: Mode; isNote: boolean
       reply = (reply.slice(0, m.index) + reply.slice(m.index + m[0].length)).trim();
     }
   }
-  return { reply, mode, isNote, questions };
+  return { reply, mode, isNote, questions, spoken };
 }
 
 export async function POST(req: Request) {

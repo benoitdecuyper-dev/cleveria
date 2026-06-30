@@ -15,8 +15,8 @@ type Question = {
   allowFreeText?: boolean;
 };
 type Mode = "direct" | "questions" | "cadrage";
-type Msg = { role: "user" | "assistant"; text: string; mode?: Mode; isNote?: boolean; questions?: Question[]; streaming?: boolean };
-type BriefDone = { reply: string; mode?: Mode; isNote?: boolean; questions?: Question[] };
+type Msg = { role: "user" | "assistant"; text: string; mode?: Mode; isNote?: boolean; questions?: Question[]; streaming?: boolean; spoken?: string };
+type BriefDone = { reply: string; mode?: Mode; isNote?: boolean; questions?: Question[]; spoken?: string | null };
 type RichStep = {
   id: string;
   agent: string;
@@ -50,6 +50,20 @@ const EXAMPLES = [
   "Monter une asso et la financer",
   "Un site vitrine pour mon activité",
 ];
+
+// Retire les lignes de protocole (MODE, VOIX) du texte streamé pour l'affichage écran.
+function displayBody(raw: string): string {
+  let s = raw;
+  if (/^MODE:/i.test(s)) {
+    const nl = s.indexOf("\n");
+    s = nl >= 0 ? s.slice(nl + 1) : "";
+  }
+  if (/^\s*VOIX\s*:/i.test(s)) {
+    const nl = s.indexOf("\n");
+    s = nl >= 0 ? s.slice(nl + 1) : "";
+  }
+  return s.replace(/^\s+/, "");
+}
 
 // Nettoyage du Markdown pour la lecture vocale (TTS).
 function speakable(md: string): string {
@@ -117,6 +131,7 @@ export default function VoicePage() {
 
   const router = useRouter();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsAbortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recRef = useRef<any>(null);
@@ -128,6 +143,8 @@ export default function VoicePage() {
 
   // ── TTS serveur (ElevenLabs), À LA DEMANDE. Pas de clé → silence (jamais de voix robot). ──
   const stopAudio = useCallback(() => {
+    ttsAbortRef.current?.abort();
+    ttsAbortRef.current = null;
     audioRef.current?.pause();
     audioRef.current = null;
     setSpeaking(false);
@@ -135,42 +152,51 @@ export default function VoicePage() {
   }, []);
 
   // Joue une réponse à la demande (clic "Écouter"). idx = message lu, pour l'état du bouton.
-  const speak = useCallback(async (raw: string, idx: number | null = null) => {
-    const txt = speakable(raw);
-    if (!txt) return;
-    try {
-      audioRef.current?.pause();
-      const res = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: txt.slice(0, 1500) }),
-      });
-      if (!res.ok) {
-        setError("Voix indisponible (clé ElevenLabs manquante ou quota atteint).");
-        return;
+  const speak = useCallback(
+    async (raw: string, idx: number | null = null) => {
+      const txt = speakable(raw);
+      if (!txt) return;
+      stopAudio(); // coupe toute lecture/chargement en cours
+      setPlayingIdx(idx); // état IMMÉDIAT → un 2e clic = Stop, jamais une 2e lecture
+      const ctrl = new AbortController();
+      ttsAbortRef.current = ctrl;
+      try {
+        const res = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: txt.slice(0, 1500) }),
+          signal: ctrl.signal,
+        });
+        if (ctrl.signal.aborted) return;
+        if (!res.ok) {
+          setError("Voix indisponible (clé ElevenLabs manquante ou quota atteint).");
+          setPlayingIdx(null);
+          return;
+        }
+        const url = URL.createObjectURL(await res.blob());
+        if (ctrl.signal.aborted) return void URL.revokeObjectURL(url);
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.onplay = () => setSpeaking(true);
+        audio.onended = () => {
+          setSpeaking(false);
+          setPlayingIdx(null);
+          URL.revokeObjectURL(url);
+        };
+        audio.onerror = () => {
+          setSpeaking(false);
+          setPlayingIdx(null);
+        };
+        await audio.play();
+      } catch (e) {
+        if ((e as Error)?.name !== "AbortError") {
+          setSpeaking(false);
+          setPlayingIdx(null);
+        }
       }
-      const url = URL.createObjectURL(await res.blob());
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onplay = () => {
-        setSpeaking(true);
-        setPlayingIdx(idx);
-      };
-      audio.onended = () => {
-        setSpeaking(false);
-        setPlayingIdx(null);
-        URL.revokeObjectURL(url);
-      };
-      audio.onerror = () => {
-        setSpeaking(false);
-        setPlayingIdx(null);
-      };
-      await audio.play();
-    } catch {
-      setSpeaking(false);
-      setPlayingIdx(null);
-    }
-  }, []);
+    },
+    [stopAudio],
+  );
 
   // Auto-scroll en bas du fil + auto-grow du champ.
   useEffect(() => {
@@ -338,7 +364,7 @@ export default function VoicePage() {
       const finalize = (data: BriefDone) => {
         const next: Msg[] = [
           ...optimistic,
-          { role: "assistant", text: data.reply, mode: data.mode, isNote: data.isNote, questions: data.questions ?? undefined },
+          { role: "assistant", text: data.reply, mode: data.mode, isNote: data.isNote, questions: data.questions ?? undefined, spoken: data.spoken ?? undefined },
         ];
         setMessages(next);
         if (data.isNote) void requestPlan(next, next.length - 1);
@@ -395,8 +421,7 @@ export default function VoicePage() {
             }
             // Affichage live hors mode "questions" (qui contient un bloc JSON à ne pas montrer brut).
             if (headerParsed && liveMode !== "questions") {
-              const nl = raw.indexOf("\n");
-              showLive(nl >= 0 ? raw.slice(nl + 1) : "");
+              showLive(displayBody(raw));
             }
           } else if (evt.t === "done") {
             finalData = evt;
@@ -517,7 +542,7 @@ export default function VoicePage() {
                 type="button"
                 className="playbtn"
                 style={{ marginTop: "0.55rem" }}
-                onClick={() => (playingIdx === i ? stopAudio() : speak(m.text, i))}
+                onClick={() => (playingIdx === i ? stopAudio() : speak(m.spoken ?? m.text, i))}
               >
                 {playingIdx === i ? <IcoStop /> : <IcoPlay />}
                 {playingIdx === i ? "Stop" : "Écouter"}
@@ -532,7 +557,7 @@ export default function VoicePage() {
                   type="button"
                   className="playbtn"
                   style={{ marginTop: "0.45rem" }}
-                  onClick={() => (playingIdx === i ? stopAudio() : speak(m.text, i))}
+                  onClick={() => (playingIdx === i ? stopAudio() : speak(m.spoken ?? m.text, i))}
                 >
                   {playingIdx === i ? <IcoStop /> : <IcoPlay />}
                   {playingIdx === i ? "Stop" : "Écouter"}
