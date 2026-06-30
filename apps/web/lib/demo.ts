@@ -99,7 +99,7 @@ export function demoBriefResponse(historyLen: number, force: boolean) {
 
 // ---- Run démo (orchestration simulée) ----
 
-const DEMO_PLAN: Plan = {
+export const DEMO_PLAN: Plan = {
   summary:
     "Sécuriser le cadre (montage + normes) puis prouver la viabilité (BP) et préparer le lancement.",
   steps: [

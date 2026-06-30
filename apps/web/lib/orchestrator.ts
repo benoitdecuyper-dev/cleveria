@@ -120,7 +120,7 @@ function fallbackPlan(): Plan {
   };
 }
 
-async function plan(client: Anthropic, run: Run): Promise<Plan> {
+async function plan(client: Anthropic, brief: string): Promise<Plan> {
   // Deux tentatives : un LLM peut renvoyer du JSON légèrement malformé sur un coup.
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -131,7 +131,7 @@ async function plan(client: Anthropic, run: Run): Promise<Plan> {
         messages: [
           {
             role: "user",
-            content: `Voici la note de cadrage validée par le client. Établis le plan de travail de l'équipe.\n\n${run.brief}`,
+            content: `Voici la note de cadrage validée par le client. Établis le plan de travail de l'équipe.\n\n${brief}`,
           },
         ],
       });
@@ -155,6 +155,25 @@ async function plan(client: Anthropic, run: Run): Promise<Plan> {
     }
   }
   return fallbackPlan();
+}
+
+/** Libellé lisible d'un agent (sans le préfixe `factory-`). */
+export function agentLabel(slug: string): string {
+  return slug.replace(/^factory-/, "");
+}
+
+/** Première phrase de la description d'un agent (pour la restitution du plan). */
+export function agentRole(slug: string): string {
+  return findAgent(slug)?.description.split(".")[0] ?? "";
+}
+
+/**
+ * Établit le plan de travail à partir d'un brief, SANS l'exécuter.
+ * Sert à la restitution « qui fait quoi » avant le GO de l'utilisateur (page /voice).
+ */
+export async function planForBrief(brief: string): Promise<Plan> {
+  const client = new Anthropic({ maxRetries: 4 });
+  return plan(client, brief);
 }
 
 async function runStep(
@@ -291,13 +310,19 @@ async function execute(client: Anthropic, run: Run): Promise<void> {
   await Promise.allSettled(inFlight.values());
 }
 
-/** Pilote complet d'un run : plan → exécution → synthèse. Émet tout au dashboard. À lancer SANS await (background). */
-export async function orchestrate(run: Run): Promise<void> {
+/**
+ * Pilote complet d'un run : plan → exécution → synthèse. Émet tout au dashboard.
+ * À lancer SANS await (background).
+ *
+ * `presetPlan` : plan DÉJÀ établi et validé par l'utilisateur (page /voice, restitution « qui fait
+ * quoi » avant le GO). Fourni → on saute l'étape de planification pour exécuter exactement ce plan-là.
+ */
+export async function orchestrate(run: Run, presetPlan?: Plan): Promise<void> {
   // Retries SDK intégrés (429/5xx/réseau) avant de remonter une erreur.
   const client = new Anthropic({ maxRetries: 4 });
   try {
     emit(run, { type: "run.status", status: "planning" });
-    const p = await plan(client, run);
+    const p = presetPlan ?? (await plan(client, run.brief));
     const steps: StepState[] = p.steps.map((step) => ({
       step,
       status: "pending",

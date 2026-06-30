@@ -35,13 +35,14 @@ export default function Home() {
           </div>
         </Link>
 
-        <Link href="/live" className="entry">
-          <span className="pill soft">Bientôt</span>
+        <Link href="/voice" className="entry">
+          <span className="pill soft">Nouveau</span>
           <div className="title">
-            <span className="ico">🎙️</span> Parler en direct
+            <span className="ico">🎙️</span> Parler au chef de projet
           </div>
           <div className="desc">
-            Conversation vocale temps réel avec le chef de projet (en cours de mise au point).
+            Échange vocal tour par tour : il te parle, te questionne, t'annonce qui fait quoi,
+            puis lance l'équipe à ton GO. (Temps réel : bientôt.)
           </div>
         </Link>
       </div>
