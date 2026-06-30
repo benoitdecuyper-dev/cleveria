@@ -43,6 +43,35 @@ Ils servent au test **et** de jeu de référence pour le banc d'essai qualité d
 4. **Financement** : « monte le dossier pour financer ce projet ».
 5. **Tech léger** : « cadre la V1 d'un petit outil que je veux me faire ».
 
+## Message d'approche (prêt à envoyer — LinkedIn DM / contacts)
+> Salut [Prénom] 👋 Je développe un truc et je cherche quelques indépendants pour le tester.
+> C'est un **« bras droit » IA** : tu lui files un vrai sujet — monter une offre, une proposition
+> client, ta stratégie du trimestre — et il te sort **un livrable exploitable en quelques minutes**.
+> Pas des conseils : le livrable.
+> Je prends **5-6 personnes** pour 30 min en visio cette semaine. C'est **gratuit**, et tu repars
+> avec ce qu'on aura produit sur **ton** sujet. Partant ?
+
+Variante courte (relance / froid) : *« 30 min, gratuit : tu me donnes un vrai sujet pro, mon outil te
+sort le livrable en direct. Tu repars avec. Ça t'intéresse ? »*
+
+Cibler : indépendants/consultants **en développement actif** (cf. beachhead ci-dessus). Pas de
+pitch produit, pas de deck — on **montre**.
+
+## Script de session (≈ 30 min, en visio, partage d'écran sur localhost:4242)
+1. **(2 min) Cadrer.** « Montre-moi ta semaine type. » Repère **un truc léger** (un mail, une relecture)
+   ET **un sujet plus gros qu'il repousse** (une offre, une propale, une stratégie).
+2. **(3 min) Le quotidien.** Traite le petit truc en direct → effet « assistant qui fait, pas qui cause ».
+3. **(15 min) LE test — le projet.** Lance son vrai sujet via le bras droit → le **livrable se construit
+   dans le board** sous ses yeux. C'est le moment où l'AHA se joue. Tais-toi, observe sa réaction.
+4. **(5 min) Mesurer (à chaud, sans vendre).**
+   - « Ta réaction là, sur ce livrable ? » (note l'AHA ou son absence)
+   - « Tu l'aurais déclenché toi-même ? Ça remplace quoi pour toi — 3 jours de boulot ? un presta ? »
+   - « À quel prix mensuel ça te paraît évident ? » (laisse-le donner un chiffre)
+5. **(5 min) Débrief.** Remplis la grille ci-dessous **tout de suite**, à chaud.
+
+**Règle de décision** (rappel) : ≥ ~50 % d'AHA + intention → on continue (crédit puis V2). < 40 % →
+le problème est le message/onboarding ou le produit → on repositionne **avant** de dépenser.
+
 ## Ce qu'on NE fait pas encore
 Pas d'app payante ouverte, pas d'acquisition payante, pas de grille de prix publique tant que ce test
 n'a pas tranché et que le coût réel (15-20 runs) n'est pas mesuré.
