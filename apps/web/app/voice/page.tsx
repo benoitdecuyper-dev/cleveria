@@ -68,9 +68,11 @@ export default function VoicePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [demo, setDemo] = useState(false);
-  // Voix active par défaut (TTS humain ElevenLabs ; silence si pas de clé, jamais de voix robot).
-  const [muted, setMuted] = useState(false);
+  // Voix muette d'office : aucune lecture auto. L'utilisateur clique "Écouter" sur une réponse au
+  // besoin (le vrai temps réel viendra en V2). playingIdx = index du message en cours de lecture.
+  const [playingIdx, setPlayingIdx] = useState<number | null>(null);
   const [speaking, setSpeaking] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
 
   const [planning, setPlanning] = useState(false);
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -80,8 +82,8 @@ export default function VoicePage() {
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
 
   const router = useRouter();
-  const mutedRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recRef = useRef<any>(null);
   const baseTextRef = useRef("");
@@ -90,19 +92,16 @@ export default function VoicePage() {
 
   const started = messages.length > 0;
 
-  // ── TTS serveur (ElevenLabs) : voix humaine. Pas de clé → silence (jamais de voix robot). ──
-  useEffect(() => {
-    mutedRef.current = muted;
-  }, [muted]);
-
+  // ── TTS serveur (ElevenLabs), À LA DEMANDE. Pas de clé → silence (jamais de voix robot). ──
   const stopAudio = useCallback(() => {
     audioRef.current?.pause();
     audioRef.current = null;
     setSpeaking(false);
+    setPlayingIdx(null);
   }, []);
 
-  const speak = useCallback(async (raw: string) => {
-    if (mutedRef.current) return;
+  // Joue une réponse à la demande (clic "Écouter"). idx = message lu, pour l'état du bouton.
+  const speak = useCallback(async (raw: string, idx: number | null = null) => {
     const txt = speakable(raw);
     if (!txt) return;
     try {
@@ -112,19 +111,30 @@ export default function VoicePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: txt.slice(0, 1500) }),
       });
-      if (!res.ok) return; // pas de voix dispo → silence
+      if (!res.ok) {
+        setError("Voix indisponible (clé ElevenLabs manquante ou quota atteint).");
+        return;
+      }
       const url = URL.createObjectURL(await res.blob());
       const audio = new Audio(url);
       audioRef.current = audio;
-      audio.onplay = () => setSpeaking(true);
+      audio.onplay = () => {
+        setSpeaking(true);
+        setPlayingIdx(idx);
+      };
       audio.onended = () => {
         setSpeaking(false);
+        setPlayingIdx(null);
         URL.revokeObjectURL(url);
       };
-      audio.onerror = () => setSpeaking(false);
+      audio.onerror = () => {
+        setSpeaking(false);
+        setPlayingIdx(null);
+      };
       await audio.play();
     } catch {
       setSpeaking(false);
+      setPlayingIdx(null);
     }
   }, []);
 
@@ -195,14 +205,6 @@ export default function VoicePage() {
     recognizing ? stopRec() : startRec();
   }
 
-  function toggleMute() {
-    setMuted((m) => {
-      const next = !m;
-      if (next) stopAudio();
-      return next;
-    });
-  }
-
   // ── Brief complet pour la planification ──────────────────────────────────────
   const buildBrief = useCallback((msgs: Msg[], noteIdx: number): string => {
     const transcript = msgs
@@ -233,8 +235,6 @@ export default function VoicePage() {
         if (!res.ok) throw new Error(data.error ?? "Erreur de planification");
         const p = data.plan as Plan;
         setPlan(p);
-        const acteurs = p.steps.map((s) => `${s.agentLabel}, pour ${s.title.toLowerCase()}`).join(" ; ");
-        speak(`Voici l'équipe que je mobilise. ${p.summary} Concrètement : ${acteurs}. Donne-moi le feu vert pour lancer.`);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erreur inconnue");
       } finally {
@@ -279,18 +279,22 @@ export default function VoicePage() {
     if (recognizing) stopRec();
     setError("");
     const payload = (override ?? text).trim();
-    if (!force && !payload && !demo) {
-      setError("Parle (🎤) ou écris ta réponse.");
+    const attached = files;
+    if (!force && !payload && !demo && attached.length === 0) {
+      setError("Parle (🎤), écris, ou joins un fichier.");
       return;
     }
     setLoading(true);
-    const optimistic: Msg[] = payload ? [...messages, { role: "user", text: payload }] : messages;
-    if (payload) setMessages(optimistic);
+    const userLine = payload || (attached.length ? `📎 ${attached.length} pièce(s) jointe(s)` : "");
+    const optimistic: Msg[] = userLine ? [...messages, { role: "user", text: userLine }] : messages;
+    if (userLine) setMessages(optimistic);
     setText("");
+    setFiles([]);
     try {
       const fd = new FormData();
       fd.append("history", JSON.stringify(messages.map((m) => ({ role: m.role, content: m.text }))));
       fd.append("text", payload);
+      for (const f of attached) fd.append("files", f);
       if (force) fd.append("force", "1");
       if (demo) fd.append("demo", "1");
 
@@ -303,13 +307,7 @@ export default function VoicePage() {
           { role: "assistant", text: data.reply, mode: data.mode, isNote: data.isNote, questions: data.questions ?? undefined },
         ];
         setMessages(next);
-        if (data.isNote) {
-          speak("J'ai de quoi cadrer. La note est à l'écran, je prépare le plan d'action de l'équipe.");
-          void requestPlan(next, next.length - 1);
-        } else {
-          const qs = data.questions?.map((q) => q.text).join(". ") ?? "";
-          speak([data.reply, qs].filter(Boolean).join(". "));
-        }
+        if (data.isNote) void requestPlan(next, next.length - 1);
       };
 
       const ct = res.headers.get("content-type") ?? "";
@@ -456,9 +454,6 @@ export default function VoicePage() {
             </span>
           </div>
           <span className="header-spacer" />
-          <button type="button" className="btn btn-ghost" onClick={toggleMute} title="Couper / activer la voix">
-            {muted ? "🔇" : "🔊"}
-          </button>
         </div>
       )}
 
@@ -484,11 +479,29 @@ export default function VoicePage() {
           m.role === "assistant" && m.isNote ? (
             <div key={i} className="block">
               <NoteView markdown={m.text} />
+              <button
+                type="button"
+                className="linkbtn subtle"
+                style={{ marginTop: "0.4rem" }}
+                onClick={() => (playingIdx === i ? stopAudio() : speak(m.text, i))}
+              >
+                {playingIdx === i ? "⏸ Stop" : "🔊 Écouter"}
+              </button>
             </div>
           ) : (
             <div key={i} className={`msg ${m.role === "user" ? "me" : "bot"}`}>
               {m.role === "assistant" && <div className="who">Chef de projet</div>}
               {m.role === "assistant" && !m.streaming ? <Markdown markdown={m.text} /> : <div>{m.text}</div>}
+              {m.role === "assistant" && !m.streaming && (
+                <button
+                  type="button"
+                  className="linkbtn subtle"
+                  style={{ marginTop: "0.3rem" }}
+                  onClick={() => (playingIdx === i ? stopAudio() : speak(m.text, i))}
+                >
+                  {playingIdx === i ? "⏸ Stop" : "🔊 Écouter"}
+                </button>
+              )}
               {m.questions && m.questions.length > 0 && i === messages.length - 1 && (
                 <div
                   className="qform"
@@ -590,7 +603,49 @@ export default function VoicePage() {
               </button>
             </div>
           )}
+          {files.length > 0 && (
+            <div className="chips" style={{ marginBottom: "0.4rem" }}>
+              {files.map((f, idx) => (
+                <span
+                  key={f.name + idx}
+                  className="chip"
+                  style={{ display: "inline-flex", gap: "0.35rem", alignItems: "center" }}
+                >
+                  📎 {f.name}
+                  <button
+                    type="button"
+                    aria-label="Retirer"
+                    onClick={() => setFiles((prev) => prev.filter((_, k) => k !== idx))}
+                    style={{ border: "none", background: "transparent", cursor: "pointer", color: "inherit", fontSize: "1rem", lineHeight: 1 }}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            hidden
+            onChange={(e) => {
+              const picked = Array.from(e.target.files ?? []);
+              if (picked.length) setFiles((prev) => [...prev, ...picked]);
+              e.target.value = "";
+            }}
+          />
           <div className="composer">
+            <button
+              type="button"
+              className="iconbtn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading}
+              aria-label="Joindre un fichier"
+              title="Joindre un fichier"
+            >
+              📎
+            </button>
             <button
               type="button"
               className={`iconbtn mic ${recognizing ? "rec" : ""}`}
@@ -614,7 +669,7 @@ export default function VoicePage() {
               type="button"
               className="iconbtn send"
               onClick={() => send()}
-              disabled={loading || (!text.trim() && !demo)}
+              disabled={loading || (!text.trim() && !demo && files.length === 0)}
               aria-label="Envoyer"
               title="Envoyer"
             >
