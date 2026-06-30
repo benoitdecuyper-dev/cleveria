@@ -15,7 +15,8 @@ type Question = {
   allowFreeText?: boolean;
 };
 type Mode = "direct" | "questions" | "cadrage";
-type Msg = { role: "user" | "assistant"; text: string; mode?: Mode; isNote?: boolean; questions?: Question[] };
+type Msg = { role: "user" | "assistant"; text: string; mode?: Mode; isNote?: boolean; questions?: Question[]; streaming?: boolean };
+type BriefDone = { reply: string; mode?: Mode; isNote?: boolean; questions?: Question[] };
 type RichStep = {
   id: string;
   agent: string;
@@ -299,22 +300,85 @@ export default function VoicePage() {
       if (demo) fd.append("demo", "1");
 
       const res = await fetch("/api/brief", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erreur serveur");
 
-      const next: Msg[] = [
-        ...optimistic,
-        { role: "assistant", text: data.reply, mode: data.mode, isNote: data.isNote, questions: data.questions ?? undefined },
-      ];
-      setMessages(next);
+      // Finalisation commune (flux terminé OU réponse démo/JSON).
+      const finalize = (data: BriefDone) => {
+        const next: Msg[] = [
+          ...optimistic,
+          { role: "assistant", text: data.reply, mode: data.mode, isNote: data.isNote, questions: data.questions ?? undefined },
+        ];
+        setMessages(next);
+        if (data.isNote) {
+          speak("J'ai de quoi cadrer. La note est à l'écran, je prépare le plan d'action de l'équipe.");
+          void requestPlan(next, next.length - 1);
+        } else {
+          const qs = data.questions?.map((q) => q.text).join(". ") ?? "";
+          speak([data.reply, qs].filter(Boolean).join(". "));
+        }
+      };
 
-      if (data.isNote) {
-        speak("J'ai de quoi cadrer. La note est à l'écran, je prépare le plan d'action de l'équipe.");
-        void requestPlan(next, next.length - 1);
-      } else {
-        const qs = (data.questions as Question[] | undefined)?.map((q) => q.text).join(". ") ?? "";
-        speak([data.reply, qs].filter(Boolean).join(". "));
+      const ct = res.headers.get("content-type") ?? "";
+
+      // Démo / erreurs : JSON classique.
+      if (!ct.includes("event-stream")) {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Erreur serveur");
+        finalize(data);
+        return;
       }
+
+      // Flux SSE : le bras droit "écrit en live".
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      let raw = "";
+      let headerParsed = false;
+      let liveMode: Mode | null = null;
+      let finalData: BriefDone | null = null;
+
+      const showLive = (body: string) =>
+        setMessages([...optimistic, { role: "assistant", text: body || "…", mode: liveMode ?? undefined, streaming: true }]);
+      showLive("");
+
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let sep: number;
+        while ((sep = buf.indexOf("\n\n")) >= 0) {
+          const chunk = buf.slice(0, sep);
+          buf = buf.slice(sep + 2);
+          const payloadLine = chunk.startsWith("data:") ? chunk.slice(5).trim() : chunk.trim();
+          if (!payloadLine) continue;
+          let evt: { t?: string; text?: string; error?: string } & BriefDone;
+          try {
+            evt = JSON.parse(payloadLine);
+          } catch {
+            continue;
+          }
+          if (evt.t === "delta") {
+            raw += evt.text ?? "";
+            if (!headerParsed) {
+              const nl = raw.indexOf("\n");
+              if (nl >= 0) {
+                const mm = /^MODE:\s*(direct|questions|cadrage)/i.exec(raw.slice(0, nl));
+                liveMode = (mm?.[1]?.toLowerCase() as Mode) ?? "questions";
+                headerParsed = true;
+              }
+            }
+            // Affichage live hors mode "questions" (qui contient un bloc JSON à ne pas montrer brut).
+            if (headerParsed && liveMode !== "questions") {
+              const nl = raw.indexOf("\n");
+              showLive(nl >= 0 ? raw.slice(nl + 1) : "");
+            }
+          } else if (evt.t === "done") {
+            finalData = evt;
+          } else if (evt.t === "error") {
+            throw new Error(evt.error ?? "Erreur serveur");
+          }
+        }
+      }
+      if (finalData) finalize(finalData);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur inconnue");
       if (payload) setText(payload); // on rend la saisie en cas d'échec
@@ -429,7 +493,7 @@ export default function VoicePage() {
           ) : (
             <div key={i} className={`msg ${m.role === "user" ? "me" : "bot"}`}>
               {m.role === "assistant" && <div className="who">Chef de projet</div>}
-              {m.role === "assistant" ? <Markdown markdown={m.text} /> : <div>{m.text}</div>}
+              {m.role === "assistant" && !m.streaming ? <Markdown markdown={m.text} /> : <div>{m.text}</div>}
               {m.questions && m.questions.length > 0 && i === messages.length - 1 && (
                 <div
                   className="qform"

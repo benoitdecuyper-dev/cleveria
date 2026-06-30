@@ -115,6 +115,33 @@ async function transcribe(audio: File): Promise<string> {
 
 type ContentBlocks = Exclude<Anthropic.MessageParam["content"], string>;
 
+type Mode = "direct" | "questions" | "cadrage";
+
+// Extrait le mode (1re ligne `MODE: …`) + le bloc JSON de questions du texte complet du bras droit.
+function parseReply(input: string): { reply: string; mode: Mode; isNote: boolean; questions: unknown } {
+  let reply = input.trim();
+  const firstLine = reply.split("\n", 1)[0] ?? "";
+  const modeMatch = /^MODE:\s*(direct|questions|cadrage)/i.exec(firstLine);
+  const mode = (modeMatch?.[1]?.toLowerCase() ?? "questions") as Mode;
+  const isNote = mode === "cadrage";
+  if (modeMatch) reply = reply.slice(firstLine.length).trim();
+
+  let questions: unknown = null;
+  if (mode === "questions") {
+    const m = /```json\s*\n([\s\S]*?)```/.exec(reply);
+    if (m) {
+      try {
+        const parsed = JSON.parse(m[1]);
+        if (Array.isArray(parsed?.questions)) questions = parsed.questions;
+      } catch {
+        /* JSON invalide → on retombe sur le texte libre */
+      }
+      reply = (reply.slice(0, m.index) + reply.slice(m.index + m[0].length)).trim();
+    }
+  }
+  return { reply, mode, isNote, questions };
+}
+
 export async function POST(req: Request) {
   try {
     const form = await req.formData();
@@ -194,41 +221,39 @@ export async function POST(req: Request) {
     ];
 
     const chef = getChefDeProjet();
+    const system = `${chef.prompt}${prefsBlock(userContext)}\n\n${BRAS_DROIT_INSTRUCTIONS}`;
 
-    let reply = (
-      await llmGenerate({
-        model: resolveModel(chef.model),
-        maxTokens: 6000,
-        system: `${chef.prompt}${prefsBlock(userContext)}\n\n${BRAS_DROIT_INSTRUCTIONS}`,
-        messages,
-      })
-    ).trim();
-
-    // Détecte le mode via la 1re ligne `MODE: ...`, puis la retire de l'affichage.
-    const firstLine = reply.split("\n", 1)[0] ?? "";
-    const modeMatch = /^MODE:\s*(direct|questions|cadrage)/i.exec(firstLine);
-    const mode = (modeMatch?.[1]?.toLowerCase() ?? "questions") as "direct" | "questions" | "cadrage";
-    const isNote = mode === "cadrage";
-    if (modeMatch) {
-      reply = reply.slice(firstLine.length).trim();
-    }
-
-    // Bloc JSON de questions cliquables : uniquement en mode `questions`.
-    let questions: unknown = null;
-    if (mode === "questions") {
-      const m = /```json\s*\n([\s\S]*?)```/.exec(reply);
-      if (m) {
+    // Réponse en flux (SSE) : le bras droit "écrit en live". Événements :
+    //   {t:"delta", text}  → fragments au fil de l'eau
+    //   {t:"done", reply, mode, isNote, questions, userEcho}  → résultat final structuré
+    //   {t:"error", error} → erreur en cours de route
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const emit = (obj: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
         try {
-          const parsed = JSON.parse(m[1]);
-          if (Array.isArray(parsed?.questions)) questions = parsed.questions;
-        } catch {
-          /* JSON invalide → on retombe sur le texte libre */
+          const raw = await llmGenerate({
+            model: resolveModel(chef.model),
+            maxTokens: 6000,
+            system,
+            messages,
+            onText: (t) => emit({ t: "delta", text: t }),
+          });
+          emit({ t: "done", ...parseReply(raw), userEcho });
+        } catch (e) {
+          emit({ t: "error", error: humanError(e) });
+        } finally {
+          controller.close();
         }
-        reply = (reply.slice(0, m.index) + reply.slice(m.index + m[0].length)).trim();
-      }
-    }
-
-    return Response.json({ reply, mode, isNote, questions, userEcho });
+      },
+    });
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+      },
+    });
   } catch (e) {
     return Response.json({ error: humanError(e) }, { status: 500 });
   }
