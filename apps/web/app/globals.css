@@ -314,6 +314,7 @@ h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
 .cbtn.send { background: var(--primary); color:#fff; box-shadow: 0 4px 12px rgba(79,70,229,.32); }
 .cbtn.send:hover:not(:disabled) { background: var(--primary-600); color:#fff; }
 .cbtn.send:disabled { background: var(--surface-2); color: var(--pending); box-shadow:none; opacity:1; }
+.cbtn.voice-on { color: var(--primary-600); }
 
 /* Bouton "Écouter" (lecture TTS à la demande) */
 .playbtn {

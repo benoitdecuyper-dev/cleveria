@@ -5,6 +5,12 @@ import { test, expect } from "@playwright/test";
 // (envoi → réponse scriptée du chef de projet).
 
 test.describe("/voice — parcours chat", () => {
+  // La voix est active par défaut → on coupe l'appel TTS (ElevenLabs) pour garder
+  // le smoke hermétique et déterministe (la lecture audio n'est pas l'objet du test).
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/tts", (route) => route.abort());
+  });
+
   test("affiche l'accueil et le composer", async ({ page }) => {
     await page.goto("/voice");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

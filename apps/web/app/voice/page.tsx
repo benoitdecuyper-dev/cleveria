@@ -105,6 +105,20 @@ const IcoClose = () => (
     <line x1="18" y1="6" x2="6" y2="18" />
   </svg>
 );
+const IcoSpeaker = () => (
+  <svg {...svg.base} aria-hidden>
+    <path d="M11 4.7 6.5 8H3v8h3.5L11 19.3z" />
+    <path d="M16 8.5a4 4 0 0 1 0 7" />
+    <path d="M19.5 6a8 8 0 0 1 0 12" />
+  </svg>
+);
+const IcoSpeakerOff = () => (
+  <svg {...svg.base} aria-hidden>
+    <path d="M11 4.7 6.5 8H3v8h3.5L11 19.3z" />
+    <line x1="22" y1="9" x2="16" y2="15" />
+    <line x1="16" y1="9" x2="22" y2="15" />
+  </svg>
+);
 // Indicateur "il écrit…" : 3 points animés, comme dans une vraie messagerie.
 const TypingDots = () => (
   <span className="typing-dots" aria-label="en train d'écrire" role="status">
@@ -119,10 +133,12 @@ export default function VoicePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [demo, setDemo] = useState(false);
-  // Voix muette d'office : aucune lecture auto. L'utilisateur clique "Écouter" sur une réponse au
-  // besoin (le vrai temps réel viendra en V2). playingIdx = index du message en cours de lecture.
+  // Voix ACTIVE par défaut : le chef de projet lit à voix haute sa ligne VOIX (une vraie
+  // reformulation orale, différente du texte écrit). Coupable via le bouton 🔊/🔇.
+  // playingIdx = index du message en cours de lecture.
   const [playingIdx, setPlayingIdx] = useState<number | null>(null);
   const [speaking, setSpeaking] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(true);
   const [files, setFiles] = useState<File[]>([]);
   // Board : le brouillon de livrable que le bras droit projette et construit en live.
   const [board, setBoard] = useState<Board | null>(null);
@@ -137,6 +153,8 @@ export default function VoicePage() {
   const router = useRouter();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ttsAbortRef = useRef<AbortController | null>(null);
+  // Index du dernier message déjà auto-lu, pour ne pas le relire à chaque re-render.
+  const autoPlayedRef = useRef(-1);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recRef = useRef<any>(null);
@@ -209,6 +227,19 @@ export default function VoicePage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, planning, plan, loading]);
+
+  // Auto-lecture : dès qu'une réponse finalisée arrive, on lit sa ligne VOIX (ou son
+  // texte). Le clic "Envoyer"/micro juste avant fait office de geste utilisateur, donc
+  // l'autoplay navigateur passe. Silencieux si la voix est indisponible.
+  useEffect(() => {
+    if (!voiceOn) return;
+    const idx = messages.length - 1;
+    const m = messages[idx];
+    if (!m || m.role !== "assistant" || m.streaming) return;
+    if (autoPlayedRef.current >= idx) return; // déjà lu
+    autoPlayedRef.current = idx;
+    void speak(m.spoken ?? m.text, idx, true);
+  }, [messages, voiceOn, speak]);
 
   useEffect(() => {
     const el = fieldRef.current;
@@ -566,6 +597,21 @@ export default function VoicePage() {
             </span>
           </div>
           <span className="header-spacer" />
+          <button
+            type="button"
+            className={`cbtn ${voiceOn ? "voice-on" : ""}`}
+            onClick={() =>
+              setVoiceOn((v) => {
+                if (v) stopAudio(); // on coupe → on arrête une lecture en cours
+                return !v;
+              })
+            }
+            aria-pressed={voiceOn}
+            aria-label={voiceOn ? "Couper la voix" : "Activer la voix"}
+            title={voiceOn ? "Voix activée — cliquer pour couper" : "Voix coupée — cliquer pour activer"}
+          >
+            {voiceOn ? <IcoSpeaker /> : <IcoSpeakerOff />}
+          </button>
         </div>
       )}
 
