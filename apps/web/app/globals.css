@@ -305,6 +305,10 @@ h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
 .cbtn.send { background: var(--primary); color:#fff; box-shadow: 0 4px 12px rgba(79,70,229,.32); }
 .cbtn.send:hover:not(:disabled) { background: var(--primary-600); color:#fff; }
 .cbtn.send:disabled { background: var(--surface-2); color: var(--pending); box-shadow:none; opacity:1; }
+/* Trombone + micro : teinte de marque pour qu'ils ressortent */
+.composer-bar .cbtn:not(.send) { color: var(--primary-600); }
+.composer-bar .cbtn:not(.send):hover:not(:disabled) { background: var(--primary-50); color: var(--primary-600); }
+.composer-bar .cbtn.mic.rec, .composer-bar .cbtn.mic.rec:hover { color: #fff; }
 
 /* Bouton "Écouter" (lecture TTS à la demande) */
 .playbtn {

@@ -90,25 +90,25 @@ function speakable(md: string): string {
 
 // ── Icônes (SVG inline, héritent de currentColor) ────────────────────────────
 const svg = {
-  base: { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const },
+  base: { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const },
 };
+// Géométrie Lucide (icônes de référence).
 const IcoClip = () => (
   <svg {...svg.base} aria-hidden>
-    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
   </svg>
 );
 const IcoMic = () => (
   <svg {...svg.base} aria-hidden>
-    <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
-    <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
-    <line x1="12" y1="18" x2="12" y2="22" />
-    <line x1="8" y1="22" x2="16" y2="22" />
+    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <line x1="12" x2="12" y1="19" y2="22" />
   </svg>
 );
 const IcoSend = () => (
   <svg {...svg.base} aria-hidden>
-    <line x1="12" y1="19" x2="12" y2="6" />
-    <polyline points="6 12 12 6 18 12" />
+    <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" />
+    <path d="m21.854 2.147-10.94 10.939" />
   </svg>
 );
 const IcoStop = () => (
