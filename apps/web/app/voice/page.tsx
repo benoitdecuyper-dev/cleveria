@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import NoteView from "../brief/NoteView";
+import Markdown from "../components/Markdown";
 
 // ── Types (alignés sur /api/brief et /api/plan) ───────────────────────────────
 type Question = {
@@ -13,7 +14,8 @@ type Question = {
   options?: string[];
   allowFreeText?: boolean;
 };
-type Msg = { role: "user" | "assistant"; text: string; isNote?: boolean; questions?: Question[] };
+type Mode = "direct" | "questions" | "cadrage";
+type Msg = { role: "user" | "assistant"; text: string; mode?: Mode; isNote?: boolean; questions?: Question[] };
 type RichStep = {
   id: string;
   agent: string;
@@ -42,9 +44,10 @@ const POLES: { label: string; members: string[] }[] = [
 ];
 
 const EXAMPLES = [
-  "Un site vitrine pour mon activité",
-  "Une appli mobile entre voisins",
+  "Relis et corrige ce mail client",
+  "Aide-moi à structurer mon idée",
   "Monter une asso et la financer",
+  "Un site vitrine pour mon activité",
 ];
 
 // Nettoyage du Markdown pour la lecture vocale (TTS).
@@ -262,7 +265,7 @@ export default function VoicePage() {
 
       const next: Msg[] = [
         ...optimistic,
-        { role: "assistant", text: data.reply, isNote: data.isNote, questions: data.questions ?? undefined },
+        { role: "assistant", text: data.reply, mode: data.mode, isNote: data.isNote, questions: data.questions ?? undefined },
       ];
       setMessages(next);
 
@@ -327,14 +330,14 @@ export default function VoicePage() {
       {!started ? (
         <div className="vhero">
           <div className={`avatar ${avatarState}`}>CdP</div>
-          <p className="eyebrow">Ta DSI à la demande</p>
-          <h1>Décris ton projet. Le chef de projet s'occupe du reste.</h1>
+          <p className="eyebrow">Ton bras droit à la demande</p>
+          <h1>Demande-lui n'importe quoi. Il s'en occupe.</h1>
           <p className="lead">
-            Parle ou écris. Il te <strong>questionne</strong>, t'annonce <strong>qui fait quoi</strong>,
-            puis lance l'équipe à ton <strong>GO</strong>.
+            Parle ou écris. Les <strong>tâches du quotidien</strong>, il les fait lui-même, tout de suite.
+            Les <strong>vrais projets</strong>, il mobilise une équipe de spécialistes et te livre.
           </p>
           <p className="muted" style={{ fontSize: "0.86rem", margin: "1.1rem 0 0" }}>
-            L'équipe qu'il peut mobiliser — <strong>21 spécialistes</strong> en 6 pôles{" "}
+            L'équipe qu'il peut mobiliser pour un projet — <strong>21 spécialistes</strong> en 6 pôles{" "}
             <span className="muted">(survole un pôle pour voir qui s'y trouve)</span> :
           </p>
           <div className="poles">
@@ -387,7 +390,7 @@ export default function VoicePage() {
           ) : (
             <div key={i} className={`msg ${m.role === "user" ? "me" : "bot"}`}>
               {m.role === "assistant" && <div className="who">Chef de projet</div>}
-              <div>{m.text}</div>
+              {m.role === "assistant" && m.mode === "direct" ? <Markdown markdown={m.text} /> : <div>{m.text}</div>}
               {m.questions && m.questions.length > 0 && i === messages.length - 1 && (
                 <div className="chips" style={{ marginTop: "0.5rem" }}>
                   {m.questions.flatMap((q) =>
