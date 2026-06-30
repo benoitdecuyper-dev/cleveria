@@ -10,9 +10,9 @@
 //
 // Tout est diffusé au dashboard via le bus d'événements de runStore (SSE).
 
-import Anthropic from "@anthropic-ai/sdk";
 import { getAgents, getChefDeProjet, type FactoryAgent } from "@cleveria/factory";
 import { emit, type Plan, type PlanStep, type Run, type StepState } from "./runStore";
+import { llmGenerate } from "./llm";
 
 const MAX_PARALLEL = 3;
 
@@ -163,13 +163,13 @@ function fallbackPlan(): Plan {
   };
 }
 
-async function plan(client: Anthropic, brief: string): Promise<Plan> {
+async function plan(brief: string): Promise<Plan> {
   // Deux tentatives : un LLM peut renvoyer du JSON légèrement malformé sur un coup.
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const message = await client.messages.create({
+      const raw = await llmGenerate({
         model: resolveModel("sonnet"),
-        max_tokens: 2000,
+        maxTokens: 2000,
         system: plannerSystem(),
         messages: [
           {
@@ -178,10 +178,6 @@ async function plan(client: Anthropic, brief: string): Promise<Plan> {
           },
         ],
       });
-      const raw = message.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text)
-        .join("\n");
 
       const parsed = JSON.parse(extractJson(raw)) as Plan;
       // Ne garde que les étapes dont l'agent existe vraiment ; nettoie les dépendances orphelines.
@@ -215,12 +211,10 @@ export function agentRole(slug: string): string {
  * Sert à la restitution « qui fait quoi » avant le GO de l'utilisateur (page /voice).
  */
 export async function planForBrief(brief: string): Promise<Plan> {
-  const client = new Anthropic({ maxRetries: 4 });
-  return plan(client, brief);
+  return plan(brief);
 }
 
 async function runStep(
-  client: Anthropic,
   run: Run,
   step: PlanStep,
   depsOutputs: { title: string; output: string }[],
@@ -242,22 +236,16 @@ async function runStep(
     .join("\n");
 
   // Streaming : on pousse chaque fragment au dashboard pour « voir l'agent taper ».
-  const stream = client.messages.stream({
+  return llmGenerate({
     model: resolveModel(agent.model),
-    max_tokens: 4000,
+    maxTokens: 4000,
     system: `${agent.prompt}\n\n${CLEVERIA_DELIVERY_OPS}`,
     messages: [{ role: "user", content: context }],
+    onText: onDelta,
   });
-  stream.on("text", (t) => onDelta(t));
-  const message = await stream.finalMessage();
-  return message.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("\n")
-    .trim();
 }
 
-async function synthesize(client: Anthropic, run: Run): Promise<string> {
+async function synthesize(run: Run): Promise<string> {
   const chef = getChefDeProjet();
   const deliverables = run.plan!.steps
     .map((s) => {
@@ -266,9 +254,9 @@ async function synthesize(client: Anthropic, run: Run): Promise<string> {
     })
     .join("\n\n");
 
-  const stream = client.messages.stream({
+  return llmGenerate({
     model: resolveModel("opus"),
-    max_tokens: 4000,
+    maxTokens: 4000,
     system: `${chef.prompt}\n\n${CLEVERIA_SYNTHESIS_OPS}`,
     messages: [
       {
@@ -286,18 +274,12 @@ async function synthesize(client: Anthropic, run: Run): Promise<string> {
         ].join("\n"),
       },
     ],
+    onText: (t) => emit(run, { type: "synthesis.delta", text: t }),
   });
-  stream.on("text", (t) => emit(run, { type: "synthesis.delta", text: t }));
-  const message = await stream.finalMessage();
-  return message.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("\n")
-    .trim();
 }
 
 /** Exécute le DAG : étapes prêtes (dépendances terminées) lancées par vagues, max MAX_PARALLEL en simultané. */
-async function execute(client: Anthropic, run: Run): Promise<void> {
+async function execute(run: Run): Promise<void> {
   const steps = run.plan!.steps;
   const done = new Set<string>();
   const failed = new Set<string>();
@@ -329,7 +311,7 @@ async function execute(client: Anthropic, run: Run): Promise<void> {
         .map((d) => ({ title: run.steps[d].step.title, output: run.steps[d].output ?? "" }))
         .filter((d) => d.output);
 
-      const p = runStep(client, run, step, depsOutputs, (text) =>
+      const p = runStep(run, step, depsOutputs, (text) =>
         emit(run, { type: "step.delta", id: step.id, text }),
       )
         .then((output) => {
@@ -361,11 +343,9 @@ async function execute(client: Anthropic, run: Run): Promise<void> {
  * quoi » avant le GO). Fourni → on saute l'étape de planification pour exécuter exactement ce plan-là.
  */
 export async function orchestrate(run: Run, presetPlan?: Plan): Promise<void> {
-  // Retries SDK intégrés (429/5xx/réseau) avant de remonter une erreur.
-  const client = new Anthropic({ maxRetries: 4 });
   try {
     emit(run, { type: "run.status", status: "planning" });
-    const p = presetPlan ?? (await plan(client, run.brief));
+    const p = presetPlan ?? (await plan(run.brief));
     const steps: StepState[] = p.steps.map((step) => ({
       step,
       status: "pending",
@@ -374,9 +354,9 @@ export async function orchestrate(run: Run, presetPlan?: Plan): Promise<void> {
     emit(run, { type: "planned", plan: p, steps });
 
     emit(run, { type: "run.status", status: "running" });
-    await execute(client, run);
+    await execute(run);
 
-    const synthesis = await synthesize(client, run);
+    const synthesis = await synthesize(run);
     emit(run, { type: "synthesis", output: synthesis });
     emit(run, { type: "run.status", status: "done" });
   } catch (e) {

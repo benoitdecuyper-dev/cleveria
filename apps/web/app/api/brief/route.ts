@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { getChefDeProjet } from "@cleveria/factory";
 import { demoBriefResponse } from "../../../lib/demo";
 import { humanError } from "../../../lib/orchestrator";
+import { llmGenerate, localProvider } from "../../../lib/llm";
 
 // Le lecteur d'agents lit le système de fichiers → runtime Node (pas Edge).
 export const runtime = "nodejs";
@@ -140,7 +141,7 @@ export async function POST(req: Request) {
       return Response.json({ ...demoBriefResponse(history.length, force), userEcho });
     }
 
-    if (!process.env.ANTHROPIC_API_KEY) {
+    if (!localProvider() && !process.env.ANTHROPIC_API_KEY) {
       return Response.json({ error: "ANTHROPIC_API_KEY manquante." }, { status: 500 });
     }
 
@@ -193,20 +194,15 @@ export async function POST(req: Request) {
     ];
 
     const chef = getChefDeProjet();
-    const client = new Anthropic();
 
-    const message = await client.messages.create({
-      model: resolveModel(chef.model),
-      max_tokens: 6000,
-      system: `${chef.prompt}${prefsBlock(userContext)}\n\n${BRAS_DROIT_INSTRUCTIONS}`,
-      messages,
-    });
-
-    let reply = message.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("\n")
-      .trim();
+    let reply = (
+      await llmGenerate({
+        model: resolveModel(chef.model),
+        maxTokens: 6000,
+        system: `${chef.prompt}${prefsBlock(userContext)}\n\n${BRAS_DROIT_INSTRUCTIONS}`,
+        messages,
+      })
+    ).trim();
 
     // Détecte le mode via la 1re ligne `MODE: ...`, puis la retire de l'affichage.
     const firstLine = reply.split("\n", 1)[0] ?? "";
