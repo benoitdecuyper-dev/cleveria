@@ -68,8 +68,8 @@ export default function VoicePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [demo, setDemo] = useState(false);
-  // Voix coupée par défaut (la voix navigateur est trop robotique) — l'utilisateur l'active s'il veut.
-  const [muted, setMuted] = useState(true);
+  // Voix active par défaut (TTS humain ElevenLabs ; silence si pas de clé, jamais de voix robot).
+  const [muted, setMuted] = useState(false);
   const [speaking, setSpeaking] = useState(false);
 
   const [planning, setPlanning] = useState(false);
@@ -81,7 +81,7 @@ export default function VoicePage() {
 
   const router = useRouter();
   const mutedRef = useRef(false);
-  const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recRef = useRef<any>(null);
   const baseTextRef = useRef("");
@@ -90,44 +90,42 @@ export default function VoicePage() {
 
   const started = messages.length > 0;
 
-  // ── TTS : voix du navigateur (V1, gratuit). V2 = TTS serveur (Cartesia). ──────
+  // ── TTS serveur (ElevenLabs) : voix humaine. Pas de clé → silence (jamais de voix robot). ──
   useEffect(() => {
     mutedRef.current = muted;
   }, [muted]);
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    const pick = () => {
-      const v = window.speechSynthesis.getVoices();
-      const fr = v.filter((x) => /^fr/i.test(x.lang));
-      // Privilégie les voix de meilleure qualité quand elles existent (Google / Natural / noms FR).
-      voiceRef.current =
-        fr.find((x) => /google|natural|amélie|amelie|thomas|audrey|marie|denise/i.test(x.name)) ??
-        fr.find((x) => /fr-FR/i.test(x.lang)) ??
-        fr[0] ??
-        null;
-    };
-    pick();
-    window.speechSynthesis.onvoiceschanged = pick;
-    return () => {
-      window.speechSynthesis.onvoiceschanged = null;
-      window.speechSynthesis.cancel();
-    };
+  const stopAudio = useCallback(() => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    setSpeaking(false);
   }, []);
 
-  const speak = useCallback((raw: string) => {
-    if (typeof window === "undefined" || !window.speechSynthesis || mutedRef.current) return;
+  const speak = useCallback(async (raw: string) => {
+    if (mutedRef.current) return;
     const txt = speakable(raw);
     if (!txt) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(txt.slice(0, 600));
-    u.lang = "fr-FR";
-    if (voiceRef.current) u.voice = voiceRef.current;
-    u.rate = 1.05;
-    u.onstart = () => setSpeaking(true);
-    u.onend = () => setSpeaking(false);
-    u.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(u);
+    try {
+      audioRef.current?.pause();
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: txt.slice(0, 1500) }),
+      });
+      if (!res.ok) return; // pas de voix dispo → silence
+      const url = URL.createObjectURL(await res.blob());
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onplay = () => setSpeaking(true);
+      audio.onended = () => {
+        setSpeaking(false);
+        URL.revokeObjectURL(url);
+      };
+      audio.onerror = () => setSpeaking(false);
+      await audio.play();
+    } catch {
+      setSpeaking(false);
+    }
   }, []);
 
   // Auto-scroll en bas du fil + auto-grow du champ.
@@ -160,7 +158,7 @@ export default function VoicePage() {
       setError("La reconnaissance vocale n'est pas dispo sur ce navigateur (essaie Chrome ou Edge). Tu peux écrire ta réponse.");
       return;
     }
-    if (window.speechSynthesis) window.speechSynthesis.cancel(); // ne pas se réécouter
+    stopAudio(); // ne pas se réécouter
     const rec = new SR();
     rec.lang = "fr-FR";
     rec.continuous = true;
@@ -200,10 +198,7 @@ export default function VoicePage() {
   function toggleMute() {
     setMuted((m) => {
       const next = !m;
-      if (next && typeof window !== "undefined" && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-        setSpeaking(false);
-      }
+      if (next) stopAudio();
       return next;
     });
   }
@@ -394,7 +389,7 @@ export default function VoicePage() {
     if (noteIdx < 0) return;
     setLaunching(true);
     setError("");
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    stopAudio();
     try {
       const res = await fetch("/api/run", {
         method: "POST",
