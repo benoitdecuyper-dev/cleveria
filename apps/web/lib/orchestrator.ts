@@ -36,6 +36,18 @@ fichiers, ni second tour, ni dialogue** avec le client.
   à un échange que l'autre n'a pas vu.
 `.trim();
 
+// Variante pour la SYNTHÈSE finale du CDP : il agrège des livrables produits sans exécution réelle.
+// Sans ça, la garde anti-hallucination saute au dernier mètre (le CDP peut requalifier « prêt à
+// exécuter » en « fait/testé/déployé »). Cf. rétro manager 2026-06-30.
+const CLEVERIA_SYNTHESIS_OPS = `
+## Restitution (Cleveria)
+Tu agrèges des livrables produits **sans exécution réelle** (agents one-shot, sans outils).
+- Ne requalifie **jamais** un livrable « prêt à exécuter / à tester / à déployer » en « fait / testé /
+  déployé ». Reste fidèle à ce que les agents ont réellement produit.
+- **Conserve et regroupe les hypothèses ouvertes** des agents ; ne les gomme pas dans une conclusion lisse.
+- Tu **restitues et recommandes** — tu ne promets pas un résultat que personne n'a constaté.
+`.trim();
+
 /** Transforme une erreur API brute en message lisible pour l'utilisateur. */
 export function humanError(e: unknown): string {
   const raw = e instanceof Error ? e.message : String(e ?? "Erreur inconnue");
@@ -246,7 +258,7 @@ async function synthesize(client: Anthropic, run: Run): Promise<string> {
   const stream = client.messages.stream({
     model: resolveModel("opus"),
     max_tokens: 4000,
-    system: chef.prompt,
+    system: `${chef.prompt}\n\n${CLEVERIA_SYNTHESIS_OPS}`,
     messages: [
       {
         role: "user",
