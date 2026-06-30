@@ -67,12 +67,16 @@ export default function VoicePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [demo, setDemo] = useState(false);
-  const [muted, setMuted] = useState(false);
+  // Voix coupée par défaut (la voix navigateur est trop robotique) — l'utilisateur l'active s'il veut.
+  const [muted, setMuted] = useState(true);
   const [speaking, setSpeaking] = useState(false);
 
   const [planning, setPlanning] = useState(false);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [launching, setLaunching] = useState(false);
+  // Réponses sélectionnées au formulaire de questions (par id de question). On envoie la sélection,
+  // on ne l'injecte PAS dans le champ de saisie.
+  const [answers, setAnswers] = useState<Record<string, string[]>>({});
 
   const router = useRouter();
   const mutedRef = useRef(false);
@@ -94,7 +98,13 @@ export default function VoicePage() {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     const pick = () => {
       const v = window.speechSynthesis.getVoices();
-      voiceRef.current = v.find((x) => /fr-FR/i.test(x.lang)) ?? v.find((x) => /^fr/i.test(x.lang)) ?? null;
+      const fr = v.filter((x) => /^fr/i.test(x.lang));
+      // Privilégie les voix de meilleure qualité quand elles existent (Google / Natural / noms FR).
+      voiceRef.current =
+        fr.find((x) => /google|natural|amélie|amelie|thomas|audrey|marie|denise/i.test(x.name)) ??
+        fr.find((x) => /fr-FR/i.test(x.lang)) ??
+        fr[0] ??
+        null;
     };
     pick();
     window.speechSynthesis.onvoiceschanged = pick;
@@ -238,12 +248,41 @@ export default function VoicePage() {
     [buildBrief, demo, speak],
   );
 
+  // Bascule une option de réponse (single = remplace, multi = ajoute/retire).
+  function toggleAnswer(q: Question, opt: string) {
+    setAnswers((prev) => {
+      const cur = prev[q.id] ?? [];
+      if (q.type === "multi") {
+        return { ...prev, [q.id]: cur.includes(opt) ? cur.filter((o) => o !== opt) : [...cur, opt] };
+      }
+      return { ...prev, [q.id]: cur.includes(opt) ? [] : [opt] };
+    });
+  }
+
+  // Envoie les réponses sélectionnées (formulaire) — pas via le champ de saisie.
+  function submitAnswers(qs: Question[]) {
+    const parts = qs
+      .map((q) => {
+        const sel = answers[q.id] ?? [];
+        return sel.length ? `${q.text} → ${sel.join(", ")}` : null;
+      })
+      .filter(Boolean) as string[];
+    const extra = text.trim();
+    const payload = [parts.join(" ; "), extra].filter(Boolean).join(" ; ");
+    if (!payload) {
+      setError("Sélectionne au moins une réponse (ou écris).");
+      return;
+    }
+    setAnswers({});
+    void send({ override: payload });
+  }
+
   // ── Un tour de conversation (texte uniquement : la voix a déjà été transcrite) ─
-  async function send(opts: { force?: boolean } = {}) {
-    const { force = false } = opts;
+  async function send(opts: { force?: boolean; override?: string } = {}) {
+    const { force = false, override } = opts;
     if (recognizing) stopRec();
     setError("");
-    const payload = text.trim();
+    const payload = (override ?? text).trim();
     if (!force && !payload && !demo) {
       setError("Parle (🎤) ou écris ta réponse.");
       return;
@@ -392,19 +431,46 @@ export default function VoicePage() {
               {m.role === "assistant" && <div className="who">Chef de projet</div>}
               {m.role === "assistant" ? <Markdown markdown={m.text} /> : <div>{m.text}</div>}
               {m.questions && m.questions.length > 0 && i === messages.length - 1 && (
-                <div className="chips" style={{ marginTop: "0.5rem" }}>
-                  {m.questions.flatMap((q) =>
-                    (q.options ?? []).map((opt) => (
-                      <button
-                        key={q.id + opt}
-                        type="button"
-                        className="chip"
-                        onClick={() => setText((t) => (t ? `${t} ; ${opt}` : opt))}
-                      >
-                        {opt}
-                      </button>
-                    )),
-                  )}
+                <div
+                  className="qform"
+                  style={{ marginTop: "0.6rem", display: "flex", flexDirection: "column", gap: "0.7rem" }}
+                >
+                  {m.questions.map((q) => (
+                    <div key={q.id}>
+                      <div className="muted" style={{ fontSize: "0.9rem", marginBottom: "0.3rem" }}>
+                        {q.text}
+                        {q.type === "multi" ? " (plusieurs choix)" : ""}
+                      </div>
+                      {q.options && q.options.length > 0 && (
+                        <div className="chips" style={{ marginTop: 0 }}>
+                          {q.options.map((opt) => {
+                            const sel = (answers[q.id] ?? []).includes(opt);
+                            return (
+                              <button
+                                key={q.id + opt}
+                                type="button"
+                                className={`chip ${sel ? "selected" : ""}`}
+                                aria-pressed={sel}
+                                onClick={() => toggleAnswer(q, opt)}
+                              >
+                                {opt}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <div>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => submitAnswers(m.questions!)}
+                      disabled={loading}
+                    >
+                      Valider mes réponses
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
