@@ -117,6 +117,32 @@ Hors périmètre passe 1 (raffinage ultérieur, surtout Claude Code) : `debugger
 3. **Mesure (avec crédit)** : dérouler les tâches canoniques, comparer, garder ce qui améliore.
 4. Resync `npm run sync:agents`, build, commit, push.
 
+## 5 bis. Modèle en 3 couches du bras droit (unique mais contextualisé)
+
+Le bras droit a **un seul comportement** (identité unique) mais se **contextualise par utilisateur** :
+
+```
+1. IDENTITÉ (stable, unique)   → factory-chef-de-projet.md
+                                  closer, triage, posture, barre de qualité.
+2. CONTEXTE UTILISATEUR (varie) → prefsBlock() injecté dans /api/brief
+                                  profil, projets passés, style, préfs delivery.
+                                  V2 = Supabase (docs/06) ; aujourd'hui = champ `userContext`.
+3. OPS (par harnais)           → Cleveria : BRAS_DROIT_INSTRUCTIONS (one-shot)
+                                  Claude Code : commande /bras-droit (agentic, vrais outils).
+```
+
+Ordre d'injection côté app : `chef.prompt` + `prefsBlock(userContext)` + `BRAS_DROIT_INSTRUCTIONS`.
+
+## 5 ter. Éprouver sans crédit : le bras droit en Claude Code
+
+Le tuning evidence-driven (§3) coûte du crédit API. Pour l'éviter, on éprouve le modèle **dans
+Claude Code**, sur l'abonnement : commande **`/bras-droit`** (`~/.claude/commands/bras-droit.md`).
+Elle incarne la **même identité** (couche 1), prend Benoit comme contexte (couche 2), et applique des
+**ops agentiques** : le bras droit fait le léger pour de vrai avec ses outils, et **mobilise la vraie
+équipe** `factory-*` via l'outil Agent pour le profond. C'est un banc d'essai **plus fidèle** que
+l'app (les agents produisent réellement) et **gratuit**. Sert aussi à repérer les faiblesses de
+triage/clôture à corriger dans les prompts.
+
 ## 6. Definition of done (passe 1)
 
 - Aucun `agent.md` du périmètre ne contient d'instruction qui ne peut pas s'exécuter dans le contexte

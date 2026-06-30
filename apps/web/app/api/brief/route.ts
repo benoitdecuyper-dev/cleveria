@@ -69,6 +69,14 @@ Un ou plusieurs diagrammes **Mermaid** décrivant le fonctionnement visé (flux 
 Pistes concrètes, découpage V1/V2, et pour chaque piste un ordre de grandeur d'effort et de risque.
 `.trim();
 
+// Slot de contextualisation par utilisateur : intercalé entre l'IDENTITÉ (stable, unique) du bras
+// droit et ses OPS. Comportement identique pour tous ; seul ce bloc change d'un utilisateur à l'autre.
+// V2 : alimenté par les préférences Supabase (cf. docs/06). Aujourd'hui : ce que fournit l'appelant.
+function prefsBlock(userContext: string): string {
+  if (!userContext) return "";
+  return `\n\n## Contexte de l'utilisateur que tu sers (à prendre en compte, sans changer ton comportement de fond)\n${userContext}`;
+}
+
 function resolveModel(model: string | undefined): string {
   switch ((model ?? "").toLowerCase()) {
     case "opus":
@@ -108,6 +116,9 @@ export async function POST(req: Request) {
     const files = form.getAll("files").filter((f): f is File => f instanceof File);
     const force = form.get("force") === "1";
     const demo = form.get("demo") === "1";
+    // Contexte utilisateur (profil, projets passés, style, préfs delivery). Vide tant que l'auth V2
+    // n'est pas branchée ; un appelant peut déjà l'injecter.
+    const userContext = (form.get("userContext") as string | null)?.trim() ?? "";
 
     // Historique de la conversation (tours précédents, texte seul).
     let history: { role: "user" | "assistant"; content: string }[] = [];
@@ -181,7 +192,7 @@ export async function POST(req: Request) {
     const message = await client.messages.create({
       model: resolveModel(chef.model),
       max_tokens: 6000,
-      system: `${chef.prompt}\n\n${BRAS_DROIT_INSTRUCTIONS}`,
+      system: `${chef.prompt}${prefsBlock(userContext)}\n\n${BRAS_DROIT_INSTRUCTIONS}`,
       messages,
     });
 
