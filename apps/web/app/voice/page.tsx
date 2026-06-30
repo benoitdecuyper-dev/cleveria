@@ -78,6 +78,12 @@ function parseStream(raw: string): { board: boolean; boardTitle: string; spoken:
   return { board, boardTitle, spoken, body: lines.slice(i).join("\n").replace(/^\s+/, "") };
 }
 
+// Une bulle assistant "en frappe" = en streaming, sans contenu réel encore arrivé
+// (placeholder "…" ou vide). On y affiche les 3 points animés plutôt qu'un "…" figé.
+function isTyping(m: Msg): boolean {
+  return !!m.streaming && (!m.text || !m.text.trim() || m.text.trim() === "…");
+}
+
 // Nettoyage du Markdown pour la lecture vocale (TTS).
 function speakable(md: string): string {
   return md
@@ -133,6 +139,12 @@ const IcoClose = () => (
     <line x1="6" y1="6" x2="18" y2="18" />
     <line x1="18" y1="6" x2="6" y2="18" />
   </svg>
+);
+// Indicateur "il écrit…" : 3 points animés, comme dans une vraie messagerie.
+const TypingDots = () => (
+  <span className="typing-dots" aria-label="en train d'écrire" role="status">
+    <span /><span /><span />
+  </span>
 );
 
 export default function VoicePage() {
@@ -292,6 +304,26 @@ export default function VoicePage() {
   function toggleRec() {
     recognizing ? stopRec() : startRec();
   }
+  // Coupe net la dictée en JETANT tout résultat en attente. Sans ça, un dernier
+  // onresult arrive juste après l'envoi et réécrit l'ancienne transcription dans
+  // le champ (bug : le chat redémarre avec l'ancien texte). À utiliser à l'envoi —
+  // stopRec(), lui, conserve volontairement le texte pour le toggle micro.
+  const resetRecognition = useCallback(() => {
+    const rec = recRef.current;
+    if (rec) {
+      rec.onresult = null;
+      rec.onend = null;
+      rec.onerror = null;
+      try {
+        rec.abort();
+      } catch {
+        /* déjà arrêtée */
+      }
+      recRef.current = null;
+    }
+    baseTextRef.current = "";
+    setRecognizing(false);
+  }, []);
 
   // ── Brief complet pour la planification ──────────────────────────────────────
   const buildBrief = useCallback((msgs: Msg[], noteIdx: number): string => {
@@ -364,7 +396,7 @@ export default function VoicePage() {
   // ── Un tour de conversation (texte uniquement : la voix a déjà été transcrite) ─
   async function send(opts: { force?: boolean; override?: string } = {}) {
     const { force = false, override } = opts;
-    if (recognizing) stopRec();
+    resetRecognition(); // jette toute dictée en attente avant de vider le champ
     setError("");
     const payload = (override ?? text).trim();
     const attached = files;
@@ -470,7 +502,11 @@ export default function VoicePage() {
       if (finalData) finalize(finalData);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur inconnue");
-      if (payload) setText(payload); // on rend la saisie en cas d'échec
+      // Échec : on retire la bulle utilisateur optimiste (et toute bulle en cours
+      // de frappe) et on rend la saisie + les pièces jointes pour pouvoir réessayer.
+      setMessages(messages);
+      if (payload) setText(payload);
+      if (attached.length) setFiles(attached);
     } finally {
       setLoading(false);
     }
@@ -526,6 +562,8 @@ export default function VoicePage() {
         : "En ligne · prêt à lancer un projet";
   const busy = recognizing || speaking || loading || planning;
   const avatarState = speaking ? "speaking" : recognizing ? "listening" : "";
+  // Une bulle assistant est déjà en train d'afficher la frappe → pas de doublon en bas.
+  const streamingActive = messages[messages.length - 1]?.streaming ?? false;
 
   return (
     <div className="voice">
@@ -620,9 +658,15 @@ export default function VoicePage() {
               </button>
             </div>
           ) : (
-            <div key={i} className={`msg ${m.role === "user" ? "me" : "bot"}`}>
+            <div key={i} className={`msg ${m.role === "user" ? "me" : "bot"}${isTyping(m) ? " pending" : ""}`}>
               {m.role === "assistant" && <div className="who">Chef de projet</div>}
-              {m.role === "assistant" && !m.streaming ? <Markdown markdown={m.text} /> : <div>{m.text}</div>}
+              {m.role === "assistant" && !m.streaming ? (
+                <Markdown markdown={m.text} />
+              ) : isTyping(m) ? (
+                <TypingDots />
+              ) : (
+                <div>{m.text}</div>
+              )}
               {m.role === "assistant" && !m.streaming && (
                 <button
                   type="button"
@@ -681,14 +725,15 @@ export default function VoicePage() {
           ),
         )}
 
-        {loading && (
+        {/* "il écrit…" — masqué si une bulle en streaming affiche déjà les points/le texte */}
+        {loading && !streamingActive && (
           <div className="typing">
-            <b>Chef de projet</b> réfléchit…
+            <b>Chef de projet</b> <TypingDots />
           </div>
         )}
         {planning && (
           <div className="typing">
-            <b>Chef de projet</b> prépare le plan d'action de l'équipe…
+            <b>Chef de projet</b> prépare le plan d'action de l'équipe <TypingDots />
           </div>
         )}
 

@@ -32,6 +32,14 @@ function MermaidBlock({ code }: { code: string }) {
   return <div dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 
+// Post-traitement du HTML rendu par marked :
+// - les liens s'ouvrent dans un nouvel onglet (sinon cliquer une URL quitte la
+//   conversation et fait perdre l'échange en cours, qui n'est qu'en mémoire React).
+// - rel="noopener noreferrer" pour la sécurité des onglets ouverts.
+function enhance(html: string): string {
+  return html.replace(/<a (?![^>]*\btarget=)/g, '<a target="_blank" rel="noopener noreferrer" ');
+}
+
 type Part = { type: "md" | "mermaid"; content: string };
 
 function split(markdown: string): Part[] {
@@ -55,7 +63,7 @@ export default function Markdown({ markdown }: { markdown: string }) {
         part.type === "mermaid" ? (
           <MermaidBlock key={i} code={part.content} />
         ) : (
-          <div key={i} dangerouslySetInnerHTML={{ __html: marked.parse(part.content) as string }} />
+          <div key={i} dangerouslySetInnerHTML={{ __html: enhance(marked.parse(part.content) as string) }} />
         ),
       )}
     </div>
