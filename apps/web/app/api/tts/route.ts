@@ -3,7 +3,8 @@
 // Pas de clé → 503, et le front reste silencieux (jamais de voix robotique de repli).
 export const runtime = "nodejs";
 
-const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"; // voix multilingue par défaut (override via env)
+// Voix "premade" (utilisable en compte gratuit ; les voix de bibliothèque exigent un plan payant).
+const DEFAULT_VOICE_ID = "EXAVITQu4vr4xnSDxMaL"; // Sarah — claire/assurée (override via env)
 
 export async function POST(req: Request) {
   const key = process.env.ELEVENLABS_API_KEY;
