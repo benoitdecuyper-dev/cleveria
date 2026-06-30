@@ -80,9 +80,12 @@ function findAgent(slug: string): FactoryAgent | undefined {
   return getAgents().find((a) => a.name === slug);
 }
 
-/** Le roster proposé au planificateur : tous les agents delivery sauf le CDP (point d'entrée/synthèse). */
+/** Le roster proposé au planificateur : les agents delivery, sauf le CDP (entrée/synthèse) et
+ * l'orchestrateur lui-même (il planifie, il n'est pas une étape de delivery). */
 function deliveryRoster(): FactoryAgent[] {
-  return getAgents().filter((a) => a.name !== "factory-chef-de-projet");
+  return getAgents().filter(
+    (a) => a.name !== "factory-chef-de-projet" && a.name !== "factory-orchestrateur",
+  );
 }
 
 function rosterText(): string {
@@ -106,21 +109,26 @@ Réponds UNIQUEMENT par un objet JSON valide (sans texte autour, sans bloc \`\`\
   ]
 }
 
-Règles de planification :
-- Choisis 2 à 6 étapes, en mobilisant UNIQUEMENT des agents pertinents pour CE besoin (un montage juridique n'a pas besoin d'un développeur).
-- Mets les agents dans un ordre d'agence réaliste via "dependsOn" : cadrage/découpage (product-owner, architecte) → production (développeur, finance, conformité, marketing, ux-ui, business-dev…) → contrôle (lead-tech, qa, security-auditor) quand c'est du logiciel.
-- "dependsOn" liste les id d'étapes dont le livrable est nécessaire en entrée. Les étapes indépendantes tourneront en parallèle.
+Règles de format :
+- **0 à 6 étapes.** Mobilise UNIQUEMENT des agents pertinents ; un plan minimal (0-1 étape) est permis et souhaitable si le besoin est déjà traité.
+- "dependsOn" liste les id d'étapes dont le livrable est nécessaire en entrée. Les étapes indépendantes tournent en parallèle.
 - Chaque "task" doit être autosuffisante : l'agent ne dispose que de sa tâche, de la note de cadrage et des livrables de ses dépendances.
-- "agent" DOIT être un slug exact de la liste ci-dessous. N'invente aucun agent.
+- "agent" DOIT être un slug exact du roster fourni. N'invente aucun agent.
+(La stratégie de planification et les invariants — ordre d'agence, chaîne dev→lead-tech→qa obligatoire — sont définis dans ton identité ci-dessus.)
 `.trim();
 
+// Repli si l'agent `factory-orchestrateur` n'est pas dans le miroir (sécurité ; normalement présent).
+const ORCHESTRATEUR_FALLBACK =
+  "Tu es l'orchestrateur de la Factory team. À partir d'une note de cadrage, tu établis le plan de travail (quels agents mobiliser, dans quel ordre, avec quelle consigne). Tu ne fais pas le travail toi-même. Mobilise uniquement les agents pertinents ; un plan minimal est permis. Si du logiciel est produit, la chaîne developpeur → lead-tech → qa est obligatoire.";
+
+// L'identité du planificateur vit dans `factory-orchestrateur.md` (éditable comme un agent) ; le
+// moteur n'y injecte au runtime que le roster dynamique + le contrat JSON. Cf. axe 2 rétro manager.
 function plannerSystem(): string {
+  const doctrine = findAgent("factory-orchestrateur")?.prompt ?? ORCHESTRATEUR_FALLBACK;
   return [
-    "Tu es l'orchestrateur de la Factory team — une agence d'agents spécialisés.",
-    "À partir d'une note de cadrage, tu établis le PLAN DE TRAVAIL : quels agents mobiliser, dans quel ordre, et avec quelle consigne chacun.",
-    "Tu ne fais PAS le travail toi-même ; tu le distribues aux bons agents.",
+    doctrine,
     "",
-    "Agents disponibles :",
+    "Agents disponibles (roster) :",
     rosterText(),
     "",
     PLAN_SCHEMA_HINT,
