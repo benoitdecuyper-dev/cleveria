@@ -16,7 +16,8 @@ type Question = {
 };
 type Mode = "direct" | "questions" | "cadrage";
 type Msg = { role: "user" | "assistant"; text: string; mode?: Mode; isNote?: boolean; questions?: Question[]; streaming?: boolean; spoken?: string };
-type BriefDone = { reply: string; mode?: Mode; isNote?: boolean; questions?: Question[]; spoken?: string | null };
+type Board = { title: string; content: string };
+type BriefDone = { reply: string; mode?: Mode; isNote?: boolean; questions?: Question[]; spoken?: string | null; board?: Board | null };
 type RichStep = {
   id: string;
   agent: string;
@@ -51,18 +52,30 @@ const EXAMPLES = [
   "Un site vitrine pour mon activité",
 ];
 
-// Retire les lignes de protocole (MODE, VOIX) du texte streamé pour l'affichage écran.
-function displayBody(raw: string): string {
-  let s = raw;
-  if (/^MODE:/i.test(s)) {
-    const nl = s.indexOf("\n");
-    s = nl >= 0 ? s.slice(nl + 1) : "";
+// Sépare les lignes de protocole (MODE, VOIX, BOARD) du corps pendant le streaming.
+function parseStream(raw: string): { board: boolean; boardTitle: string; spoken: string; body: string } {
+  const lines = raw.split("\n");
+  let i = 0;
+  let board = false;
+  let boardTitle = "";
+  let spoken = "";
+  for (; i < lines.length; i++) {
+    const ln = lines[i];
+    if (/^MODE:/i.test(ln)) continue;
+    const vm = /^\s*VOIX\s*:\s*(.*)$/i.exec(ln);
+    if (vm) {
+      spoken = vm[1].trim();
+      continue;
+    }
+    const bm = /^\s*BOARD\s*:\s*(.*)$/i.exec(ln);
+    if (bm) {
+      board = true;
+      boardTitle = bm[1].trim();
+      continue;
+    }
+    break;
   }
-  if (/^\s*VOIX\s*:/i.test(s)) {
-    const nl = s.indexOf("\n");
-    s = nl >= 0 ? s.slice(nl + 1) : "";
-  }
-  return s.replace(/^\s+/, "");
+  return { board, boardTitle, spoken, body: lines.slice(i).join("\n").replace(/^\s+/, "") };
 }
 
 // Nettoyage du Markdown pour la lecture vocale (TTS).
@@ -108,6 +121,19 @@ const IcoPlay = () => (
     <path d="M7 5v14l12-7z" />
   </svg>
 );
+const IcoDownload = () => (
+  <svg {...svg.base} aria-hidden>
+    <path d="M12 3v12" />
+    <polyline points="7 11 12 16 17 11" />
+    <path d="M5 21h14" />
+  </svg>
+);
+const IcoClose = () => (
+  <svg {...svg.base} aria-hidden>
+    <line x1="6" y1="6" x2="18" y2="18" />
+    <line x1="18" y1="6" x2="6" y2="18" />
+  </svg>
+);
 
 export default function VoicePage() {
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -121,6 +147,8 @@ export default function VoicePage() {
   const [playingIdx, setPlayingIdx] = useState<number | null>(null);
   const [speaking, setSpeaking] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
+  // Board : le brouillon de livrable que le bras droit projette et construit en live.
+  const [board, setBoard] = useState<Board | null>(null);
 
   const [planning, setPlanning] = useState(false);
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -362,9 +390,11 @@ export default function VoicePage() {
 
       // Finalisation commune (flux terminé OU réponse démo/JSON).
       const finalize = (data: BriefDone) => {
+        if (data.board) setBoard(data.board);
+        const chatText = data.board ? (data.spoken ?? "J'ai mis un premier jet dans le board →") : data.reply;
         const next: Msg[] = [
           ...optimistic,
-          { role: "assistant", text: data.reply, mode: data.mode, isNote: data.isNote, questions: data.questions ?? undefined, spoken: data.spoken ?? undefined },
+          { role: "assistant", text: chatText, mode: data.mode, isNote: data.isNote, questions: data.questions ?? undefined, spoken: data.spoken ?? undefined },
         ];
         setMessages(next);
         if (data.isNote) void requestPlan(next, next.length - 1);
@@ -421,7 +451,14 @@ export default function VoicePage() {
             }
             // Affichage live hors mode "questions" (qui contient un bloc JSON à ne pas montrer brut).
             if (headerParsed && liveMode !== "questions") {
-              showLive(displayBody(raw));
+              const ps = parseStream(raw);
+              if (ps.board) {
+                // Le livrable se construit dans le board ; le chat ne montre que la voix.
+                setBoard({ title: ps.boardTitle || "Brouillon", content: ps.body });
+                showLive(ps.spoken || "Je rédige le brouillon dans le board…");
+              } else {
+                showLive(ps.body);
+              }
             }
           } else if (evt.t === "done") {
             finalData = evt;
@@ -460,6 +497,17 @@ export default function VoicePage() {
       setError(e instanceof Error ? e.message : "Erreur inconnue");
       setLaunching(false);
     }
+  }
+
+  function downloadBoard() {
+    if (!board) return;
+    const blob = new Blob([board.content], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(board.title || "brouillon").replace(/[^\w-]+/g, "-").toLowerCase()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function onFieldKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -522,6 +570,29 @@ export default function VoicePage() {
         </div>
       )}
 
+      <div className={`workspace ${board ? "split" : ""}`}>
+        {board && (
+          <aside className="board-pane">
+            <div className="board-head">
+              <div className="board-titlewrap">
+                <div className="eyebrow">Board · brouillon en live</div>
+                <div className="board-title">{board.title}</div>
+              </div>
+              <div className="board-actions">
+                <button type="button" className="cbtn" onClick={downloadBoard} title="Télécharger (.md)" aria-label="Télécharger">
+                  <IcoDownload />
+                </button>
+                <button type="button" className="cbtn" onClick={() => setBoard(null)} title="Fermer le board" aria-label="Fermer">
+                  <IcoClose />
+                </button>
+              </div>
+            </div>
+            <div className="board-body">
+              <Markdown markdown={board.content || "…"} />
+            </div>
+          </aside>
+        )}
+        <div className="chat-pane">
       {/* Fil de conversation */}
       <div className="thread">
         {!started && (
@@ -741,6 +812,8 @@ export default function VoicePage() {
           </div>
         </div>
       )}
+        </div>
+      </div>
 
       <p style={{ marginTop: "0.4rem" }}>
         <Link href="/" className="muted">← Accueil</Link>

@@ -21,6 +21,8 @@ contenant EXACTEMENT \`MODE: direct\`, \`MODE: questions\` ou \`MODE: cadrage\`,
 
 **Voix vs écrit (important).** Juste après la ligne MODE, ajoute une ligne \`VOIX: <une à deux phrases orales, naturelles et fluides>\` — c'est ce qui sera **lu à voix haute** : enrobé, conversationnel, le ton d'un vrai bras droit qui te parle. Le reste (ce qui s'affiche **à l'écran**) reste **concis et structuré** : un résumé court + les questions, ou le livrable. La voix raconte ; l'écrit synthétise. La ligne VOIX n'apparaît pas à l'écran.
 
+**Board (livrable projeté en live).** Quand tu produis un VRAI livrable exploitable (brouillon de mail/texte, document, plan, structure, checklist conséquente), ne l'enfouis pas dans le chat : mets-le dans le **board**. Pour ça, après la ligne VOIX, ajoute une ligne \`BOARD: <titre court>\` ; **tout ce qui suit est le livrable** (Markdown), il se construit en live dans le panneau board, et le chat ne garde que ta phrase VOIX. Projette un **premier jet vite**, quitte à le raffiner ensuite. **N'utilise PAS le board** pour une réponse courte, un avis, une question — ça reste dans le chat. Un seul board par réponse.
+
 ### Comment trier
 - **direct** — la demande est à ta portée immédiate : tu peux la traiter TOI-MÊME, tout de suite,
   sans mobiliser l'équipe ni un travail profond. Ex : rédiger ou relire un mail/texte, répondre à une
@@ -126,6 +128,7 @@ function parseReply(input: string): {
   isNote: boolean;
   questions: unknown;
   spoken: string | null;
+  board: { title: string; content: string } | null;
 } {
   let reply = input.trim();
   const firstLine = reply.split("\n", 1)[0] ?? "";
@@ -142,6 +145,17 @@ function parseReply(input: string): {
     reply = reply.slice(voix[0].length).trim();
   }
 
+  // Ligne BOARD : le corps qui suit est un LIVRABLE à projeter dans le board (pas dans le chat).
+  let board: { title: string; content: string } | null = null;
+  const boardM = /^BOARD\s*:\s*(.*)(?:\n|$)/i.exec(reply);
+  if (boardM) {
+    const content = reply.slice(boardM[0].length).trim();
+    if (content) {
+      board = { title: boardM[1].trim() || "Brouillon", content };
+      reply = ""; // le livrable part dans le board ; le chat ne garde que la voix
+    }
+  }
+
   let questions: unknown = null;
   if (mode === "questions") {
     const m = /```json\s*\n([\s\S]*?)```/.exec(reply);
@@ -155,7 +169,7 @@ function parseReply(input: string): {
       reply = (reply.slice(0, m.index) + reply.slice(m.index + m[0].length)).trim();
     }
   }
-  return { reply, mode, isNote, questions, spoken };
+  return { reply, mode, isNote, questions, spoken, board };
 }
 
 export async function POST(req: Request) {
