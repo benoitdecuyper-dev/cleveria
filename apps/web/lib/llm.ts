@@ -91,13 +91,21 @@ async function viaClaudeCode({ system, messages, model, onText }: LlmRequest): P
 
   try {
     return await new Promise<string>((resolve, reject) => {
+      // CRUCIAL : on retire ANTHROPIC_API_KEY (présente dans .env pour la prod) de l'env du CLI.
+      // Sinon Claude Code l'utilise au lieu de l'abonnement OAuth → on tape la clé sans crédit.
+      const env = { ...process.env };
+      delete env.ANTHROPIC_API_KEY;
+      delete env.ANTHROPIC_AUTH_TOKEN;
+
       const child = spawn("claude", args, {
         cwd: tmpdir(), // pas de CLAUDE.md projet chargé
         shell: process.platform === "win32", // résout le shim claude.cmd
+        env,
       });
       let buf = "";
       let acc = "";
       let finalText = "";
+      let resultIsError = false;
       let rawOut = "";
       let stderr = "";
 
@@ -124,8 +132,9 @@ async function viaClaudeCode({ system, messages, model, onText }: LlmRequest): P
               const t: string = obj.event.delta.text ?? "";
               acc += t;
               onText!(t);
-            } else if (obj.type === "result" && typeof obj.result === "string") {
-              finalText = obj.result;
+            } else if (obj.type === "result") {
+              if (obj.is_error || obj.subtype !== "success") resultIsError = true;
+              if (typeof obj.result === "string") finalText = obj.result;
             }
           } catch {
             /* ligne partielle / non-JSON → ignorée */
@@ -138,16 +147,24 @@ async function viaClaudeCode({ system, messages, model, onText }: LlmRequest): P
       child.on("error", reject);
       child.on("close", (code) => {
         if (streaming) {
+          if (resultIsError) return reject(new Error(`claude-code : ${finalText || "erreur CLI"}`));
           const out = (finalText || acc).trim();
           if (out) return resolve(out);
           return reject(new Error(`claude-code (code ${code}) : sortie vide. ${stderr.slice(0, 300)}`));
         }
         try {
           const obj = JSON.parse(rawOut);
+          if (obj.is_error || obj.subtype !== "success") {
+            return reject(new Error(`claude-code : ${obj.result ?? obj.subtype ?? "erreur CLI"}`));
+          }
           if (typeof obj.result === "string") return resolve(obj.result.trim());
           throw new Error("champ result absent");
-        } catch {
-          reject(new Error(`claude-code (code ${code}) : sortie illisible. ${(stderr || rawOut).slice(0, 300)}`));
+        } catch (err) {
+          reject(
+            err instanceof Error && /claude-code :/.test(err.message)
+              ? err
+              : new Error(`claude-code (code ${code}) : sortie illisible. ${(stderr || rawOut).slice(0, 300)}`),
+          );
         }
       });
     });
