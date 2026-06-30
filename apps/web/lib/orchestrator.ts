@@ -218,6 +218,25 @@ export async function planForBrief(brief: string): Promise<Plan> {
   return plan(brief);
 }
 
+// Agents "experts" (recherche factuelle) → outil web_search hébergé (API uniquement, prod/crédité).
+// En local (CLI) ou sans web, l'outil est absent → l'ops expert impose « à confirmer », pas d'invention.
+const EXPERT_AGENTS = new Set([
+  "factory-finance",
+  "factory-direction",
+  "factory-business-dev",
+  "factory-expert-conformite",
+  "factory-marketing",
+  "factory-levee-de-fonds",
+]);
+
+const EXPERT_RESEARCH_OPS = `
+## Recherche (expert)
+Pour toute affirmation factuelle forte (chiffre de marché, donnée, fait daté), **recoupe-la pour de
+vrai** : si l'outil web_search est disponible, **cherche et cite l'URL** de la source. Quand il ne
+l'est pas (exécution sans accès web), n'invente JAMAIS de source — marque l'affirmation **« à
+confirmer »**.
+`.trim();
+
 async function runStep(
   run: Run,
   step: PlanStep,
@@ -225,6 +244,7 @@ async function runStep(
   onDelta: (text: string) => void,
 ): Promise<string> {
   const agent = findAgent(step.agent)!;
+  const isExpert = EXPERT_AGENTS.has(step.agent);
   const context = [
     "## Note de cadrage du projet",
     run.brief,
@@ -243,9 +263,10 @@ async function runStep(
   return llmGenerate({
     model: resolveModel(agent.model),
     maxTokens: 4000,
-    system: `${agent.prompt}\n\n${CLEVERIA_DELIVERY_OPS}`,
+    system: `${agent.prompt}\n\n${CLEVERIA_DELIVERY_OPS}${isExpert ? "\n\n" + EXPERT_RESEARCH_OPS : ""}`,
     messages: [{ role: "user", content: context }],
     onText: onDelta,
+    webSearch: isExpert,
   });
 }
 

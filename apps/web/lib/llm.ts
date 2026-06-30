@@ -18,6 +18,10 @@ export type LlmRequest = {
   model: string; // id résolu (claude-opus-4-8, …)
   maxTokens: number;
   onText?: (t: string) => void; // si fourni → streaming (deltas au fil de l'eau)
+  // Active l'outil web_search HÉBERGÉ de l'API (recherche réelle + citations). Backend `anthropic`
+  // UNIQUEMENT : le CLI local headless ne déclenche pas la recherche (testé : 0 requête → il fabrique
+  // des sources). Donc en local, les experts restent sans outil et marquent « à confirmer ».
+  webSearch?: boolean;
 };
 
 /** true si on route vers le CLI Claude Code local au lieu de l'API facturée. */
@@ -35,8 +39,14 @@ function anthropic(): Anthropic {
   return (_client ??= new Anthropic({ maxRetries: 4 }));
 }
 
-async function viaAnthropic({ system, messages, model, maxTokens, onText }: LlmRequest): Promise<string> {
-  const stream = anthropic().messages.stream({ model, max_tokens: maxTokens, system, messages });
+async function viaAnthropic({ system, messages, model, maxTokens, onText, webSearch }: LlmRequest): Promise<string> {
+  const params: Record<string, unknown> = { model, max_tokens: maxTokens, system, messages };
+  if (webSearch) {
+    // Outil web_search hébergé Anthropic (server-side, facturé ~10$/1000 recherches). ⚠️ NON TESTÉ
+    // (pas de crédit au moment du câblage) — spec `type`/nom à CONFIRMER en conditions réelles.
+    params.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }];
+  }
+  const stream = anthropic().messages.stream(params as unknown as Anthropic.MessageStreamParams);
   if (onText) stream.on("text", onText);
   const message = await stream.finalMessage();
   return message.content
