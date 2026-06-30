@@ -61,6 +61,40 @@ function speakable(md: string): string {
     .trim();
 }
 
+// ── Icônes (SVG inline, héritent de currentColor) ────────────────────────────
+const svg = {
+  base: { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const },
+};
+const IcoClip = () => (
+  <svg {...svg.base} aria-hidden>
+    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+  </svg>
+);
+const IcoMic = () => (
+  <svg {...svg.base} aria-hidden>
+    <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+    <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+    <line x1="12" y1="18" x2="12" y2="22" />
+    <line x1="8" y1="22" x2="16" y2="22" />
+  </svg>
+);
+const IcoSend = () => (
+  <svg {...svg.base} aria-hidden>
+    <line x1="12" y1="19" x2="12" y2="6" />
+    <polyline points="6 12 12 6 18 12" />
+  </svg>
+);
+const IcoStop = () => (
+  <svg {...svg.base} aria-hidden>
+    <rect x="6" y="6" width="12" height="12" rx="2.5" />
+  </svg>
+);
+const IcoPlay = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+    <path d="M7 5v14l12-7z" />
+  </svg>
+);
+
 export default function VoicePage() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [text, setText] = useState("");
@@ -481,11 +515,12 @@ export default function VoicePage() {
               <NoteView markdown={m.text} />
               <button
                 type="button"
-                className="linkbtn subtle"
-                style={{ marginTop: "0.4rem" }}
+                className="playbtn"
+                style={{ marginTop: "0.55rem" }}
                 onClick={() => (playingIdx === i ? stopAudio() : speak(m.text, i))}
               >
-                {playingIdx === i ? "⏸ Stop" : "🔊 Écouter"}
+                {playingIdx === i ? <IcoStop /> : <IcoPlay />}
+                {playingIdx === i ? "Stop" : "Écouter"}
               </button>
             </div>
           ) : (
@@ -495,11 +530,12 @@ export default function VoicePage() {
               {m.role === "assistant" && !m.streaming && (
                 <button
                   type="button"
-                  className="linkbtn subtle"
-                  style={{ marginTop: "0.3rem" }}
+                  className="playbtn"
+                  style={{ marginTop: "0.45rem" }}
                   onClick={() => (playingIdx === i ? stopAudio() : speak(m.text, i))}
                 >
-                  {playingIdx === i ? "⏸ Stop" : "🔊 Écouter"}
+                  {playingIdx === i ? <IcoStop /> : <IcoPlay />}
+                  {playingIdx === i ? "Stop" : "Écouter"}
                 </button>
               )}
               {m.questions && m.questions.length > 0 && i === messages.length - 1 && (
@@ -582,8 +618,8 @@ export default function VoicePage() {
               <button type="button" className="btn btn-primary btn-lg" onClick={confirmGo} disabled={launching}>
                 {launching ? "Lancement…" : "✓ GO — lancer l'équipe"}
               </button>
-              <button type="button" className="btn" onClick={() => speak(`${plan.summary}. Donne-moi le GO pour lancer.`)}>
-                🔊 Relire
+              <button type="button" className="playbtn" onClick={() => speak(`${plan.summary}. Donne-moi le GO pour lancer.`)}>
+                <IcoPlay /> Relire
               </button>
             </div>
           </div>
@@ -608,10 +644,10 @@ export default function VoicePage() {
               {files.map((f, idx) => (
                 <span
                   key={f.name + idx}
-                  className="chip"
+                  className="chip filechip"
                   style={{ display: "inline-flex", gap: "0.35rem", alignItems: "center" }}
                 >
-                  📎 {f.name}
+                  <IcoClip /> {f.name}
                   <button
                     type="button"
                     aria-label="Retirer"
@@ -636,45 +672,47 @@ export default function VoicePage() {
             }}
           />
           <div className="composer">
-            <button
-              type="button"
-              className="iconbtn"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={loading}
-              aria-label="Joindre un fichier"
-              title="Joindre un fichier"
-            >
-              📎
-            </button>
-            <button
-              type="button"
-              className={`iconbtn mic ${recognizing ? "rec" : ""}`}
-              onClick={toggleRec}
-              disabled={loading}
-              aria-label={recognizing ? "Arrêter la dictée" : "Dicter"}
-              title={recognizing ? "Arrêter la dictée" : "Dicter à voix haute"}
-            >
-              {recognizing ? "■" : "🎤"}
-            </button>
-            <textarea
-              ref={fieldRef}
-              className="field"
-              rows={1}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={onFieldKey}
-              placeholder={recognizing ? "J'écoute… (tu pourras corriger)" : started ? "Ta réponse…" : "Décris ton projet…"}
-            />
-            <button
-              type="button"
-              className="iconbtn send"
-              onClick={() => send()}
-              disabled={loading || (!text.trim() && !demo && files.length === 0)}
-              aria-label="Envoyer"
-              title="Envoyer"
-            >
-              {loading ? "…" : "↑"}
-            </button>
+            <div className="composer-bar">
+              <button
+                type="button"
+                className="cbtn"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading}
+                aria-label="Joindre un fichier"
+                title="Joindre un fichier"
+              >
+                <IcoClip />
+              </button>
+              <button
+                type="button"
+                className={`cbtn mic ${recognizing ? "rec" : ""}`}
+                onClick={toggleRec}
+                disabled={loading}
+                aria-label={recognizing ? "Arrêter la dictée" : "Dicter"}
+                title={recognizing ? "Arrêter la dictée" : "Dicter à voix haute"}
+              >
+                {recognizing ? <IcoStop /> : <IcoMic />}
+              </button>
+              <textarea
+                ref={fieldRef}
+                className="cfield"
+                rows={1}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={onFieldKey}
+                placeholder={recognizing ? "J'écoute… (tu pourras corriger)" : started ? "Ta réponse…" : "Décris ton projet…"}
+              />
+              <button
+                type="button"
+                className="cbtn send"
+                onClick={() => send()}
+                disabled={loading || (!text.trim() && !demo && files.length === 0)}
+                aria-label="Envoyer"
+                title="Envoyer"
+              >
+                <IcoSend />
+              </button>
+            </div>
           </div>
         </div>
       )}

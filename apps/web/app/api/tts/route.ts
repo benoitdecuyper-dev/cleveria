@@ -27,7 +27,8 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         text: text.slice(0, 2500),
         model_id: "eleven_multilingual_v2",
-        voice_settings: { stability: 0.5, similarity_boost: 0.8 },
+        // speed : 0.7 (lent) → 1.2 (rapide). Défaut un peu enlevé ; ajustable via ELEVENLABS_SPEED.
+        voice_settings: { stability: 0.5, similarity_boost: 0.8, speed: Number(process.env.ELEVENLABS_SPEED) || 1.12 },
       }),
     },
   );
