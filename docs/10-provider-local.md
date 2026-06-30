@@ -30,8 +30,14 @@ Dans `apps/web/.env` (gitignored) :
 ```
 CLEVERIA_LLM_PROVIDER=claude-code
 ```
-puis `npm run dev:web`. Aucune `ANTHROPIC_API_KEY` requise dans ce mode (le check est sauté). Il faut
-juste que le CLI `claude` soit installé et connecté (ton abonnement).
+puis `npm run dev:web`. L'app démarre sur **http://localhost:4242** (port dédié fixe — pas le 3000
+par défaut, pour ne pas entrer en collision avec les autres projets du parc). Aucune
+`ANTHROPIC_API_KEY` requise dans ce mode (le check est sauté). Il faut juste que le CLI `claude` soit
+installé et connecté (ton abonnement).
+
+> Port : `apps/web` lance le dev sur **4242** (`next dev --webpack -p 4242`). Le `--webpack` est
+> nécessaire sur la machine Windows de Ben (SWC natif cassé). Le script `start` reste sur le port
+> injecté par Render en prod (ne pas y coder de port en dur).
 
 Pour repasser en mode API réel : retirer la variable (ou la mettre à `anthropic`).
 
