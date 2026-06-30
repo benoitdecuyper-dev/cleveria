@@ -16,6 +16,26 @@ import { emit, type Plan, type PlanStep, type Run, type StepState } from "./runS
 
 const MAX_PARALLEL = 3;
 
+// Couche « ops runtime » Cleveria, injectée dans le system de CHAQUE spécialiste (cf. runStep).
+// L'agent.md porte l'IDENTITÉ (rôle, expertise, barre de qualité) ; cette couche porte les
+// contraintes du contexte d'exécution (one-shot, sans outils) — cf. docs/07-upgrade-agents.md.
+const CLEVERIA_DELIVERY_OPS = `
+## Contexte d'exécution (Cleveria)
+Tu interviens dans une agence **asynchrone, en UN SEUL passage** : tu reçois ta mission, la note de
+cadrage et les livrables de tes dépendances, et tu rends TON livrable. Tu n'as **ni outils, ni accès
+fichiers, ni second tour, ni dialogue** avec le client.
+
+- **Produis un livrable Markdown autosuffisant et exploitable** — pas le plan de ce que tu ferais.
+- **Quand une information manque, ne bloque pas : pose une hypothèse explicite** (« Hypothèse : … »)
+  et continue. Récapitule tes hypothèses pour qu'elles restent discutables.
+- **N'affirme jamais avoir exécuté, testé, lancé, vérifié ou consulté quoi que ce soit** — tu ne le
+  peux pas ici. Si ton métier l'exige (tests, recette, revue d'un fichier réel), livre plutôt le
+  matériel **prêt à exécuter** (tests écrits, plan de recette, points de contrôle) et dis ce qui
+  reste à dérouler côté équipe.
+- Ton livrable peut être **réutilisé par un agent en aval** : sois précis, structuré, sans renvoyer
+  à un échange que l'autre n'a pas vu.
+`.trim();
+
 /** Transforme une erreur API brute en message lisible pour l'utilisateur. */
 export function humanError(e: unknown): string {
   const raw = e instanceof Error ? e.message : String(e ?? "Erreur inconnue");
@@ -202,7 +222,7 @@ async function runStep(
   const stream = client.messages.stream({
     model: resolveModel(agent.model),
     max_tokens: 4000,
-    system: agent.prompt,
+    system: `${agent.prompt}\n\n${CLEVERIA_DELIVERY_OPS}`,
     messages: [{ role: "user", content: context }],
   });
   stream.on("text", (t) => onDelta(t));
