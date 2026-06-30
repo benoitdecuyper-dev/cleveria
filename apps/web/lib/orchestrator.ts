@@ -13,6 +13,7 @@
 import { getAgents, getChefDeProjet, type FactoryAgent } from "@cleveria/factory";
 import { emit, type Plan, type PlanStep, type Run, type StepState } from "./runStore";
 import { llmGenerate } from "./llm";
+import { extractUrls, readUrl } from "./research";
 
 const MAX_PARALLEL = 3;
 
@@ -218,9 +219,25 @@ export async function planForBrief(brief: string): Promise<Plan> {
   return plan(brief);
 }
 
-// Seul le VÉRIFICATEUR a l'outil web_search (API). On concentre la vérif (coûteuse) sur un agent
-// invoqué SÉLECTIVEMENT par le planner — pas de recherche payante répartie sur tous les agents.
-// Les autres agents citent et marquent « à confirmer » (cf. CLEVERIA_DELIVERY_OPS), sans inventer.
+// Pour le VÉRIFICATEUR : on récupère le contenu RÉEL des URLs citées dans les livrables à vérifier
+// (Tier A, via research.ts — déterministe, gratuit) et on l'injecte dans son contexte. Il juge chaque
+// affirmation sourcée contre ce contenu réel, jamais contre sa mémoire.
+async function buildVerifierContext(depsOutputs: { title: string; output: string }[]): Promise<string> {
+  const urls = extractUrls(depsOutputs.map((d) => d.output).join("\n")).slice(0, 10);
+  if (urls.length === 0) {
+    return "\n## Sources à vérifier\nAucune URL n'est citée dans les livrables. Vérifie les affirmations factuelles par recoupement si tu as un outil de recherche ; sinon marque chaque affirmation forte « à confirmer ». N'invente aucune source.";
+  }
+  const reads = await Promise.all(urls.map(readUrl));
+  const block = reads
+    .map((r) =>
+      r.ok
+        ? `### ${r.url} — ACCESSIBLE\n${r.text.slice(0, 1400)}`
+        : `### ${r.url} — INJOIGNABLE (status ${r.status}${r.error ? ", " + r.error : ""})`,
+    )
+    .join("\n\n");
+  return `\n## Sources citées — contenu RÉEL récupéré\nVoici le contenu réel des URLs citées (récupéré pour toi). Juge chaque affirmation sourcée **contre ce contenu uniquement** : si la source ne dit pas ce qui est prétendu → À CORRIGER ; si elle est INJOIGNABLE → NON CONFIRMÉ. Ne te fie jamais à ta mémoire pour ce qu'une source dit.\n\n${block}`;
+}
+
 async function runStep(
   run: Run,
   step: PlanStep,
@@ -229,6 +246,8 @@ async function runStep(
 ): Promise<string> {
   const agent = findAgent(step.agent)!;
   const isVerifier = step.agent === "factory-verificateur";
+  const verifierBlock = isVerifier ? await buildVerifierContext(depsOutputs) : "";
+
   const context = [
     "## Note de cadrage du projet",
     run.brief,
@@ -236,6 +255,7 @@ async function runStep(
       ? "\n## Livrables des étapes précédentes (tes entrées)\n" +
         depsOutputs.map((d) => `### ${d.title}\n${d.output}`).join("\n\n")
       : "",
+    verifierBlock,
     "\n## Ta mission",
     step.task,
     "\nProduis ton livrable en Markdown (français), concret et directement exploitable. Tu peux inclure des schémas Mermaid si utile.",
@@ -250,7 +270,6 @@ async function runStep(
     system: `${agent.prompt}\n\n${CLEVERIA_DELIVERY_OPS}`,
     messages: [{ role: "user", content: context }],
     onText: onDelta,
-    webSearch: isVerifier,
   });
 }
 

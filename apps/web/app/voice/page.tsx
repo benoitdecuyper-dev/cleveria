@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import NoteView from "../brief/NoteView";
 import Markdown from "../components/Markdown";
+import { parseStream, speakable } from "../../lib/format";
 
 // ── Types (alignés sur /api/brief et /api/plan) ───────────────────────────────
 type Question = {
@@ -52,46 +53,10 @@ const EXAMPLES = [
   "Un site vitrine pour mon activité",
 ];
 
-// Sépare les lignes de protocole (MODE, VOIX, BOARD) du corps pendant le streaming.
-function parseStream(raw: string): { board: boolean; boardTitle: string; spoken: string; body: string } {
-  const lines = raw.split("\n");
-  let i = 0;
-  let board = false;
-  let boardTitle = "";
-  let spoken = "";
-  for (; i < lines.length; i++) {
-    const ln = lines[i];
-    if (/^MODE:/i.test(ln)) continue;
-    const vm = /^\s*VOIX\s*:\s*(.*)$/i.exec(ln);
-    if (vm) {
-      spoken = vm[1].trim();
-      continue;
-    }
-    const bm = /^\s*BOARD\s*:\s*(.*)$/i.exec(ln);
-    if (bm) {
-      board = true;
-      boardTitle = bm[1].trim();
-      continue;
-    }
-    break;
-  }
-  return { board, boardTitle, spoken, body: lines.slice(i).join("\n").replace(/^\s+/, "") };
-}
-
 // Une bulle assistant "en frappe" = en streaming, sans contenu réel encore arrivé
 // (placeholder "…" ou vide). On y affiche les 3 points animés plutôt qu'un "…" figé.
 function isTyping(m: Msg): boolean {
   return !!m.streaming && (!m.text || !m.text.trim() || m.text.trim() === "…");
-}
-
-// Nettoyage du Markdown pour la lecture vocale (TTS).
-function speakable(md: string): string {
-  return md
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/[#>*_`|-]/g, " ")
-    .replace(/\[(.*?)\]\(.*?\)/g, "$1")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 // ── Icônes (SVG inline, héritent de currentColor) ────────────────────────────
