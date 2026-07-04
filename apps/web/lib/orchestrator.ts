@@ -85,11 +85,16 @@ function findAgent(slug: string): FactoryAgent | undefined {
   return getAgents().find((a) => a.name === slug);
 }
 
-/** Le roster proposé au planificateur : les agents delivery, sauf le CDP (entrée/synthèse) et
- * l'orchestrateur lui-même (il planifie, il n'est pas une étape de delivery). */
+/** Le roster proposé au planificateur : les agents delivery, sauf le CDP (entrée/synthèse),
+ * l'orchestrateur lui-même (il planifie, il n'est pas une étape de delivery), et le maquettiste
+ * (appelé DIRECTEMENT par /api/maquette, hors orchestrate() — sinon le planificateur prod pourrait
+ * doubler le travail de maquettage, cf. docs/18-maquette-archi.md §2). */
 function deliveryRoster(): FactoryAgent[] {
   return getAgents().filter(
-    (a) => a.name !== "factory-chef-de-projet" && a.name !== "factory-orchestrateur",
+    (a) =>
+      a.name !== "factory-chef-de-projet" &&
+      a.name !== "factory-orchestrateur" &&
+      a.name !== "factory-maquettiste",
   );
 }
 
@@ -326,7 +331,11 @@ async function execute(run: Run): Promise<void> {
     );
 
   while (done.size + failed.size < steps.length) {
+    // Run arrêté par l'utilisateur : on ne lance plus aucune nouvelle vague. Les étapes déjà en
+    // vol (inFlight) peuvent se terminer normalement, on les attend juste après la boucle.
+    if (run.cancelled) break;
     for (const step of ready()) {
+      if (run.cancelled) break;
       if (inFlight.size >= MAX_PARALLEL) break;
       // Une dépendance a échoué → on saute l'étape (pas de livrable d'entrée fiable).
       if (step.dependsOn.some((d) => failed.has(d))) {
@@ -384,10 +393,16 @@ export async function orchestrate(run: Run, presetPlan?: Plan): Promise<void> {
     emit(run, { type: "run.status", status: "running" });
     await execute(run);
 
+    // Arrêté pendant l'exécution : pas de synthèse, et surtout pas de statut "done"/"error"
+    // par-dessus "cancelled" (déjà posé par cancelRun()).
+    if (run.cancelled) return;
+
     const synthesis = await synthesize(run);
+    if (run.cancelled) return; // arrêté pendant la synthèse elle-même : on n'émet pas le résultat
     emit(run, { type: "synthesis", output: synthesis });
     emit(run, { type: "run.status", status: "done" });
   } catch (e) {
+    if (run.cancelled) return; // ne jamais écraser "cancelled" par "error"
     emit(run, { type: "run.status", status: "error", error: humanError(e) });
   }
 }

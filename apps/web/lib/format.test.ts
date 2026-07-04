@@ -53,6 +53,13 @@ describe("parseStream", () => {
     expect(parseStream("BOARD: Titre en cours").body).toBe("");
     expect(parseStream("BOARD: Titre en cours").board).toBe(true);
   });
+
+  it("saute la ligne MAQUETTE (jamais affichée en clair)", () => {
+    const r = parseStream("MODE: maquette\nVOIX: Je m'y mets.\nMAQUETTE: site vitrine plombier");
+    expect(r.spoken).toBe("Je m'y mets.");
+    expect(r.board).toBe(false);
+    expect(r.body).toBe("");
+  });
 });
 
 describe("speakable", () => {

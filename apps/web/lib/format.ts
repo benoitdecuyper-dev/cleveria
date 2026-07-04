@@ -35,6 +35,9 @@ export function parseStream(raw: string): ParsedStream {
       boardTitle = bm[1].trim();
       continue;
     }
+    // Ligne MAQUETTE (protocole MODE: maquette, docs/18 §4) : jamais affichée en clair, la
+    // valeur est extraite via parseReply() une fois le flux terminé (côté serveur, cf. "done").
+    if (/^\s*MAQUETTE\s*:/i.test(ln)) continue;
     break;
   }
   return { board, boardTitle, spoken, body: lines.slice(i).join("\n").replace(/^\s+/, "") };

@@ -97,6 +97,61 @@ export function demoBriefResponse(historyLen: number, force: boolean) {
   return { reply: DEMO_NOTE, isNote: true, questions: null, userEcho: "" };
 }
 
+// ---- Maquette démo (/api/maquette?demo=1) ----
+// Sert à tester le rendu MockupFrame (sandbox, CSP, itération) sans crédit ni clé.
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/** HTML de démo, autonome et sans script — mêmes contraintes que le vrai factory-maquettiste.
+ * `feedback` (fourni en itération) est visiblement intégré, pour prouver que la régénération
+ * "prend" bien le retour (même en mode démo, sans appeler Claude). */
+export function demoMaquetteHtml(seed: string, feedback?: string): string {
+  const accent = feedback && /vert/i.test(feedback) ? "#16a34a" : "#4f46e5";
+  const note = feedback
+    ? `<p class="note">🎨 Retour intégré : ${escapeHtml(feedback)}</p>`
+    : "";
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Maquette (démo)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; margin: 0; color: #1e293b; background: #fff; }
+  header { background: linear-gradient(135deg, ${accent}, #7c3aed); color: #fff; padding: 3.2rem 2rem; text-align: center; }
+  header h1 { margin: 0 0 0.6rem; font-size: 2rem; letter-spacing: -0.02em; }
+  header p { margin: 0; opacity: 0.92; max-width: 34rem; margin-inline: auto; }
+  main { padding: 2.2rem; max-width: 800px; margin: 0 auto; }
+  h2 { font-size: 1.3rem; margin-bottom: 1rem; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.1rem; }
+  .card h3 { margin: 0 0 0.4rem; font-size: 1rem; }
+  .card p { margin: 0; font-size: 0.9rem; color: #475569; }
+  .note { margin-top: 1.8rem; padding: 0.65rem 1rem; background: #fef3c7; border-radius: 8px; font-size: 0.85rem; }
+  footer { text-align: center; padding: 1.6rem; color: #64748b; font-size: 0.82rem; border-top: 1px solid #e2e8f0; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Votre activité, une vitrine claire</h1>
+  <p>${escapeHtml(seed).slice(0, 200) || "Maquette générée automatiquement (mode démo)"}</p>
+</header>
+<main>
+  <h2>Ce que nous proposons</h2>
+  <div class="grid">
+    <div class="card"><h3>Un premier service</h3><p>Description concrète de l'offre principale, avec ses bénéfices.</p></div>
+    <div class="card"><h3>Un second service</h3><p>Une deuxième prestation, complémentaire de la première.</p></div>
+    <div class="card"><h3>Contact</h3><p>Coordonnées ou formulaire pour être recontacté rapidement.</p></div>
+  </div>
+  ${note}
+</main>
+<footer>Maquette de démonstration — Cleveria</footer>
+</body>
+</html>`;
+}
+
 // ---- Run démo (orchestration simulée) ----
 
 export const DEMO_PLAN: Plan = {
@@ -236,16 +291,24 @@ export async function demoOrchestrate(run: Run): Promise<void> {
     });
     emit(run, { type: "run.status", status: "running" });
 
+    // Même garde que l'orchestrateur réel : avant chaque vague / la synthèse, on vérifie que
+    // l'utilisateur n'a pas arrêté le run entretemps (bouton "Arrêter le travail").
+    if (run.cancelled) return;
     // Vague 1 (parallèle) : montage + conformité (sans dépendances).
     await Promise.all([demoStep(run, "s1"), demoStep(run, "s2")]);
+    if (run.cancelled) return;
     // Vague 2 (parallèle) : finance + marketing (dépendent du montage).
     await Promise.all([demoStep(run, "s3"), demoStep(run, "s4")]);
 
+    if (run.cancelled) return;
     await sleep(300);
+    if (run.cancelled) return;
     await streamInto(run, "synthesis", "", DEMO_SYNTHESIS);
+    if (run.cancelled) return; // ne pas émettre la synthèse ni écraser le statut "cancelled"
     emit(run, { type: "synthesis", output: DEMO_SYNTHESIS });
     emit(run, { type: "run.status", status: "done" });
   } catch {
+    if (run.cancelled) return; // ne jamais écraser "cancelled" par "error"
     emit(run, { type: "run.status", status: "error", error: "Erreur en mode démo." });
   }
 }

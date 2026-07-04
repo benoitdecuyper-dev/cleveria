@@ -6,7 +6,7 @@ import Link from "next/link";
 import Markdown from "../../components/Markdown";
 
 type StepStatus = "pending" | "running" | "done" | "error";
-type RunStatus = "planning" | "running" | "done" | "error";
+type RunStatus = "planning" | "running" | "done" | "error" | "cancelled";
 
 type Step = {
   id: string;
@@ -31,6 +31,7 @@ const RUN_LABEL: Record<RunStatus, string> = {
   running: "L'équipe travaille…",
   done: "Travail terminé",
   error: "Le run a rencontré une erreur",
+  cancelled: "Travail arrêté",
 };
 
 export default function RunDashboard() {
@@ -42,6 +43,7 @@ export default function RunDashboard() {
   const [synthesis, setSynthesis] = useState<string>("");
   const [runError, setRunError] = useState<string>("");
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [cancelling, setCancelling] = useState(false);
   const synthRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -94,7 +96,7 @@ export default function RunDashboard() {
         case "run.status":
           setStatus(e.status as RunStatus);
           if (e.error) setRunError(e.error as string);
-          if (e.status === "done" || e.status === "error") es?.close();
+          if (e.status === "done" || e.status === "error" || e.status === "cancelled") es?.close();
           break;
         case "planned": {
           const plan = e.plan as { summary: string };
@@ -155,6 +157,20 @@ export default function RunDashboard() {
 
   const working = status === "planning" || status === "running";
 
+  async function cancelRun() {
+    if (!id || cancelling) return;
+    setCancelling(true);
+    try {
+      await fetch(`/api/run/${id}/cancel`, { method: "POST" });
+      // Le statut "cancelled" arrive normalement par le flux SSE ; on ne le force pas ici,
+      // pour rester la source de vérité unique (évite un état local désynchronisé du serveur).
+    } catch {
+      setRunError("Impossible d'arrêter le run (réseau).");
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   function downloadSynthesis() {
     const blob = new Blob([synthesis], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
@@ -172,7 +188,11 @@ export default function RunDashboard() {
       <p className="eyebrow">Tableau de bord</p>
       <h1>L'équipe au travail</h1>
       <p className="run-status">
-        <span className={`dot ${status === "done" ? "done" : status === "error" ? "error" : "running"}`} />
+        <span
+          className={`dot ${
+            status === "done" ? "done" : status === "error" ? "error" : status === "cancelled" ? "cancelled" : "running"
+          }`}
+        />
         {RUN_LABEL[status]}
         {order.length > 0 && (
           <span className="muted" style={{ fontWeight: 500 }}>
@@ -180,6 +200,14 @@ export default function RunDashboard() {
           </span>
         )}
       </p>
+      {working && (
+        <div className="toolbar" style={{ margin: "0.6rem 0" }}>
+          <button type="button" className="btn" onClick={cancelRun} disabled={cancelling}>
+            {cancelling ? "Arrêt…" : "■ Arrêter le travail"}
+          </button>
+        </div>
+      )}
+      {status === "cancelled" && <div className="banner warn">Travail arrêté — aucune nouvelle étape ne sera lancée.</div>}
       {runError && <div className="banner err">{runError}</div>}
       {summary && <p className="muted" style={{ fontStyle: "italic" }}>« {summary} »</p>}
 
@@ -241,7 +269,7 @@ export default function RunDashboard() {
       )}
 
       <p style={{ marginTop: "1.4rem" }}>
-        <Link href="/brief" className="muted">
+        <Link href="/voice" className="muted">
           ← Nouveau brief
         </Link>
       </p>

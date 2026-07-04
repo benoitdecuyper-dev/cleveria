@@ -39,8 +39,37 @@ function anthropic(): Anthropic {
   return (_client ??= new Anthropic({ maxRetries: 4 }));
 }
 
+// Prompt caching : on pose un point de césure `cache_control` à la FIN du dernier message.
+// Tout le préfixe stable AVANT ce point (le gros system + l'historique de la conversation) est
+// mémorisé côté Anthropic ~5 min ; les tours suivants qui repartent du même préfixe le relisent
+// au tarif cache (~10% du plein prix) au lieu de le re-facturer entièrement. Gain net sur les
+// conversations multi-tours — typiquement les retouches de maquette qui repassent par le bras
+// droit (Opus) à chaque fois. Aucun changement de comportement, uniquement le coût.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function withCacheBreakpoint(messages: Anthropic.MessageParam[]): any[] {
+  if (messages.length === 0) return messages as unknown[];
+  const out = messages.map((m) => ({ ...m })) as { role: string; content: unknown }[];
+  const last = out[out.length - 1];
+  const mark = { type: "ephemeral" as const };
+  if (typeof last.content === "string") {
+    last.content = [{ type: "text", text: last.content, cache_control: mark }];
+  } else if (Array.isArray(last.content) && last.content.length > 0) {
+    const blocks = last.content.map((b) => ({ ...(b as object) }));
+    (blocks[blocks.length - 1] as { cache_control?: unknown }).cache_control = mark;
+    last.content = blocks;
+  }
+  return out;
+}
+
 async function viaAnthropic({ system, messages, model, maxTokens, onText, webSearch }: LlmRequest): Promise<string> {
-  const params: Record<string, unknown> = { model, max_tokens: maxTokens, system, messages };
+  // system (stable et volumineux) mis en cache à part ; l'historique via le point de césure ci-dessus.
+  const cachedSystem = [{ type: "text", text: system, cache_control: { type: "ephemeral" } }];
+  const params: Record<string, unknown> = {
+    model,
+    max_tokens: maxTokens,
+    system: cachedSystem,
+    messages: withCacheBreakpoint(messages),
+  };
   if (webSearch) {
     // Outil web_search hébergé Anthropic (server-side, facturé ~10$/1000 recherches). ⚠️ NON TESTÉ
     // (pas de crédit au moment du câblage) — spec `type`/nom à CONFIRMER en conditions réelles.

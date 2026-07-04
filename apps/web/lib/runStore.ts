@@ -32,7 +32,7 @@ export interface StepState {
   error?: string;
 }
 
-export type RunStatus = "planning" | "running" | "done" | "error";
+export type RunStatus = "planning" | "running" | "done" | "error" | "cancelled";
 
 // Événements diffusés au dashboard (SSE). Le backlog est rejoué à la connexion.
 export type RunEvent =
@@ -55,6 +55,8 @@ export interface Run {
   steps: Record<string, StepState>;
   synthesis?: string;
   error?: string;
+  /** demande d'arrêt utilisateur : plus aucune nouvelle étape/synthèse ne doit démarrer */
+  cancelled?: boolean;
   /** journal complet, rejoué aux nouveaux abonnés */
   events: RunEvent[];
   subscribers: Set<(e: RunEvent) => void>;
@@ -140,4 +142,18 @@ export function emit(run: Run, event: RunEvent): void {
 export function subscribe(run: Run, cb: (e: RunEvent) => void): () => void {
   run.subscribers.add(cb);
   return () => run.subscribers.delete(cb);
+}
+
+/**
+ * Demande l'arrêt d'un run en cours. Pose le flag `cancelled` (lu par l'orchestrateur avant de
+ * lancer toute nouvelle étape/synthèse) et fait passer le statut à "cancelled". Un appel LLM déjà
+ * en vol peut se terminer, mais rien de nouveau ne sera démarré.
+ * Renvoie false si le run est introuvable.
+ */
+export function cancelRun(id: string): boolean {
+  const run = runs.get(id);
+  if (!run) return false;
+  run.cancelled = true;
+  emit(run, { type: "run.status", status: "cancelled" });
+  return true;
 }

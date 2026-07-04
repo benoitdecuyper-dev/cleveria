@@ -1,11 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import NoteView from "../brief/NoteView";
 import Markdown from "../components/Markdown";
+import MockupFrame from "../components/MockupFrame";
+import HistoryPanel from "../components/HistoryPanel";
 import { parseStream, speakable } from "../../lib/format";
+import { parseReply } from "../../lib/parseReply";
+import {
+  autoTitle,
+  deleteConversation,
+  getConversation,
+  listConversations,
+  migrateLegacyVoice,
+  newId,
+  nowIso,
+  renameConversation,
+  saveConversation,
+  type ConversationSummary,
+} from "../../lib/history";
 
 // ── Types (alignés sur /api/brief et /api/plan) ───────────────────────────────
 type Question = {
@@ -15,42 +29,48 @@ type Question = {
   options?: string[];
   allowFreeText?: boolean;
 };
-type Mode = "direct" | "questions" | "cadrage";
-type Msg = { role: "user" | "assistant"; text: string; mode?: Mode; isNote?: boolean; questions?: Question[]; streaming?: boolean; spoken?: string };
-type Board = { title: string; content: string };
-type BriefDone = { reply: string; mode?: Mode; isNote?: boolean; questions?: Question[]; spoken?: string | null; board?: Board | null };
-type RichStep = {
-  id: string;
-  agent: string;
-  agentLabel: string;
-  agentRole: string;
-  title: string;
-  task: string;
-  dependsOn: string[];
+type Mode = "direct" | "questions" | "cadrage" | "maquette";
+type Msg = {
+  role: "user" | "assistant";
+  text: string;
+  mode?: Mode;
+  isNote?: boolean;
+  questions?: Question[];
+  streaming?: boolean;
+  spoken?: string;
+  // Réponse qui a alimenté le board : le texte (= la phrase VOIX) est gardé pour l'historique/la
+  // relecture, mais on ne le RÉ-AFFICHE pas dans le chat (déjà narré à voix haute + déjà dans le
+  // board) → l'UI montre un indicateur discret à la place. Cf. finalize().
+  boardUpdate?: boolean;
 };
-type Plan = { summary: string; steps: RichStep[] };
+// kind absent ⇒ markdown (rétro-compat). Pour une maquette, content = le HTML complet ; seed =
+// le brief d'origine du maquettiste, conservé pour pouvoir régénérer après un refresh (le board
+// est stocké `unknown` en IndexedDB → kind/seed voyagent gratis, cf. lib/history.ts).
+type Board = { title: string; content: string; kind?: "markdown" | "maquette"; seed?: string };
+type BriefDone = {
+  reply: string;
+  mode?: Mode;
+  isNote?: boolean;
+  questions?: Question[];
+  spoken?: string | null;
+  board?: Board | null;
+  maquetteSeed?: string | null;
+  urlWarning?: string | null;
+};
+// Phase du parcours maquette-first (docs/18 §4) : "chat" = flux historique (markdown/cadrage
+// classique) ; "maquette" = un projet visuel a été détecté, le board affiche une maquette HTML
+// itérable. Dérivable de board.kind au chargement d'une conversation stockée.
+type Phase = "chat" | "maquette";
 
 const DEMO_PREFILL =
   "Je veux transformer une ancienne grange en tiers-lieu : un café associatif ouvert à tous, " +
   "plus des espaces de coworking, dans un village rural.";
 
-// Les pôles de la DSI = les agents de la Factory team regroupés par métier.
-// Le chiffre affiché = nb de spécialistes du pôle ; le détail apparaît au survol.
-// 21 spécialistes + le chef de projet = 22 agents au total.
-const POLES: { label: string; members: string[] }[] = [
-  { label: "Delivery tech", members: ["développeur", "lead tech", "devops", "QA", "debugger", "perf", "sécurité"] },
-  { label: "Produit & cadrage", members: ["product owner", "scrum master", "architecte"] },
-  { label: "Business & ventes", members: ["direction", "business dev", "marketing", "finance", "levée de fonds"] },
-  { label: "Design & com", members: ["UX/UI", "documentation"] },
-  { label: "Ops & RH", members: ["operations", "RH", "manager"] },
-  { label: "Risques & conformité", members: ["expert conformité"] },
-];
-
 const EXAMPLES = [
-  "Relis et corrige ce mail client",
-  "Aide-moi à structurer mon idée",
-  "Monter une asso et la financer",
-  "Un site vitrine pour mon activité",
+  "Un site vitrine pour mon activité de menuisier",
+  "Financer et structurer mon asso sportive",
+  "Un business plan pour ouvrir mon food-truck",
+  "Une boutique en ligne pour mes créations",
 ];
 
 // Une bulle assistant "en frappe" = en streaming, sans contenu réel encore arrivé
@@ -119,6 +139,19 @@ const IcoSpeakerOff = () => (
     <line x1="16" y1="9" x2="22" y2="15" />
   </svg>
 );
+const IcoNewChat = () => (
+  <svg {...svg.base} aria-hidden>
+    <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" />
+  </svg>
+);
+const IcoHistory = () => (
+  <svg {...svg.base} aria-hidden>
+    <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+    <path d="M3 3v5h5" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+);
 // Indicateur "il écrit…" : 3 points animés, comme dans une vraie messagerie.
 const TypingDots = () => (
   <span className="typing-dots" aria-label="en train d'écrire" role="status">
@@ -139,12 +172,30 @@ export default function VoicePage() {
   const [playingIdx, setPlayingIdx] = useState<number | null>(null);
   const [speaking, setSpeaking] = useState(false);
   const [voiceOn, setVoiceOn] = useState(true);
+  // Accueil "Shazam du besoin" : édition de la carte d'écho, et provenance de la saisie
+  // (micro → on propose une carte de confirmation ; texte tapé → envoi direct).
+  const [editingCrystal, setEditingCrystal] = useState(false);
+  const [fromMic, setFromMic] = useState(false);
+  // Besoin validé à lancer = contenu de la need card (board) en cadrage projet, ou la
+  // note en mode démo. Alimente la planification et le GO.
+  const [launchNote, setLaunchNote] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   // Board : le brouillon de livrable que le bras droit projette et construit en live.
   const [board, setBoard] = useState<Board | null>(null);
+  // URL optionnelle en entrée (service site, docs/19 §1) : rebranding — visible uniquement
+  // avant le 1er message. Capturée côté serveur (readUrl) et injectée dans le brief.
+  const [url, setUrl] = useState("");
+  // Parcours maquette-first (docs/18) : phase courante + graine d'origine (pour régénérer après
+  // un refresh) + indicateur "la maquette se construit" (on ne monte jamais l'iframe sur du HTML
+  // partiel — on bufferise jusqu'au "done", cf. MockupFrame).
+  const [phase, setPhase] = useState<Phase>("chat");
+  const [mockupSeed, setMockupSeed] = useState("");
+  const [mockupBuilding, setMockupBuilding] = useState(false);
+  // Historique (docs/13)
+  const [convList, setConvList] = useState<ConversationSummary[]>([]);
+  const [convId, setConvId] = useState<string | null>(null);
+  const [histOpen, setHistOpen] = useState(false);
 
-  const [planning, setPlanning] = useState(false);
-  const [plan, setPlan] = useState<Plan | null>(null);
   const [launching, setLaunching] = useState(false);
   // Réponses sélectionnées au formulaire de questions (par id de question). On envoie la sélection,
   // on ne l'injecte PAS dans le champ de saisie.
@@ -153,12 +204,41 @@ export default function VoicePage() {
   const router = useRouter();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ttsAbortRef = useRef<AbortController | null>(null);
+  // Flux SSE de /api/brief en cours (P0-1) : annulé à chaque nouveau tour ET quand on quitte
+  // la conversation courante (nouvelle conv / ouverture d'une entrée d'historique), pour
+  // qu'un flux périmé ne touche plus jamais l'état (messages/board) d'une AUTRE conversation.
+  const sendAbortRef = useRef<AbortController | null>(null);
+  // Idem pour /api/maquette (P0-1 étendu, docs/18 §4) : un nouveau tour ou un changement de
+  // conversation annule aussi une génération de maquette en cours — sinon corruption inter-
+  // conversations (le HTML d'une génération périmée écraserait le board d'une autre conv).
+  const maquetteAbortRef = useRef<AbortController | null>(null);
   // Index du dernier message déjà auto-lu, pour ne pas le relire à chaque re-render.
   const autoPlayedRef = useRef(-1);
+  // true tant que l'utilisateur est collé en bas du fil. Dès qu'il scrolle vers le
+  // haut (pour relire pendant que ça réfléchit), on ARRÊTE l'auto-scroll qui le ramenait
+  // de force en bas. Il reprend dès qu'il revient en bas.
+  const stickToBottomRef = useRef(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recRef = useRef<any>(null);
   const baseTextRef = useRef("");
+  // Auto fin-de-parole (V2, docs/12) : après un silence, on envoie le tour tout seul —
+  // plus besoin de finaliser à la main. Refs pour lire l'état frais dans le callback STT.
+  const autoSendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recognizingRef = useRef(false);
+  const loadingRef = useRef(false);
+  const sendRef = useRef<(opts?: { force?: boolean; override?: string }) => void>(() => {});
+  // Boucle mains-libres (V2) : le tour courant vient-il de la voix ? Et faut-il ré-écouter
+  // après la réponse ? On ne relance le micro QUE si l'échange est vocal ET qu'aucun geste
+  // n'est requis (need card/GO ou formulaire de questions attend un clic → on rend la main).
+  const handsFreeRef = useRef(false);
+  const pendingAutoListenRef = useRef(false);
+  // Historique : id + méta de la conversation courante pour la persistance.
+  const convIdRef = useRef<string | null>(null);
+  const convCreatedAtRef = useRef<string>("");
+  const titleCustomRef = useRef(false);
+  const titleRef = useRef("");
+  const skipPersistRef = useRef(false); // saute la sauvegarde juste après un chargement/reset
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -178,9 +258,11 @@ export default function VoicePage() {
   const speak = useCallback(
     // silent = true pour l'auto-lecture : on ne montre PAS de bannière d'erreur si la
     // voix est indisponible (pas de clé, quota, autoplay bloqué) — ça resterait muet.
-    async (raw: string, idx: number | null = null, silent = false) => {
+    // onDone = appelé À LA FIN NATURELLE (fin de lecture, ou voix indisponible) — PAS sur
+    // interruption (abort). Sert à enchaîner la ré-écoute mains-libres sans se réécouter parler.
+    async (raw: string, idx: number | null = null, silent = false, onDone?: () => void) => {
       const txt = speakable(raw);
-      if (!txt) return;
+      if (!txt) return void onDone?.();
       stopAudio(); // coupe toute lecture/chargement en cours
       setPlayingIdx(idx); // état IMMÉDIAT → un 2e clic = Stop, jamais une 2e lecture
       const ctrl = new AbortController();
@@ -196,50 +278,82 @@ export default function VoicePage() {
         if (!res.ok) {
           if (!silent) setError("Voix indisponible (clé ElevenLabs manquante ou quota atteint).");
           setPlayingIdx(null);
+          onDone?.(); // pas de voix → on enchaîne quand même la ré-écoute
           return;
         }
-        const url = URL.createObjectURL(await res.blob());
-        if (ctrl.signal.aborted) return void URL.revokeObjectURL(url);
-        const audio = new Audio(url);
+        const audioUrl = URL.createObjectURL(await res.blob());
+        if (ctrl.signal.aborted) return void URL.revokeObjectURL(audioUrl);
+        const audio = new Audio(audioUrl);
         audioRef.current = audio;
         audio.onplay = () => setSpeaking(true);
         audio.onended = () => {
           setSpeaking(false);
           setPlayingIdx(null);
-          URL.revokeObjectURL(url);
+          URL.revokeObjectURL(audioUrl);
+          onDone?.();
         };
         audio.onerror = () => {
           setSpeaking(false);
           setPlayingIdx(null);
+          onDone?.();
         };
         await audio.play();
       } catch (e) {
         if ((e as Error)?.name !== "AbortError") {
           setSpeaking(false);
           setPlayingIdx(null);
+          onDone?.();
         }
       }
     },
     [stopAudio],
   );
 
-  // Auto-scroll en bas du fil + auto-grow du champ.
+  // Suit le scroll de la fenêtre : on n'est "collé en bas" que si on est à ~140px du bas.
+  // (Un scroll programmatique atterrit en bas → reste collé ; un scroll manuel vers le
+  // haut → se décolle, donc plus d'auto-scroll forcé.)
   useEffect(() => {
+    const onScroll = () => {
+      const doc = document.documentElement;
+      stickToBottomRef.current = window.innerHeight + window.scrollY >= doc.scrollHeight - 140;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Auto-scroll en bas du fil — UNIQUEMENT si l'utilisateur est resté en bas.
+  useEffect(() => {
+    if (!stickToBottomRef.current) return;
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, planning, plan, loading]);
+  }, [messages, launchNote, loading]);
 
   // Auto-lecture : dès qu'une réponse finalisée arrive, on lit sa ligne VOIX (ou son
   // texte). Le clic "Envoyer"/micro juste avant fait office de geste utilisateur, donc
   // l'autoplay navigateur passe. Silencieux si la voix est indisponible.
   useEffect(() => {
-    if (!voiceOn) return;
+    // Pas d'auto-lecture pendant que l'utilisateur dicte : on ne lui parle pas dessus
+    // (et le micro ne capte pas la voix TTS). Dès qu'il arrête de dicter, on lit.
+    if (recognizing) return;
     const idx = messages.length - 1;
     const m = messages[idx];
     if (!m || m.role !== "assistant" || m.streaming) return;
     if (autoPlayedRef.current >= idx) return; // déjà lu
     autoPlayedRef.current = idx;
-    void speak(m.spoken ?? m.text, idx, true);
-  }, [messages, voiceOn, speak]);
+    // Boucle mains-libres : après avoir parlé (ou tout de suite si la voix est coupée), on
+    // ré-écoute — mais seulement si le tour venait de la voix et qu'aucun geste n'est requis.
+    const relisten = () => {
+      if (!pendingAutoListenRef.current) return;
+      pendingAutoListenRef.current = false;
+      if (recognizingRef.current || loadingRef.current) return;
+      startRec();
+    };
+    if (voiceOn) {
+      void speak(m.spoken ?? m.text, idx, true, relisten);
+    } else if (pendingAutoListenRef.current) {
+      // Voix coupée : pas de TTS à attendre, on relance après une courte pause.
+      setTimeout(relisten, 350);
+    }
+  }, [messages, voiceOn, recognizing, speak]);
 
   useEffect(() => {
     const el = fieldRef.current;
@@ -247,6 +361,14 @@ export default function VoicePage() {
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 128) + "px";
   }, [text]);
+
+  // État frais pour le callback STT (créé une fois au démarrage du micro).
+  useEffect(() => {
+    recognizingRef.current = recognizing;
+  }, [recognizing]);
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
 
   // ?demo=1
   useEffect(() => {
@@ -257,9 +379,110 @@ export default function VoicePage() {
     }
   }, []);
 
+  // Historique : rafraîchit la liste des conversations Projet.
+  const refreshList = useCallback(async () => {
+    setConvList(await listConversations("voice"));
+  }, []);
+
+  // Init au chargement : migration legacy → historique, liste, et (depuis la passerelle
+  // Assistant) ouverture de ?conv=<id> + cadrage auto ?cadrer=1. PAS d'auto-restauration de la
+  // dernière conversation : on démarre vierge, l'historique est accessible via le tiroir.
+  const autoCadreRef = useRef(false);
+  const didAutoCadreRef = useRef(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("demo") === "1") return; // démo : pas d'historique
+    const cadrer = params.get("cadrer") === "1";
+    const openId = params.get("conv");
+    if (cadrer) autoCadreRef.current = true;
+    if (cadrer || openId) window.history.replaceState(null, "", "/voice");
+    void (async () => {
+      await migrateLegacyVoice();
+      if (openId) {
+        const conv = await getConversation(openId);
+        if (conv) {
+          skipPersistRef.current = true;
+          convIdRef.current = conv.id;
+          convCreatedAtRef.current = conv.createdAt;
+          titleCustomRef.current = conv.titleIsCustom;
+          titleRef.current = conv.title;
+          setConvId(conv.id);
+          const msgs = conv.messages as Msg[];
+          setMessages(msgs);
+          autoPlayedRef.current = msgs.length - 1; // ne pas relire l'historique à voix haute
+          const loadedBoard = (conv.board as Board) ?? null;
+          setBoard(loadedBoard);
+          // La maquette survit au refresh : kind + seed voyagent gratis dans le board
+          // (IndexedDB, unknown) — on redérive juste la phase pour router les tours suivants.
+          setPhase(loadedBoard?.kind === "maquette" ? "maquette" : "chat");
+          setMockupSeed(loadedBoard?.kind === "maquette" ? (loadedBoard.seed ?? "") : "");
+        }
+      }
+      await refreshList();
+    })();
+    // au montage uniquement
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Cadrage auto (passerelle) : quand la conversation ouverte est chargée, produire la carte récap.
+  useEffect(() => {
+    if (!autoCadreRef.current || didAutoCadreRef.current || loading) return;
+    if (messages.length === 0) return; // on attend la conversation ouverte
+    didAutoCadreRef.current = true;
+    void send({ force: true });
+    // send est stable au runtime (fonction hoistée) ; on ne le met pas en dépendance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, loading]);
+
+  // Persistance IndexedDB (docs/13) : à chaque état stabilisé, on enregistre la conversation
+  // Projet (création à la volée au 1er message). Jamais en démo, jamais un message en streaming.
+  useEffect(() => {
+    if (demo) return;
+    if (skipPersistRef.current) {
+      skipPersistRef.current = false;
+      return;
+    }
+    if (messages.some((m) => m.streaming)) return;
+    if (messages.length === 0) return;
+    void (async () => {
+      let id = convIdRef.current;
+      if (!id) {
+        id = newId();
+        convIdRef.current = id;
+        convCreatedAtRef.current = nowIso();
+        setConvId(id);
+      }
+      const firstUser = messages.find((m) => m.role === "user")?.text ?? "";
+      const title = titleCustomRef.current ? titleRef.current : autoTitle(firstUser);
+      titleRef.current = title;
+      // P0-2 : saveConversation REMONTE l'échec (stockage bloqué/quota) — on ne l'avale pas,
+      // on prévient l'utilisateur via la bannière d'erreur existante. On continue à travailler
+      // (pas de blocage), juste sans persistance tant que le stockage reste indisponible.
+      try {
+        await saveConversation({
+          id,
+          mode: "voice",
+          title,
+          titleIsCustom: titleCustomRef.current,
+          messages: messages.map((m) => ({ ...m, streaming: undefined })),
+          board,
+          createdAt: convCreatedAtRef.current || nowIso(),
+          updatedAt: nowIso(),
+          userId: null,
+          schemaVersion: 1,
+        });
+        await refreshList();
+      } catch {
+        setError("Impossible de sauvegarder cette conversation — le stockage du navigateur est peut-être bloqué.");
+      }
+    })();
+  }, [messages, board, demo, refreshList]);
+
   // ── STT navigateur : la transcription s'écrit dans le champ, ÉDITABLE ─────────
   function startRec() {
     setError("");
+    pendingAutoListenRef.current = false; // démarrage explicite → annule une ré-écoute en attente
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
@@ -281,7 +504,16 @@ export default function VoicePage() {
         if (r.isFinal) finalChunk += r[0].transcript;
         else interim += r[0].transcript;
       }
-      setText((baseTextRef.current + finalChunk + interim).replace(/\s+/g, " ").trimStart());
+      const next = (baseTextRef.current + finalChunk + interim).replace(/\s+/g, " ").trimStart();
+      setText(next);
+      // Fin de parole détectée par silence : on relance un minuteur à chaque salve de
+      // parole ; quand ça se tait ~1,5 s, on envoie automatiquement (mains-libres).
+      if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
+      if (next.trim()) {
+        autoSendTimerRef.current = setTimeout(() => {
+          if (recognizingRef.current && !loadingRef.current) sendRef.current();
+        }, 1500);
+      }
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onerror = (e: any) => {
@@ -293,8 +525,10 @@ export default function VoicePage() {
     rec.start();
     recRef.current = rec;
     setRecognizing(true);
+    setFromMic(true); // saisie issue du micro → on proposera une carte d'écho à valider
   }
   function stopRec() {
+    if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
     recRef.current?.stop();
     setRecognizing(false);
     fieldRef.current?.focus();
@@ -319,48 +553,144 @@ export default function VoicePage() {
       }
       recRef.current = null;
     }
+    if (autoSendTimerRef.current) {
+      clearTimeout(autoSendTimerRef.current);
+      autoSendTimerRef.current = null;
+    }
     baseTextRef.current = "";
     setRecognizing(false);
   }, []);
 
   // ── Brief complet pour la planification ──────────────────────────────────────
-  const buildBrief = useCallback((msgs: Msg[], noteIdx: number): string => {
+  // noteText = le besoin validé (contenu de la need card du board, ou la note en démo).
+  const buildBrief = useCallback((msgs: Msg[], noteText: string): string => {
     const transcript = msgs
-      .slice(0, noteIdx)
       .map((m) => `**${m.role === "user" ? "Client" : "Chef de projet"}** : ${m.text}`)
       .join("\n\n");
     return [
       "# Échange de cadrage",
       transcript || "(brief déposé directement)",
       "",
-      "# Note de cadrage validée par le client",
-      msgs[noteIdx].text,
+      "# Besoin validé par le client",
+      noteText,
     ].join("\n");
   }, []);
 
-  // ── Plan "qui fait quoi" (sans exécuter) ─────────────────────────────────────
-  const requestPlan = useCallback(
-    async (msgs: Msg[], noteIdx: number) => {
-      setPlanning(true);
+
+  // ── Génération/itération de la maquette (docs/18 §2, §4, §5) ─────────────────
+  // Régénération HTML INTÉGRALE à chaque appel (seed + previousHtml + feedback) — jamais de
+  // patch côté client. On bufferise jusqu'au "done" : jamais d'iframe montée sur du HTML partiel.
+  const callMaquette = useCallback(
+    async (opts: { seed: string; previousHtml?: string; feedback?: string }) => {
+      maquetteAbortRef.current?.abort();
+      const ctrl = new AbortController();
+      maquetteAbortRef.current = ctrl;
+      const isCurrentMockup = () => maquetteAbortRef.current === ctrl;
+
+      setMockupBuilding(true);
       setError("");
       try {
-        const res = await fetch("/api/plan", {
+        const res = await fetch("/api/maquette", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ brief: buildBrief(msgs, noteIdx), demo }),
+          body: JSON.stringify({ ...opts, demo }),
+          signal: ctrl.signal,
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Erreur de planification");
-        const p = data.plan as Plan;
-        setPlan(p);
+
+        const ct = res.headers.get("content-type") ?? "";
+
+        // Mode démo : JSON direct (pas de flux), comme /api/brief.
+        if (!ct.includes("event-stream")) {
+          const data = await res.json();
+          if (!isCurrentMockup()) return;
+          if (!res.ok) throw new Error(data.error ?? "Erreur de génération de la maquette");
+          setBoard({ title: "Maquette du site", content: data.html, kind: "maquette", seed: opts.seed });
+          setMockupBuilding(false);
+          return;
+        }
+
+        // Flux SSE : "delta" = signal de vie uniquement (on ne rend rien tant que ce n'est
+        // pas complet) ; "done" porte le HTML final.
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        let html = "";
+        for (;;) {
+          if (!isCurrentMockup()) {
+            try {
+              await reader.cancel();
+            } catch {
+              /* déjà fermé */
+            }
+            return;
+          }
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          let sep: number;
+          while ((sep = buf.indexOf("\n\n")) >= 0) {
+            const chunk = buf.slice(0, sep);
+            buf = buf.slice(sep + 2);
+            const payloadLine = chunk.startsWith("data:") ? chunk.slice(5).trim() : chunk.trim();
+            if (!payloadLine) continue;
+            let evt: { t?: string; text?: string; html?: string; error?: string };
+            try {
+              evt = JSON.parse(payloadLine);
+            } catch {
+              continue;
+            }
+            if (evt.t === "done") html = evt.html ?? "";
+            else if (evt.t === "error") throw new Error(evt.error ?? "Erreur de génération de la maquette");
+          }
+        }
+        if (!isCurrentMockup()) return;
+        if (!html) throw new Error("La maquette générée est vide — réessaie.");
+        setBoard({ title: "Maquette du site", content: html, kind: "maquette", seed: opts.seed });
+        setMockupBuilding(false);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Erreur inconnue");
-      } finally {
-        setPlanning(false);
+        if (!isCurrentMockup() || (e instanceof Error && e.name === "AbortError")) return;
+        setError(e instanceof Error ? e.message : "Erreur de génération de la maquette");
+        setMockupBuilding(false);
       }
     },
-    [buildBrief, demo, speak],
+    [demo],
   );
+
+  // ── Retouche directe en phase maquette (fast-path, docs/18 §4/§7 — V2 anticipée) ────────────
+  // Une fois en phase maquette, un message du composer (texte OU dictée) est TOUJOURS une
+  // retouche visuelle : il part DIRECTEMENT au maquettiste (/api/maquette), sans repasser par
+  // le bras droit (/api/brief, Opus) qui relirait toute la conversation pour rien à chaque tour.
+  // Le bras droit ne sert plus qu'à l'ENTRÉE en phase maquette (1ère détection MODE: maquette,
+  // gérée dans finalize() ci-dessous, flux `send()` classique inchangé).
+  async function sendMaquetteFeedback(rawText: string) {
+    handsFreeRef.current = recognizingRef.current;
+    resetRecognition(); // jette toute dictée en attente avant de vider le champ
+    setError("");
+    const feedback = rawText.trim();
+    if (!feedback) {
+      setError("Décris la retouche à apporter (texte ou micro).");
+      return;
+    }
+    // Cas limite : pas de graine (ne devrait pas arriver en phase maquette) ou 1ère génération
+    // encore en cours (board sans HTML — ex. refresh en pleine génération initiale, cf. rendu du
+    // board) : on ne peut pas itérer sur du vide, on prévient proprement plutôt que de planter
+    // ou d'écraser la maquette en construction.
+    if (!mockupSeed || mockupBuilding || !board?.content) {
+      setError("La maquette est encore en cours de génération — patiente un instant avant de retoucher.");
+      return;
+    }
+    const optimistic: Msg[] = [
+      ...messages,
+      { role: "user", text: feedback },
+      // Trace chat discrète (comme à l'entrée en phase maquette, cf. finalize()) : pas de redite
+      // du HTML dans le fil, pas de voix (le maquettiste ne narre pas une retouche).
+      { role: "assistant", text: "", mode: "maquette", boardUpdate: true },
+    ];
+    setMessages(optimistic);
+    setText("");
+    setFiles([]);
+    void callMaquette({ seed: mockupSeed, previousHtml: board.content, feedback });
+  }
 
   // Bascule une option de réponse (single = remplace, multi = ajoute/retire).
   function toggleAnswer(q: Question, opt: string) {
@@ -394,20 +724,46 @@ export default function VoicePage() {
   // ── Un tour de conversation (texte uniquement : la voix a déjà été transcrite) ─
   async function send(opts: { force?: boolean; override?: string } = {}) {
     const { force = false, override } = opts;
+    // Fast-path retouche (docs/18 §4/§7) : en phase maquette, tout texte du composer EST une
+    // retouche → direct au maquettiste, jamais au bras droit. Cf. sendMaquetteFeedback ci-dessus.
+    if (phase === "maquette") {
+      await sendMaquetteFeedback(override ?? text);
+      return;
+    }
+    // Le tour part-il de la voix ? (micro actif à l'instant de l'envoi = échange vocal en cours).
+    // Capté AVANT resetRecognition, qui va couper le micro.
+    handsFreeRef.current = recognizingRef.current;
     resetRecognition(); // jette toute dictée en attente avant de vider le champ
     setError("");
+    setLaunchNote(""); // le GO ne réapparaît que si la nouvelle réponse cristallise un besoin
     const payload = (override ?? text).trim();
     const attached = files;
-    if (!force && !payload && !demo && attached.length === 0) {
+    if (!force && !payload && !demo && attached.length === 0 && !url.trim()) {
       setError("Parle (🎤), écris, ou joins un fichier.");
       return;
     }
+
+    // P0-1 : un nouveau tour annule le flux SSE encore en cours (s'il y en a un). Sans ça,
+    // un ancien fetch/lecture SSE continuerait à écrire dans l'état — voire dans la MAUVAISE
+    // conversation si l'utilisateur en a changé entre-temps → corruption. `isCurrent()` sert de
+    // jeton : toute écriture d'état issue de CE flux le vérifie d'abord.
+    sendAbortRef.current?.abort();
+    // Un nouveau tour de chat annule aussi une génération de maquette en cours (P0-1 étendu,
+    // docs/18 §4) — sinon une réponse périmée pourrait écraser le board après coup.
+    maquetteAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    sendAbortRef.current = ctrl;
+    const isCurrent = () => sendAbortRef.current === ctrl;
+
     setLoading(true);
-    const userLine = payload || (attached.length ? `📎 ${attached.length} pièce(s) jointe(s)` : "");
+    const capturedUrl = url.trim();
+    const userLine =
+      payload || (attached.length ? `📎 ${attached.length} pièce(s) jointe(s)` : capturedUrl ? `🔗 ${capturedUrl}` : "");
     const optimistic: Msg[] = userLine ? [...messages, { role: "user", text: userLine }] : messages;
     if (userLine) setMessages(optimistic);
     setText("");
     setFiles([]);
+    setUrl(""); // capturée une seule fois, au 1er tour — jamais renvoyée aux tours suivants
     try {
       const fd = new FormData();
       fd.append("history", JSON.stringify(messages.map((m) => ({ role: m.role, content: m.text }))));
@@ -415,19 +771,58 @@ export default function VoicePage() {
       for (const f of attached) fd.append("files", f);
       if (force) fd.append("force", "1");
       if (demo) fd.append("demo", "1");
+      if (capturedUrl) fd.append("url", capturedUrl);
 
-      const res = await fetch("/api/brief", { method: "POST", body: fd });
+      const res = await fetch("/api/brief", { method: "POST", body: fd, signal: ctrl.signal });
 
-      // Finalisation commune (flux terminé OU réponse démo/JSON).
+      // Finalisation commune (flux terminé OU réponse démo/JSON). Ne touche plus l'état si ce
+      // flux est devenu périmé entre-temps (nouveau tour / changement de conversation).
       const finalize = (data: BriefDone) => {
+        if (!isCurrent()) return;
         if (data.board) setBoard(data.board);
-        const chatText = data.board ? (data.spoken ?? "J'ai mis un premier jet dans le board →") : data.reply;
+        if (data.urlWarning) setError(data.urlWarning); // URL morte : jamais d'échec silencieux
+        const isMaquetteTurn = data.mode === "maquette" && !!data.maquetteSeed;
+        // Le livrable vit dans le board, la voix le narre : pas de redite du texte oral dans le
+        // chat. On garde `text` (= la phrase VOIX) pour l'historique/le bouton "Écouter", mais le
+        // rendu affiche un indicateur discret plutôt que le texte (cf. render, `boardUpdate`).
+        const chatText = data.board ? (data.spoken ?? "") : isMaquetteTurn ? (data.spoken ?? "") : data.reply;
         const next: Msg[] = [
           ...optimistic,
-          { role: "assistant", text: chatText, mode: data.mode, isNote: data.isNote, questions: data.questions ?? undefined, spoken: data.spoken ?? undefined },
+          {
+            role: "assistant",
+            text: chatText,
+            mode: data.mode,
+            isNote: data.isNote,
+            questions: data.questions ?? undefined,
+            spoken: data.spoken ?? undefined,
+            boardUpdate: !!data.board || isMaquetteTurn,
+          },
         ];
         setMessages(next);
-        if (data.isNote) void requestPlan(next, next.length - 1);
+        // Cadrage projet → le besoin est cristallisé (need card du board, ou note en
+        // démo). On l'arme pour le GO ; le plan détaillé sera fait au lancement.
+        if (data.isNote) {
+          setLaunchNote(data.board?.content ?? data.reply);
+        }
+        // Projet visuel détecté (docs/18 §4) : génération AUTOMATIQUE de la maquette, sans
+        // bouton. Ce tour est TOUJOURS l'ENTRÉE en phase maquette (1ère détection MODE: maquette
+        // depuis phase "chat") — vu le fast-path retouche (sendMaquetteFeedback, plus haut), une
+        // fois en phase maquette les tours suivants ne repassent plus jamais par ici.
+        if (isMaquetteTurn) {
+          const seed = data.maquetteSeed!;
+          setMockupSeed(seed);
+          setBoard({ title: "Maquette du site", content: "", kind: "maquette" });
+          setPhase("maquette");
+          void callMaquette({ seed });
+        }
+        // Ré-écoute mains-libres autorisée seulement si l'échange est vocal ET qu'aucun geste
+        // n'attend un clic : need card/GO (isNote), formulaire de questions, ou maquette en
+        // construction (le résultat arrive de façon asynchrone, hors de ce tour) → on rend la main.
+        pendingAutoListenRef.current =
+          handsFreeRef.current &&
+          !data.isNote &&
+          !(data.questions && data.questions.length > 0) &&
+          !isMaquetteTurn;
       };
 
       const ct = res.headers.get("content-type") ?? "";
@@ -448,12 +843,31 @@ export default function VoicePage() {
       let headerParsed = false;
       let liveMode: Mode | null = null;
       let finalData: BriefDone | null = null;
+      let spokeEarly = false; // a-t-on déjà lancé la lecture de la ligne VOIX en cours de flux ?
 
-      const showLive = (body: string) =>
+      // Ne jamais laisser fuir un bloc ```json à l'écran (même partiel/en cours de frappe) :
+      // les questions seront rendues en puces cliquables à la fin du flux. Hissé en dehors de
+      // la boucle pour être réutilisable par le repli de fin de flux (P0-3, ci-dessous).
+      const stripJson = (s: string) =>
+        s.replace(/```json[\s\S]*?```/g, "").replace(/```json[\s\S]*$/, "").trimEnd();
+
+      const showLive = (body: string) => {
+        if (!isCurrent()) return;
         setMessages([...optimistic, { role: "assistant", text: body || "…", mode: liveMode ?? undefined, streaming: true }]);
+      };
       showLive("");
 
       for (;;) {
+        if (!isCurrent()) {
+          // Flux périmé (nouveau tour / changement de conversation pendant la lecture) : on
+          // abandonne sans plus toucher l'état, et on relâche le flux réseau.
+          try {
+            await reader.cancel();
+          } catch {
+            /* déjà fermé */
+          }
+          return;
+        }
         const { done, value } = await reader.read();
         if (done) break;
         buf += decoder.decode(value, { stream: true });
@@ -474,9 +888,22 @@ export default function VoicePage() {
             if (!headerParsed) {
               const nl = raw.indexOf("\n");
               if (nl >= 0) {
-                const mm = /^MODE:\s*(direct|questions|cadrage)/i.exec(raw.slice(0, nl));
+                const mm = /^MODE:\s*(direct|questions|cadrage|maquette)/i.exec(raw.slice(0, nl));
                 liveMode = (mm?.[1]?.toLowerCase() as Mode) ?? "questions";
                 headerParsed = true;
+              }
+            }
+            // Voix en premier : la ligne VOIX arrive tout au début du flux. Pour les réponses
+            // LONGUES (board / questions), on la LIT dès qu'elle est complète, sans attendre la
+            // fin de l'écriture (sinon la voix ne démarre qu'après ~20 s de génération du board).
+            // Direct court : on laisse l'auto-lecture après coup (qui gère aussi la ré-écoute).
+            if (!spokeEarly && voiceOn && isCurrent()) {
+              const voixM = /^\s*VOIX\s*:\s*(.+)\n/im.exec(raw);
+              const longReply = liveMode === "questions" || /^\s*BOARD\s*:/im.test(raw) || /```json/.test(raw);
+              if (voixM && longReply) {
+                spokeEarly = true;
+                autoPlayedRef.current = optimistic.length; // pas de relecture en double après done
+                void speak(voixM[1].trim(), optimistic.length, true);
               }
             }
             // Affichage live hors mode "questions" (qui contient un bloc JSON à ne pas montrer brut).
@@ -484,10 +911,10 @@ export default function VoicePage() {
               const ps = parseStream(raw);
               if (ps.board) {
                 // Le livrable se construit dans le board ; le chat ne montre que la voix.
-                setBoard({ title: ps.boardTitle || "Brouillon", content: ps.body });
+                if (isCurrent()) setBoard({ title: ps.boardTitle || "Brouillon", content: stripJson(ps.body) });
                 showLive(ps.spoken || "Je rédige le brouillon dans le board…");
               } else {
-                showLive(ps.body);
+                showLive(stripJson(ps.body));
               }
             }
           } else if (evt.t === "done") {
@@ -497,8 +924,26 @@ export default function VoicePage() {
           }
         }
       }
-      if (finalData) finalize(finalData);
+      if (finalData) {
+        finalize(finalData);
+      } else if (isCurrent() && raw.trim()) {
+        // P0-3 : le flux s'est coupé APRÈS des deltas mais AVANT l'événement "done". Sans ce
+        // repli, la bulle resterait figée en `streaming:true` pour toujours et le tour ne
+        // serait jamais persisté. On finalise depuis ce qu'on a déjà reçu, via la MÊME
+        // extraction que le serveur (parseReply) — couvre aussi la ligne MAQUETTE.
+        const parsed = parseReply(raw);
+        finalize({
+          reply: parsed.reply || raw.trim(),
+          mode: parsed.mode,
+          isNote: parsed.isNote,
+          questions: (parsed.questions as Question[] | null) ?? undefined,
+          spoken: parsed.spoken,
+          board: parsed.board,
+          maquetteSeed: parsed.maquetteSeed,
+        });
+      }
     } catch (e) {
+      if (!isCurrent() || (e instanceof Error && e.name === "AbortError")) return; // flux périmé/annulé : rien à afficher
       setError(e instanceof Error ? e.message : "Erreur inconnue");
       // Échec : on retire la bulle utilisateur optimiste (et toute bulle en cours
       // de frappe) et on rend la saisie + les pièces jointes pour pouvoir réessayer.
@@ -506,23 +951,23 @@ export default function VoicePage() {
       if (payload) setText(payload);
       if (attached.length) setFiles(attached);
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   }
 
   // ── GO : coordonne l'équipe sur le plan validé ───────────────────────────────
   async function confirmGo() {
-    if (!plan) return;
-    const noteIdx = messages.map((m) => !!m.isNote).lastIndexOf(true);
-    if (noteIdx < 0) return;
+    if (!launchNote) return;
     setLaunching(true);
     setError("");
     stopAudio();
     try {
+      // Pas de plan pré-généré : /api/run planifie côté serveur et le détail s'affiche
+      // sur /run/[id]. On envoie juste le besoin validé.
       const res = await fetch("/api/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brief: buildBrief(messages, noteIdx), plan, demo }),
+        body: JSON.stringify({ brief: buildBrief(messages, launchNote), demo }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erreur au lancement");
@@ -533,21 +978,124 @@ export default function VoicePage() {
     }
   }
 
+  // Repart d'une conversation vierge SANS toucher à l'historique (la conversation en cours,
+  // si elle a des messages, reste sauvegardée et accessible via le tiroir).
+  function newConversation() {
+    // P0-1 : abandonne tout flux SSE en cours AVANT de vider l'état — sinon ses "delta"/"done"
+    // arriveraient encore et écriraient dans la conversation vierge qui vient de démarrer.
+    // Idem pour une génération de maquette en cours (docs/18 §4).
+    sendAbortRef.current?.abort();
+    sendAbortRef.current = null;
+    maquetteAbortRef.current?.abort();
+    maquetteAbortRef.current = null;
+    stopAudio();
+    resetRecognition();
+    skipPersistRef.current = true;
+    convIdRef.current = null;
+    convCreatedAtRef.current = "";
+    titleCustomRef.current = false;
+    titleRef.current = "";
+    setConvId(null);
+    setMessages([]);
+    setBoard(null);
+    setText("");
+    setUrl("");
+    setPhase("chat");
+    setMockupSeed("");
+    setMockupBuilding(false);
+    setAnswers({});
+    setFiles([]);
+    setError("");
+    setEditingCrystal(false);
+    setFromMic(false);
+    setLaunchNote("");
+    autoPlayedRef.current = -1;
+    pendingAutoListenRef.current = false;
+    setHistOpen(false);
+  }
+
+  // ── Historique : ouvrir / renommer / supprimer ────────────────────────────────
+  async function openConversation(id: string) {
+    const conv = await getConversation(id);
+    if (!conv) return;
+    // P0-1 : idem newConversation — on quitte la conversation en cours, un flux SSE (ou une
+    // génération de maquette) périmé ne doit plus jamais écrire dans celle qu'on va ouvrir.
+    sendAbortRef.current?.abort();
+    sendAbortRef.current = null;
+    maquetteAbortRef.current?.abort();
+    maquetteAbortRef.current = null;
+    stopAudio();
+    resetRecognition();
+    skipPersistRef.current = true;
+    convIdRef.current = conv.id;
+    convCreatedAtRef.current = conv.createdAt;
+    titleCustomRef.current = conv.titleIsCustom;
+    titleRef.current = conv.title;
+    setConvId(conv.id);
+    const msgs = conv.messages as Msg[];
+    setMessages(msgs);
+    autoPlayedRef.current = msgs.length - 1;
+    const loadedBoard = (conv.board as Board) ?? null;
+    setBoard(loadedBoard);
+    // La maquette survit au refresh/à la réouverture : kind + seed voyagent gratis via le board
+    // (IndexedDB, unknown) — on redérive juste la phase pour router les tours suivants.
+    setPhase(loadedBoard?.kind === "maquette" ? "maquette" : "chat");
+    setMockupSeed(loadedBoard?.kind === "maquette" ? (loadedBoard.seed ?? "") : "");
+    setMockupBuilding(false);
+    setText("");
+    setUrl("");
+    setAnswers({});
+    setFiles([]);
+    setError("");
+    setLaunchNote("");
+    pendingAutoListenRef.current = false;
+    setHistOpen(false);
+  }
+
+  async function onRenameConv(id: string, title: string) {
+    try {
+      await renameConversation(id, title);
+      if (id === convIdRef.current) {
+        titleCustomRef.current = true;
+        titleRef.current = title;
+      }
+      await refreshList();
+    } catch {
+      setError("Impossible de renommer — le stockage du navigateur est peut-être bloqué.");
+    }
+  }
+
+  async function onDeleteConv(id: string) {
+    try {
+      await deleteConversation(id);
+      if (id === convIdRef.current) newConversation();
+      await refreshList();
+    } catch {
+      setError("Impossible de supprimer — le stockage du navigateur est peut-être bloqué.");
+    }
+  }
+
   function downloadBoard() {
     if (!board) return;
-    const blob = new Blob([board.content], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
+    const isMockup = board.kind === "maquette";
+    const blob = new Blob([board.content], { type: isMockup ? "text/html;charset=utf-8" : "text/markdown;charset=utf-8" });
+    const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `${(board.title || "brouillon").replace(/[^\w-]+/g, "-").toLowerCase()}.md`;
+    a.href = blobUrl;
+    a.download = `${(board.title || "brouillon").replace(/[^\w-]+/g, "-").toLowerCase()}.${isMockup ? "html" : "md"}`;
     a.click();
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(blobUrl);
   }
+
+  // En phase maquette, une retouche est déjà en cours de génération → on bloque le composer
+  // (évite un 2e feedback qui percuterait le premier ; callMaquette gère déjà l'abort, mais
+  // autant éviter la confusion côté utilisateur).
+  const maquetteBusy = phase === "maquette" && mockupBuilding;
 
   function onFieldKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (!loading) void send();
+      if (!loading && !maquetteBusy) void send();
     }
   }
 
@@ -555,40 +1103,200 @@ export default function VoicePage() {
     ? "Je vous écoute…"
     : speaking
       ? "Je vous réponds…"
-      : loading || planning
+      : loading
         ? "Je réfléchis…"
         : "En ligne · prêt à lancer un projet";
-  const busy = recognizing || speaking || loading || planning;
+  const busy = recognizing || speaking || loading;
   const avatarState = speaking ? "speaking" : recognizing ? "listening" : "";
   // Une bulle assistant est déjà en train d'afficher la frappe → pas de doublon en bas.
   const streamingActive = messages[messages.length - 1]?.streaming ?? false;
+  // États de l'accueil Shazam : idle (geste) / listening (écoute) / crystal (carte d'écho
+  // après dictée). Une fois la conversation lancée (started), l'accueil disparaît.
+  const heroState = started
+    ? "active"
+    : recognizing
+      ? "listening"
+      : fromMic && text.trim()
+        ? "crystal"
+        : "idle";
+
+  // Le minuteur d'auto-envoi appelle sendRef.current() → toujours le send() du dernier
+  // rendu (donc le `text` à jour), jamais une closure figée au démarrage du micro.
+  sendRef.current = send;
 
   return (
-    <div className="voice">
+    <div className="voice" data-mode="projet">
+      <HistoryPanel
+        variant="drawer"
+        open={histOpen}
+        onClose={() => setHistOpen(false)}
+        items={convList}
+        activeId={convId}
+        onNew={newConversation}
+        onSelect={openConversation}
+        onRename={onRenameConv}
+        onDelete={onDeleteConv}
+      />
       {/* En-tête : accueil (avant) / barre compacte (pendant) */}
       {!started ? (
-        <div className="vhero">
-          <div className={`avatar ${avatarState}`}>CdP</div>
-          <p className="eyebrow">Ton bras droit à la demande</p>
-          <h1>Demande-lui n'importe quoi. Il s'en occupe.</h1>
-          <p className="lead">
-            Parle ou écris. Les <strong>tâches du quotidien</strong>, il les fait lui-même, tout de suite.
-            Les <strong>vrais projets</strong>, il mobilise une équipe de spécialistes et te livre.
-          </p>
-          <p className="muted" style={{ fontSize: "0.86rem", margin: "1.1rem 0 0" }}>
-            L'équipe qu'il peut mobiliser pour un projet — <strong>21 spécialistes</strong> en 6 pôles{" "}
-            <span className="muted">(survole un pôle pour voir qui s'y trouve)</span> :
-          </p>
-          <div className="poles">
-            {POLES.map((p) => (
-              <span key={p.label} className="pole" title={p.members.join(", ")}>
-                {p.label} <span className="n">{p.members.length}</span>
-              </span>
-            ))}
-          </div>
+        <div className="shazam" data-state={heroState}>
+          <button
+            type="button"
+            className="cbtn hist-btn voice-hist-fab"
+            onClick={() => setHistOpen(true)}
+            aria-label="Historique des conversations"
+            title="Historique"
+          >
+            <IcoHistory />
+          </button>
+          {heroState === "crystal" ? (
+            <div className="sh-crystal">
+              <p className="eyebrow">Voici ce que j'ai compris</p>
+              {editingCrystal ? (
+                <textarea
+                  className="textarea sh-edit"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  rows={3}
+                  autoFocus
+                />
+              ) : (
+                <p className="sh-crystal-card">« {text} »</p>
+              )}
+              <div className="toolbar" style={{ justifyContent: "center", marginTop: "0.9rem" }}>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-lg"
+                  onClick={() => {
+                    setEditingCrystal(false);
+                    void send();
+                  }}
+                  disabled={loading}
+                >
+                  Confirmer →
+                </button>
+                <button type="button" className="btn" onClick={() => setEditingCrystal((v) => !v)}>
+                  {editingCrystal ? "OK" : "Modifier"}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setEditingCrystal(false);
+                    setText("");
+                    startRec();
+                  }}
+                >
+                  Redicter
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <h1 className="sh-title">Quel est votre besoin ?</h1>
+              <p className="sh-sub">Parlez. On s'en occupe.</p>
+              <button
+                type="button"
+                className={`sh-mic ${recognizing ? "rec" : ""}`}
+                onClick={toggleRec}
+                aria-label={recognizing ? "Arrêter de parler" : "Parler"}
+                title={recognizing ? "Arrêter" : "Appuie et dis ton besoin"}
+              >
+                <span className="sh-rings" aria-hidden>
+                  <span />
+                  <span />
+                  <span />
+                </span>
+                {recognizing ? <IcoStop /> : <IcoMic />}
+              </button>
+              {recognizing ? (
+                <>
+                  <p className="sh-listening">J'écoute…</p>
+                  {text.trim() && <p className="sh-transcript">« {text} »</p>}
+                </>
+              ) : (
+                <>
+                  <div className="sh-or">
+                    <span className="sh-or-line" /> ou écris <span className="sh-or-line" />
+                  </div>
+                  <div className="sh-write">
+                    <input
+                      className="input"
+                      value={text}
+                      onChange={(e) => {
+                        setFromMic(false);
+                        setText(e.target.value);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && text.trim() && !loading) {
+                          e.preventDefault();
+                          void send();
+                        }
+                      }}
+                      placeholder="Décris ton besoin en une phrase…"
+                      aria-label="Écris ton besoin"
+                    />
+                    <button
+                      type="button"
+                      className="cbtn send"
+                      onClick={() => send()}
+                      disabled={loading || (!text.trim() && !url.trim())}
+                      aria-label="Envoyer"
+                      title="Envoyer"
+                    >
+                      <IcoSend />
+                    </button>
+                  </div>
+                  {/* Capture d'URL optionnelle (service site — création/rebranding, docs/19 §1) :
+                      si renseignée, on capte le contenu réel du site existant côté serveur et on
+                      l'injecte dans le brief de la maquette (jamais un écran séparé). */}
+                  <div className="sh-url">
+                    <input
+                      className="input"
+                      type="url"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (text.trim() || url.trim()) && !loading) {
+                          e.preventDefault();
+                          void send();
+                        }
+                      }}
+                      placeholder="URL de votre site actuel (optionnel — pour un rebranding)"
+                      aria-label="URL de votre site actuel"
+                    />
+                  </div>
+                  <div className="chips sh-examples">
+                    {EXAMPLES.map((ex) => (
+                      <button
+                        key={ex}
+                        type="button"
+                        className="chip"
+                        onClick={() => {
+                          setFromMic(false);
+                          setText(ex);
+                        }}
+                      >
+                        {ex}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </div>
       ) : (
         <div className="vbar">
+          <button
+            type="button"
+            className="cbtn hist-btn"
+            onClick={() => setHistOpen(true)}
+            aria-label="Historique des conversations"
+            title="Historique"
+          >
+            <IcoHistory />
+          </button>
           <div className={`avatar ${avatarState}`}>CdP</div>
           <div className="id">
             <span className="name">Chef de projet</span>
@@ -597,6 +1305,15 @@ export default function VoicePage() {
             </span>
           </div>
           <span className="header-spacer" />
+          <button
+            type="button"
+            className="cbtn"
+            onClick={newConversation}
+            aria-label="Nouvelle conversation"
+            title="Nouvelle conversation (garde l'échange en cours dans l'historique)"
+          >
+            <IcoNewChat />
+          </button>
           <button
             type="button"
             className={`cbtn ${voiceOn ? "voice-on" : ""}`}
@@ -621,16 +1338,28 @@ export default function VoicePage() {
         </div>
       )}
 
+      {started && (
       <div className={`workspace ${board ? "split" : ""}`}>
         {board && (
           <aside className="board-pane">
             <div className="board-head">
               <div className="board-titlewrap">
-                <div className="eyebrow">Board · brouillon en live</div>
-                <div className="board-title">{board.title}</div>
+                <div className="eyebrow">{board.kind === "maquette" ? "Board · maquette en live" : "Board · brouillon en live"}</div>
+                <div className="board-title">
+                  {board.title}
+                  {board.kind === "maquette" && mockupBuilding && (
+                    <span className="muted" style={{ fontWeight: 500, fontSize: "0.85rem" }}> · en construction…</span>
+                  )}
+                </div>
               </div>
               <div className="board-actions">
-                <button type="button" className="cbtn" onClick={downloadBoard} title="Télécharger (.md)" aria-label="Télécharger">
+                <button
+                  type="button"
+                  className="cbtn"
+                  onClick={downloadBoard}
+                  title={board.kind === "maquette" ? "Télécharger (.html)" : "Télécharger (.md)"}
+                  aria-label="Télécharger"
+                >
                   <IcoDownload />
                 </button>
                 <button type="button" className="cbtn" onClick={() => setBoard(null)} title="Fermer le board" aria-label="Fermer">
@@ -638,26 +1367,32 @@ export default function VoicePage() {
                 </button>
               </div>
             </div>
-            <div className="board-body">
-              <Markdown markdown={board.content || "…"} />
+            <div className={`board-body ${board.kind === "maquette" ? "board-body-mockup" : ""}`}>
+              {board.kind === "maquette" ? (
+                // mockupBuilding : génération en cours (on ne monte jamais l'iframe sur du HTML
+                // partiel). !board.content : cas bord d'un refresh pendant la toute 1ère
+                // génération (persisté avant que le HTML final n'arrive) — même indicateur plutôt
+                // qu'un iframe vide.
+                mockupBuilding || !board.content ? (
+                  <div className="mockup-building">
+                    <span className="dot running" /> La maquette se construit…
+                  </div>
+                ) : (
+                  <MockupFrame html={board.content} />
+                )
+              ) : (
+                <Markdown markdown={board.content || "…"} />
+              )}
             </div>
           </aside>
         )}
         <div className="chat-pane">
       {/* Fil de conversation */}
       <div className="thread">
-        {!started && (
-          <div className="chips" style={{ alignSelf: "center", justifyContent: "center" }}>
-            {EXAMPLES.map((ex) => (
-              <button key={ex} type="button" className="chip" onClick={() => setText(ex)}>
-                {ex}
-              </button>
-            ))}
-          </div>
-        )}
-
         {messages.map((m, i) =>
-          m.role === "assistant" && m.isNote ? (
+          // En cadrage réel, la need card EST dans le board → on n'affiche pas de note
+          // dupliquée dans le chat. En démo (sans board), on garde la note de cadrage.
+          m.role === "assistant" && m.isNote && !board ? (
             <div key={i} className="block">
               <NoteView markdown={m.text} />
               <button
@@ -674,7 +1409,13 @@ export default function VoicePage() {
             <div key={i} className={`msg ${m.role === "user" ? "me" : "bot"}${isTyping(m) ? " pending" : ""}`}>
               {m.role === "assistant" && <div className="who">Chef de projet</div>}
               {m.role === "assistant" && !m.streaming ? (
-                <Markdown markdown={m.text} />
+                m.boardUpdate ? (
+                  <div className="muted" style={{ fontSize: "0.9rem" }}>
+                    {m.mode === "maquette" ? "🎨 Maquette mise à jour" : "Mis à jour dans le board →"}
+                  </div>
+                ) : (
+                  <Markdown markdown={m.text} />
+                )
               ) : isTyping(m) ? (
                 <TypingDots />
               ) : (
@@ -744,38 +1485,14 @@ export default function VoicePage() {
             <b>Chef de projet</b> <TypingDots />
           </div>
         )}
-        {planning && (
-          <div className="typing">
-            <b>Chef de projet</b> prépare le plan d'action de l'équipe <TypingDots />
-          </div>
-        )}
-
-        {/* Plan "qui fait quoi" + GO */}
-        {plan && (
-          <div className="card plan-card block">
-            <p className="eyebrow">Plan d'action de l'équipe</p>
-            <p style={{ margin: "0.2rem 0 0.6rem", fontWeight: 600 }}>{plan.summary}</p>
-            {plan.steps.map((s, idx) => (
-              <div key={s.id} className="plan-step">
-                <span className="pidx">{idx + 1}</span>
-                <div className="pbody">
-                  <div className="pagent">
-                    {s.agentLabel}
-                    {s.agentRole ? <span className="muted" style={{ textTransform: "none", fontWeight: 400 }}> — {s.agentRole}</span> : null}
-                  </div>
-                  <div className="ptitle">{s.title}</div>
-                  {s.task ? <div className="ptask">{s.task}</div> : null}
-                </div>
-              </div>
-            ))}
-            <div className="toolbar" style={{ marginTop: "0.9rem" }}>
-              <button type="button" className="btn btn-primary btn-lg" onClick={confirmGo} disabled={launching}>
-                {launching ? "Lancement…" : "✓ GO — lancer l'équipe"}
-              </button>
-              <button type="button" className="playbtn" onClick={() => speak(`${plan.summary}. Donne-moi le GO pour lancer.`)}>
-                <IcoPlay /> Relire
-              </button>
-            </div>
+        {/* GO unique : dès que le besoin est cristallisé (need card), on lance l'équipe.
+            Le plan détaillé "qui fait quoi" s'affiche après, sur la page du run. */}
+        {launchNote && !loading && (
+          <div className="card go-bar block">
+            <div className="go-q">Ce besoin te convient&nbsp;? Sinon, dis-moi en un mot ce qu'il faut changer.</div>
+            <button type="button" className="btn btn-primary btn-lg" onClick={confirmGo} disabled={launching}>
+              {launching ? "Lancement…" : "✓ GO — lancer l'équipe"}
+            </button>
           </div>
         )}
 
@@ -783,16 +1500,8 @@ export default function VoicePage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Composer — caché une fois le plan affiché (place au GO) */}
-      {!plan && (
+      {/* Composer — toujours dispo : on peut affiner le besoin / continuer à parler */}
         <div>
-          {started && !planning && (
-            <div className="composer-aside">
-              <button type="button" className="linkbtn subtle" onClick={() => send({ force: true })} disabled={loading}>
-                J'ai tout dit → passer au cadrage
-              </button>
-            </div>
-          )}
           {files.length > 0 && (
             <div className="chips" style={{ marginBottom: "0.4rem" }}>
               {files.map((f, idx) => (
@@ -831,7 +1540,6 @@ export default function VoicePage() {
                 type="button"
                 className="cbtn"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={loading}
                 aria-label="Joindre un fichier"
                 title="Joindre un fichier"
               >
@@ -841,7 +1549,6 @@ export default function VoicePage() {
                 type="button"
                 className={`cbtn mic ${recognizing ? "rec" : ""}`}
                 onClick={toggleRec}
-                disabled={loading}
                 aria-label={recognizing ? "Arrêter la dictée" : "Dicter"}
                 title={recognizing ? "Arrêter la dictée" : "Dicter à voix haute"}
               >
@@ -860,7 +1567,10 @@ export default function VoicePage() {
                 type="button"
                 className="cbtn send"
                 onClick={() => send()}
-                disabled={loading || (!text.trim() && !demo && files.length === 0)}
+                disabled={
+                  loading ||
+                  (phase === "maquette" ? maquetteBusy || !text.trim() : !text.trim() && !demo && files.length === 0)
+                }
                 aria-label="Envoyer"
                 title="Envoyer"
               >
@@ -869,13 +1579,9 @@ export default function VoicePage() {
             </div>
           </div>
         </div>
-      )}
         </div>
       </div>
-
-      <p style={{ marginTop: "0.4rem" }}>
-        <Link href="/" className="muted">← Accueil</Link>
-      </p>
+      )}
     </div>
   );
 }
