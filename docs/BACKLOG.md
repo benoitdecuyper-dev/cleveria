@@ -193,9 +193,9 @@ Livrables : **`docs/22-cadrage-conversation-surface.md`** (cadrage produit PO) +
 
 ### ⬜ CLV-47 — Étage 1 (V1, cheap) : retirer le switch, conversation = atterrissage
 Umbrella, éclaté par le PO en 4 tickets. Zéro nouvelle infra (IndexedDB existant). Dépend de CLV-46 (fait).
-- **⬜ CLV-51** — Retrait `SiteNav` (switch) + refonte accueil `/` (hero 1 CTA, plus de 2 dalles). *Clôt et remplace CLV-44.*
-- **⬜ CLV-52** — Garde-fou d'état : `stage` sur l'objet + `engageProject()` ; le serveur route ses ops sur le `stage`, pas sur `MODE:`. **Décision Benoit requise** (promotion en place vs nouveau fil, cf. Reprise).
-- **⬜ CLV-53** — Passerelle « transformer en projet » remise au centre (promotion en place de l'objet — à confirmer). *Dépend de CLV-52.*
+- **✅ CLV-51** — Retrait `SiteNav` (switch) + accueil = hero 1 CTA (« Commencer une conversation » → /echange). Relu lead-tech + recette QA verte (5/5 AC), commit `2f3e039`. *Clôt CLV-44.* Retouches incluses : « Retrouver mes projets » ouvre le tiroir historique (`/voice?history=1`), fil d'Ariane `/echange` → « Conversation », métadonnées au vous.
+- **⬜ CLV-52** — Garde-fou d'état : `stage` sur l'objet + `engageProject()` ; le serveur route ses ops sur le `stage`, pas sur `MODE:`. **Décision Benoit tranchée 2026-07-04 : promotion en place** (le même fil devient le projet, pas de fork).
+- **⬜ CLV-53** — Passerelle « transformer en projet » = **promotion en place** de l'objet (même id, même fil ; remplace le `toProject()` actuel qui forke). *Dépend de CLV-52.*
 - **⬜ CLV-54** — Écran « Mes projets » (liste des objets engagés, déjà stockés en IndexedDB). *Recoupe/absorbe CLV-45.*
 
 ### ⬜ CLV-48 — Étage 2 (V2) : fil & mémoire par projet — = application de CLV-MEM
