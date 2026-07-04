@@ -68,8 +68,8 @@ const DEMO_PREFILL =
 
 const EXAMPLES = [
   "Un site vitrine pour mon activité de menuisier",
-  "Financer et structurer mon asso sportive",
-  "Un business plan pour ouvrir mon food-truck",
+  "Une page pour mon association sportive",
+  "Un site pour présenter mon food-truck",
   "Une boutique en ligne pour mes créations",
 ];
 
@@ -1201,79 +1201,63 @@ export default function VoicePage() {
             </div>
           ) : (
             <>
-              <h1 className="sh-title">Quel est votre besoin ?</h1>
-              <p className="sh-sub">Parlez. On s'en occupe.</p>
-              <button
-                type="button"
-                className={`sh-mic ${recognizing ? "rec" : ""}`}
-                onClick={toggleRec}
-                aria-label={recognizing ? "Arrêter de parler" : "Parler"}
-                title={recognizing ? "Arrêter" : "Appuyez et dites votre besoin"}
-              >
-                <span className="sh-rings" aria-hidden>
-                  <span />
-                  <span />
-                  <span />
-                </span>
-                {recognizing ? <IcoStop /> : <IcoMic />}
-              </button>
-              {recognizing ? (
+              {/* Eyebrow optionnel (docs/25 §1) : ancre "gratuit" avant même le titre. */}
+              <p className="eyebrow sh-eyebrow">Maquette gratuite — sans engagement</p>
+              <h1 className="sh-title">Voyons à quoi ressemble votre site.</h1>
+              <p className="sh-sub">
+                Décrivez votre activité, ou collez l'adresse de votre site actuel. Vous voyez la
+                maquette avant de payer un centime.
+              </p>
+              {/* Pendant la dictée : juste l'indicateur d'écoute. La transcription live est déjà
+                  visible dans le champ juste en dessous (source unique) — pas de doublon. */}
+              {recognizing && <p className="sh-listening">J'écoute…</p>}
+              {/* Chemin PRIMAIRE : décrire son activité (docs/25 §2). Le micro n'est plus le gros
+                  bouton vedette de l'écran — il devient une icône compacte accolée au champ, mais
+                  reste pleinement fonctionnel (toggle démarrer/arrêter la dictée). */}
+              <div className="sh-write">
+                <input
+                  className="input"
+                  value={text}
+                  onChange={(e) => {
+                    setFromMic(false);
+                    setText(e.target.value);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && text.trim() && !loading) {
+                      e.preventDefault();
+                      void send();
+                    }
+                  }}
+                  placeholder="Décrivez votre activité en une phrase…"
+                  aria-label="Décrivez votre activité"
+                />
+                <button
+                  type="button"
+                  className={`sh-mic ${recognizing ? "rec" : ""}`}
+                  onClick={toggleRec}
+                  aria-label={recognizing ? "Arrêter de parler" : "Parler"}
+                  title={recognizing ? "Arrêter" : "Appuyez et dites votre besoin"}
+                >
+                  <span className="sh-rings" aria-hidden>
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                  {recognizing ? <IcoStop /> : <IcoMic />}
+                </button>
+                <button
+                  type="button"
+                  className="cbtn send"
+                  onClick={() => send()}
+                  disabled={loading || (!text.trim() && !url.trim())}
+                  aria-label="Envoyer"
+                  title="Envoyer"
+                >
+                  <IcoSend />
+                </button>
+              </div>
+              {!recognizing && (
                 <>
-                  <p className="sh-listening">J'écoute…</p>
-                  {text.trim() && <p className="sh-transcript">« {text} »</p>}
-                </>
-              ) : (
-                <>
-                  <div className="sh-or">
-                    <span className="sh-or-line" /> ou écrivez <span className="sh-or-line" />
-                  </div>
-                  <div className="sh-write">
-                    <input
-                      className="input"
-                      value={text}
-                      onChange={(e) => {
-                        setFromMic(false);
-                        setText(e.target.value);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && text.trim() && !loading) {
-                          e.preventDefault();
-                          void send();
-                        }
-                      }}
-                      placeholder="Décrivez votre besoin en une phrase…"
-                      aria-label="Écrivez votre besoin"
-                    />
-                    <button
-                      type="button"
-                      className="cbtn send"
-                      onClick={() => send()}
-                      disabled={loading || (!text.trim() && !url.trim())}
-                      aria-label="Envoyer"
-                      title="Envoyer"
-                    >
-                      <IcoSend />
-                    </button>
-                  </div>
-                  {/* Capture d'URL optionnelle (service site — création/rebranding, docs/19 §1) :
-                      si renseignée, on capte le contenu réel du site existant côté serveur et on
-                      l'injecte dans le brief de la maquette (jamais un écran séparé). */}
-                  <div className="sh-url">
-                    <input
-                      className="input"
-                      type="url"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && (text.trim() || url.trim()) && !loading) {
-                          e.preventDefault();
-                          void send();
-                        }
-                      }}
-                      placeholder="URL de votre site actuel (optionnel — pour un rebranding)"
-                      aria-label="URL de votre site actuel"
-                    />
-                  </div>
                   <div className="chips sh-examples">
                     {EXAMPLES.map((ex) => (
                       <button
@@ -1289,6 +1273,32 @@ export default function VoicePage() {
                       </button>
                     ))}
                   </div>
+                  <div className="sh-or">
+                    <span className="sh-or-line" /> ou, si vous avez déjà un site <span className="sh-or-line" />
+                  </div>
+                  {/* Chemin SECONDAIRE, optionnel : coller l'URL d'un site existant. Capture
+                      d'URL (service site — création/rebranding, docs/19 §1) : si renseignée, on
+                      capte le contenu réel du site existant côté serveur et on l'injecte dans le
+                      brief de la maquette (jamais un écran séparé). */}
+                  <div className="sh-url">
+                    <input
+                      className="input"
+                      type="url"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (text.trim() || url.trim()) && !loading) {
+                          e.preventDefault();
+                          void send();
+                        }
+                      }}
+                      placeholder="Adresse de votre site actuel (si vous en avez un)"
+                      aria-label="URL de votre site actuel"
+                    />
+                  </div>
+                  <p className="muted sh-url-note">
+                    On récupère son contenu pour vous proposer une nouvelle version.
+                  </p>
                 </>
               )}
             </>
@@ -1352,7 +1362,12 @@ export default function VoicePage() {
           <aside className="board-pane">
             <div className="board-head">
               <div className="board-titlewrap">
-                <div className="eyebrow">{board.kind === "maquette" ? "Board · maquette en live" : "Board · brouillon en live"}</div>
+                <div className="board-eyebrow-row">
+                  <div className="eyebrow">{board.kind === "maquette" ? "Board · maquette en live" : "Board · brouillon en live"}</div>
+                  {/* Badge de réassurance (docs/25 §3) : la promesse "gratuit" du hero reste
+                      visible pendant la construction de la maquette, pas seulement au souvenir. */}
+                  {board.kind === "maquette" && <span className="pill soft">Gratuit</span>}
+                </div>
                 <div className="board-title">
                   {board.title}
                   {board.kind === "maquette" && mockupBuilding && (

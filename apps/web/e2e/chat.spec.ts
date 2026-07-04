@@ -13,15 +13,16 @@ test.describe("/voice — parcours chat", () => {
 
   test("affiche l'accueil Shazam (micro + repli texte)", async ({ page }) => {
     await page.goto("/voice");
-    // Hero "Shazam du besoin" : titre + gros micro central + repli écrit.
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Quel est votre besoin ?");
+    // Hero "Shazam du besoin" repositionné site (docs/25) : titre + champ description
+    // (primaire) avec micro compact accolé + repli écrit.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Voyons à quoi ressemble votre site.");
     await expect(page.getByRole("button", { name: "Parler" })).toBeVisible();
     // Le bouton Envoyer (du repli texte) est désactivé tant que rien n'est saisi.
     const send = page.getByRole("button", { name: "Envoyer" });
     await expect(send).toBeDisabled();
     // En tapant son besoin, il s'active. Nommé explicitement : un 2e champ (URL du site
     // existant, optionnel — service site) partage aussi le rôle "textbox" dans le hero.
-    await page.getByRole("textbox", { name: "Écrivez votre besoin" }).fill("Bonjour");
+    await page.getByRole("textbox", { name: "Décrivez votre activité" }).fill("Bonjour");
     await expect(send).toBeEnabled();
   });
 
@@ -29,7 +30,7 @@ test.describe("/voice — parcours chat", () => {
     await page.goto("/voice?demo=1");
     // Le champ est pré-rempli par le scénario démo (nommé explicitement : le hero a aussi un
     // 2e champ "textbox", l'URL optionnelle du site existant — service site).
-    await expect(page.getByRole("textbox", { name: "Écrivez votre besoin" })).not.toHaveValue("");
+    await expect(page.getByRole("textbox", { name: "Décrivez votre activité" })).not.toHaveValue("");
 
     await page.getByRole("button", { name: "Envoyer" }).click();
 
@@ -81,7 +82,7 @@ test.describe("/voice — parcours maquette", () => {
 
     await page.goto("/voice");
     await page
-      .getByRole("textbox", { name: "Écrivez votre besoin" })
+      .getByRole("textbox", { name: "Décrivez votre activité" })
       .fill("Un site vitrine pour mon activité de plombier");
     await page.getByRole("button", { name: "Envoyer" }).click();
 
@@ -151,7 +152,7 @@ test.describe("/voice — parcours maquette", () => {
 
     await page.goto("/voice");
     await page
-      .getByRole("textbox", { name: "Écrivez votre besoin" })
+      .getByRole("textbox", { name: "Décrivez votre activité" })
       .fill("Un site vitrine pour mon activité de plombier");
     await page.getByRole("button", { name: "Envoyer" }).click();
 

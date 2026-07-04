@@ -273,10 +273,14 @@ h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
   text-align: center; gap: 0; padding: 1.5rem 1rem 2.5rem;
   min-height: calc(100vh - 58px - 6rem);
 }
+.sh-eyebrow { margin: 0 0 0.5rem; }
 .sh-title { font-size: 2.1rem; letter-spacing: -0.03em; margin: 0; }
-.sh-sub { color: var(--muted); font-size: 1.08rem; margin: 0.35rem 0 1.9rem; }
+.sh-sub { color: var(--muted); font-size: 1.08rem; margin: 0.35rem 0 1.9rem; max-width: 34rem; }
 
-/* Le bouton central : appuie et parle */
+/* Le bouton micro : geste vocal, toujours dispo. Réutilisé à 2 échelles — 96px en gros bouton
+   vedette (encore le cas sur /echange, cf. .echange-stage .sh-mic plus bas), et en icône
+   compacte (~42px) accolée au champ texte sur /voice (docs/25 §5 pt.1) : même dégradé, mêmes
+   états (rec), la variante compacte est scoping-only (.sh-write .sh-mic), aucune couleur en dur. */
 .sh-mic {
   position: relative; width: 96px; height: 96px; border-radius: 50%;
   border: none; cursor: pointer; display: grid; place-items: center;
@@ -289,6 +293,15 @@ h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
 .sh-mic svg { width: 38px; height: 38px; position: relative; z-index: 1; }
 .sh-mic.rec { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 12px 32px rgba(220,38,38,.42); }
 
+/* Variante compacte (docs/25 §5 pt.1) : le micro n'est plus la vedette de l'écran sur /voice,
+   juste une icône accolée au champ de description, entre le champ et le bouton d'envoi. */
+.sh-write .sh-mic {
+  flex: none; width: 42px; height: 42px;
+  box-shadow: 0 4px 12px rgba(79,70,229,.28);
+}
+.sh-write .sh-mic.rec { box-shadow: 0 4px 12px rgba(220,38,38,.32); }
+.sh-write .sh-mic svg { width: 19px; height: 19px; }
+
 /* Anneaux concentriques qui s'évaporent (l'équivalent du halo Shazam) */
 .sh-rings { position: absolute; inset: 0; pointer-events: none; }
 .sh-mic.rec .sh-rings span {
@@ -300,21 +313,26 @@ h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
 .sh-mic.rec .sh-rings span:nth-child(3) { animation-delay: 1.1s; }
 @keyframes sh-ring { 0% { transform: scale(1); opacity: .55; } 100% { transform: scale(2.5); opacity: 0; } }
 
-.sh-listening { margin: 1.15rem 0 0; font-weight: 700; color: var(--error); }
+.sh-listening { margin: 0 0 .5rem; font-weight: 700; color: var(--error); }
 .sh-transcript {
-  margin: .55rem 0 0; font-size: 1.18rem; line-height: 1.5; max-width: 38rem; color: var(--text);
+  margin: 0 0 .8rem; font-size: 1.18rem; line-height: 1.5; max-width: 38rem; color: var(--text);
   animation: sh-fade .18s ease-out both;
 }
 @keyframes sh-fade { from { opacity: 0; transform: translateY(5px); } }
 
-.sh-or { display: flex; align-items: center; gap: .6rem; color: var(--muted); font-size: .85rem; margin: 1.6rem 0 .85rem; }
+.sh-or { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .6rem; color: var(--muted); font-size: .85rem; margin: 1.4rem 0 .85rem; }
 .sh-or-line { width: 42px; height: 1px; background: var(--border); display: inline-block; }
 .sh-write { display: flex; align-items: center; gap: .45rem; width: min(34rem, 100%); }
 .sh-write .input { border-radius: 22px; padding: .62rem .95rem; }
 .sh-write .cbtn.send { flex: none; width: 42px; height: 42px; }
 .sh-examples { justify-content: center; margin-top: 1.05rem; }
-.sh-url { display: flex; justify-content: center; margin-top: 0.9rem; }
-.sh-url .input { width: min(28rem, 100%); border-radius: 22px; padding: 0.5rem 0.9rem; font-size: 0.86rem; }
+/* width posée sur le wrapper (pas seulement sur .input) : dans .shazam (flex column,
+   align-items:center), un enfant sans largeur propre se réduit à son contenu — même
+   correctif déjà appliqué à .sh-write. Sans ça, le pourcentage sur .input se résout à une
+   largeur minimale et le placeholder est tronqué. */
+.sh-url { display: flex; justify-content: center; width: min(28rem, 100%); margin: 0.9rem auto 0; }
+.sh-url .input { width: 100%; border-radius: 22px; padding: 0.5rem 0.9rem; font-size: 0.86rem; }
+.sh-url-note { text-align: center; font-size: 0.78rem; margin: 0.4rem 0 0; }
 
 /* Cristallisation : « voici ce que j'ai compris » */
 .sh-crystal {
@@ -489,6 +507,7 @@ h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
 }
 @keyframes boardin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .board-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem; padding-bottom: 0.6rem; border-bottom: 1px solid var(--border); margin-bottom: 0.6rem; }
+.board-eyebrow-row { display: flex; align-items: center; gap: 0.5rem; }
 .board-title { font-weight: 800; font-size: 1.06rem; letter-spacing: -0.02em; margin-top: 0.05rem; }
 .board-actions { display: flex; gap: 0.15rem; flex: none; }
 .board-actions .cbtn { width: 34px; height: 34px; }
