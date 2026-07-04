@@ -490,7 +490,7 @@ export default function VoicePage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
-      setError("La reconnaissance vocale n'est pas dispo sur ce navigateur (essaie Chrome ou Edge). Tu peux écrire ta réponse.");
+      setError("La reconnaissance vocale n'est pas dispo sur ce navigateur (essayez Chrome ou Edge). Vous pouvez écrire votre réponse.");
       return;
     }
     stopAudio(); // ne pas se réécouter
@@ -523,7 +523,7 @@ export default function VoicePage() {
     rec.onerror = (e: any) => {
       setRecognizing(false);
       if (e?.error === "not-allowed" || e?.error === "service-not-allowed")
-        setError("Micro refusé — autorise l'accès au micro, ou écris ta réponse.");
+        setError("Micro refusé — autorisez l'accès au micro, ou écrivez votre réponse.");
     };
     rec.onend = () => setRecognizing(false);
     rec.start();
@@ -1208,7 +1208,7 @@ export default function VoicePage() {
                 className={`sh-mic ${recognizing ? "rec" : ""}`}
                 onClick={toggleRec}
                 aria-label={recognizing ? "Arrêter de parler" : "Parler"}
-                title={recognizing ? "Arrêter" : "Appuie et dis ton besoin"}
+                title={recognizing ? "Arrêter" : "Appuyez et dites votre besoin"}
               >
                 <span className="sh-rings" aria-hidden>
                   <span />
@@ -1225,7 +1225,7 @@ export default function VoicePage() {
               ) : (
                 <>
                   <div className="sh-or">
-                    <span className="sh-or-line" /> ou écris <span className="sh-or-line" />
+                    <span className="sh-or-line" /> ou écrivez <span className="sh-or-line" />
                   </div>
                   <div className="sh-write">
                     <input
@@ -1241,8 +1241,8 @@ export default function VoicePage() {
                           void send();
                         }
                       }}
-                      placeholder="Décris ton besoin en une phrase…"
-                      aria-label="Écris ton besoin"
+                      placeholder="Décrivez votre besoin en une phrase…"
+                      aria-label="Écrivez votre besoin"
                     />
                     <button
                       type="button"
@@ -1569,7 +1569,7 @@ export default function VoicePage() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={onFieldKey}
-                placeholder={recognizing ? "J'écoute… (tu pourras corriger)" : started ? "Ta réponse…" : "Décris ton projet…"}
+                placeholder={recognizing ? "J'écoute… (vous pourrez corriger)" : started ? "Votre réponse…" : "Décrivez votre projet…"}
               />
               <button
                 type="button"

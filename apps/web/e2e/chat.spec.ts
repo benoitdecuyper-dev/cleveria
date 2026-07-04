@@ -21,7 +21,7 @@ test.describe("/voice — parcours chat", () => {
     await expect(send).toBeDisabled();
     // En tapant son besoin, il s'active. Nommé explicitement : un 2e champ (URL du site
     // existant, optionnel — service site) partage aussi le rôle "textbox" dans le hero.
-    await page.getByRole("textbox", { name: "Écris ton besoin" }).fill("Bonjour");
+    await page.getByRole("textbox", { name: "Écrivez votre besoin" }).fill("Bonjour");
     await expect(send).toBeEnabled();
   });
 
@@ -29,7 +29,7 @@ test.describe("/voice — parcours chat", () => {
     await page.goto("/voice?demo=1");
     // Le champ est pré-rempli par le scénario démo (nommé explicitement : le hero a aussi un
     // 2e champ "textbox", l'URL optionnelle du site existant — service site).
-    await expect(page.getByRole("textbox", { name: "Écris ton besoin" })).not.toHaveValue("");
+    await expect(page.getByRole("textbox", { name: "Écrivez votre besoin" })).not.toHaveValue("");
 
     await page.getByRole("button", { name: "Envoyer" }).click();
 
@@ -81,7 +81,7 @@ test.describe("/voice — parcours maquette", () => {
 
     await page.goto("/voice");
     await page
-      .getByRole("textbox", { name: "Écris ton besoin" })
+      .getByRole("textbox", { name: "Écrivez votre besoin" })
       .fill("Un site vitrine pour mon activité de plombier");
     await page.getByRole("button", { name: "Envoyer" }).click();
 
@@ -151,7 +151,7 @@ test.describe("/voice — parcours maquette", () => {
 
     await page.goto("/voice");
     await page
-      .getByRole("textbox", { name: "Écris ton besoin" })
+      .getByRole("textbox", { name: "Écrivez votre besoin" })
       .fill("Un site vitrine pour mon activité de plombier");
     await page.getByRole("button", { name: "Envoyer" }).click();
 
@@ -160,7 +160,7 @@ test.describe("/voice — parcours maquette", () => {
 
     // Tour suivant, en phase maquette : un retour visuel → régénération intégrale, DIRECT vers
     // le maquettiste (le composer ne doit plus jamais rappeler /api/brief une fois en maquette).
-    await page.getByPlaceholder("Ta réponse…").fill("Mets le titre en vert");
+    await page.getByPlaceholder("Votre réponse…").fill("Mets le titre en vert");
     await page.getByRole("button", { name: "Envoyer" }).click();
 
     await expect(page.frameLocator("iframe.mockup-frame").getByText("Plomberie Test v2")).toBeVisible();

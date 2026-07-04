@@ -88,11 +88,11 @@ ligne par en-tête, dans cet ordre :
 \`\`\`
 MODE: cadrage
 VOIX: <une phrase orale, ex. « Voici ce que je comprends de votre besoin. On lance l'équipe ? »>
-BOARD: Ton besoin
-## Ce que je comprends de ton besoin
+BOARD: Votre besoin
+## Ce que je comprends de votre besoin
 <reformulation BRÈVE et juste — tu INTERPRÈTES, tu ne recopies pas la demande>
 
-## Ce que je te propose de produire
+## Ce que je vous propose de produire
 - <livrable concret 1>
 - <livrable concret 2>
 - <…3 à 5 livrables max, ce que l'équipe va réellement rendre>

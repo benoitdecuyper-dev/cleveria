@@ -279,7 +279,7 @@ export default function EchangePage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
-      setError("Reconnaissance vocale indisponible (essaie Chrome ou Edge). Tu peux écrire en bas.");
+      setError("Reconnaissance vocale indisponible (essayez Chrome ou Edge). Vous pouvez écrire en bas.");
       return;
     }
     finalRef.current = "";
@@ -306,7 +306,7 @@ export default function EchangePage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onerror = (e: any) => {
       if (e?.error === "not-allowed" || e?.error === "service-not-allowed") {
-        setError("Micro refusé — autorise l'accès au micro, ou écris en bas.");
+        setError("Micro refusé — autorisez l'accès au micro, ou écrivez en bas.");
         sessionRef.current = false;
         setPhaseBoth("idle");
       }
@@ -669,7 +669,7 @@ export default function EchangePage() {
 
       {!sttSupported && (
         <div className="banner warn">
-          La reconnaissance vocale n'est pas dispo sur ce navigateur (essaie Chrome ou Edge). Tu peux écrire en bas.
+          La reconnaissance vocale n'est pas dispo sur ce navigateur (essayez Chrome ou Edge). Vous pouvez écrire en bas.
         </div>
       )}
       {error && <div className="banner err">{error}</div>}
@@ -680,8 +680,8 @@ export default function EchangePage() {
             /voice (sh-title/sh-sub), pour une entrée cohérente entre les deux modes. */}
         {!started && (
           <>
-            <h1 className="sh-title">De quoi veux-tu qu'on parle ?</h1>
-            <p className="sh-sub">Appuie et parle. Je te réponds à voix haute, puis je réécoute.</p>
+            <h1 className="sh-title">De quoi voulez-vous qu'on parle ?</h1>
+            <p className="sh-sub">Appuyez et parlez. Je vous réponds à voix haute, puis je réécoute.</p>
           </>
         )}
         <button
@@ -696,7 +696,7 @@ export default function EchangePage() {
               : phase === "listening"
                 ? "Cliquer = j'ai fini de parler"
                 : phase === "speaking"
-                  ? "Cliquer = t'interrompre et reprendre la parole"
+                  ? "Cliquer = vous interrompre et reprendre la parole"
                   : "…"
           }
         >
@@ -710,10 +710,10 @@ export default function EchangePage() {
 
         <p className="echange-hint">
           {/* idle && !started : le sous-titre du hero ci-dessus fait déjà le job — pas de doublon ici. */}
-          {phase === "idle" && started && "En pause — appuie pour reprendre."}
+          {phase === "idle" && started && "En pause — appuyez pour reprendre."}
           {phase === "listening" && (caption ? "" : "J'écoute…")}
           {phase === "thinking" && "Reçu — je réfléchis…"}
-          {phase === "speaking" && "Tu peux m'interrompre — appuie sur l'orbe."}
+          {phase === "speaking" && "Vous pouvez m'interrompre — appuyez sur l'orbe."}
         </p>
         {caption && <p className="sh-transcript">« {caption} »</p>}
         {phase !== "idle" && (

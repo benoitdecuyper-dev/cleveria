@@ -23,26 +23,26 @@ type DemoQuestion = {
 const DEMO_QUESTIONS: DemoQuestion[] = [
   {
     id: "q1",
-    text: "Quel statut juridique envisages-tu ?",
+    text: "Quel statut juridique envisagez-vous ?",
     type: "single",
     options: ["Association loi 1901", "SAS / société", "SCIC (coopérative)", "Je ne sais pas"],
     allowFreeText: true,
   },
   {
     id: "q2",
-    text: "Quel budget global as-tu en tête ?",
+    text: "Quel budget global avez-vous en tête ?",
     type: "single",
     options: ["< 50 k€", "50–150 k€", "150–400 k€", "> 400 k€", "À définir"],
   },
   {
     id: "q3",
-    text: "Le bâtiment t'appartient-il ?",
+    text: "Le bâtiment vous appartient-il ?",
     type: "single",
     options: ["Oui", "Location / bail", "À acheter", "En négociation"],
   },
   {
     id: "q4",
-    text: "Quelles activités veux-tu prioriser ?",
+    text: "Quelles activités voulez-vous prioriser ?",
     type: "multi",
     options: ["Café / restauration", "Coworking", "Événements culturels", "Ateliers", "Épicerie locale"],
     allowFreeText: true,
@@ -50,8 +50,8 @@ const DEMO_QUESTIONS: DemoQuestion[] = [
 ];
 
 const DEMO_NOTE = `## 1. Compte rendu du besoin
-Tu veux faire d'une **ancienne grange** un **tiers-lieu rural** mêlant **café associatif** ouvert à tous
-et **espaces de coworking**. Tu démarres de zéro sur le statut, le budget, les travaux et l'attractivité.
+Vous voulez faire d'une **ancienne grange** un **tiers-lieu rural** mêlant **café associatif** ouvert à tous
+et **espaces de coworking**. Vous démarrez de zéro sur le statut, le budget, les travaux et l'attractivité.
 
 ## 2. Ce que j'ai compris
 - **Objectif** : créer un lieu de vie villageois — convivialité (café) + activité économique douce (coworking).
@@ -226,9 +226,9 @@ Bouche-à-oreille villageois, mairie & assos locales, groupes Facebook du territ
 des communes voisines.`,
 };
 
-const DEMO_SYNTHESIS = `## Synthèse — ton tiers-lieu, prêt à être instruit
+const DEMO_SYNTHESIS = `## Synthèse — votre tiers-lieu, prêt à être instruit
 
-L'équipe a transformé ton idée en un dossier cohérent et actionnable.
+L'équipe a transformé votre idée en un dossier cohérent et actionnable.
 
 **Ce qui a été produit**
 - **Montage** : asso loi 1901 + bail communal → simple, rapide, finançable (→ détail dans la carte Architecte).
