@@ -177,20 +177,36 @@ test.describe("/voice — parcours maquette", () => {
   });
 });
 
-// Passerelle "/echange" → "/voice" (CLV-53 incr. 1). Les 2 tests ci-dessous sont des CANARIS
-// écrits sur des INVARIANTS (pas sur l'implémentation fork/promotion) : ils doivent rester verts
-// AVANT (comportement actuel : fork d'une nouvelle conversation) ET APRÈS (promotion en place via
-// `engageProject`) le changement de `toProject()` dans app/echange/page.tsx.
-test.describe("/echange — passerelle « Transformer en projet »", () => {
+// Redirection "/echange" → "/voice?echange=1" (CLV-53 incr. 5, docs/26). `/echange` n'est plus
+// une surface séparée (app/echange/page.tsx est un redirect serveur, cf. app/brief/page.tsx pour
+// le même patron) : elle atterrit sur le rail échange de /voice, déjà couvert de bout en bout par
+// les canaris `describe("/voice — rail échange…")` ci-dessus (tour en vol abandonné proprement,
+// engagement unique, need card unique). Les 2 tests ci-dessous sont des CANARIS sur les MÊMES
+// INVARIANTS que l'ex-passerelle `/echange` (incr. 1) : contenu préservé au clic « Transformer »,
+// et panne de stockage → aucune navigation + bannière — mais suivent maintenant explicitement la
+// redirection, pour prouver que le chemin d'entrée historique (`/echange`) ne mène jamais à un
+// cul-de-sac ni à une régression de comportement.
+test.describe("/echange — redirige vers /voice, passerelle « Transformer en projet » préservée", () => {
   test.beforeEach(async ({ page }) => {
     await page.route("**/api/tts", (route) => route.abort());
   });
 
-  test("nominal : atterrit sur /voice, mode projet, contenu de l'échange préservé", async ({ page }) => {
-    // Un seul mock pour les deux appels /api/brief (le tour d'échange, puis le cadrage auto
-    // déclenché par ?cadrer=1 sur /voice) — distingués par numéro d'appel pour ne jamais produire
-    // deux bulles au texte strictement identique (ce qui casserait `getByText(...).toBeVisible()`
-    // en mode strict s'il y avait plusieurs correspondances).
+  test("/echange redirige vers /voice (entrée « discuter » préservée)", async ({ page }) => {
+    await page.goto("/echange");
+    // `?echange=1` est consommé et nettoyé de l'URL au bootstrap de /voice (même mécanisme que
+    // `?cadrer=1`/`?conv=`, cf. app/voice/page.tsx) : l'atterrissage final est `/voice` nu.
+    await expect(page).toHaveURL(/\/voice$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Voyons à quoi ressemble votre site.");
+    await expect(page.locator('[data-mode="projet"]')).toBeVisible();
+  });
+
+  test("nominal : atterrit sur /voice, contenu de l'échange préservé, « Transformer en projet » fonctionne", async ({
+    page,
+  }) => {
+    // Un seul mock pour les deux appels /api/brief (le tour d'échange, puis le cadrage forcé
+    // déclenché par « Transformer en projet ») — distingués par numéro d'appel pour ne jamais
+    // produire deux bulles au texte strictement identique (ce qui casserait `getByText(...)` en
+    // mode strict s'il y avait plusieurs correspondances).
     let briefCalls = 0;
     await page.route("**/api/brief", async (route) => {
       briefCalls += 1;
@@ -203,7 +219,7 @@ test.describe("/echange — passerelle « Transformer en projet »", () => {
         contentType: "application/json",
         body: JSON.stringify({
           reply,
-          mode: "cadrage",
+          mode: briefCalls === 1 ? "echange" : "cadrage",
           isNote: false,
           questions: null,
           spoken: reply,
@@ -213,8 +229,10 @@ test.describe("/echange — passerelle « Transformer en projet »", () => {
     });
 
     await page.goto("/echange");
+    await expect(page).toHaveURL(/\/voice$/);
+
     await page
-      .getByPlaceholder("Écrivez votre message…")
+      .getByRole("textbox", { name: "Décrivez votre activité" })
       .fill("Quel statut juridique choisir pour mon activité ?");
     await page.getByRole("button", { name: "Envoyer" }).click();
 
@@ -223,22 +241,20 @@ test.describe("/echange — passerelle « Transformer en projet »", () => {
 
     await page.getByRole("button", { name: /Transformer en projet/ }).click();
 
-    // Invariant : on atterrit sur /voice, en mode projet — PAS l'id de la conversation (il change
-    // entre fork et promotion, ce n'est volontairement pas asserté ici).
-    await expect(page).toHaveURL(/\/voice/);
-    await expect(page.locator('[data-mode="projet"]')).toBeVisible();
-    // Invariant central : le contenu de l'échange source n'est PAS perdu, qu'il ait été forké dans
-    // une nouvelle conversation ou promu en place.
+    // Invariant : le cadrage forcé produit sa réponse, le bouton disparaît (stage ≠ "echange"),
+    // et le contenu de l'échange source n'est PAS perdu (même fil, promotion en place).
+    await expect(page.getByText("Récapitulatif du besoin pris en compte.")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Transformer en projet/ })).toHaveCount(0);
     await expect(page.getByText("Quel statut juridique choisir pour mon activité ?")).toBeVisible();
     await expect(page.getByText("Le statut auto-entrepreneur convient pour démarrer seul.")).toBeVisible();
   });
 
-  test("panne de stockage : aucune navigation, bannière d'erreur, échange intact (anti-perte silencieuse)", async ({
+  test("panne de stockage : aucune navigation de plus, bannière d'erreur, échange intact (anti-perte silencieuse)", async ({
     page,
   }) => {
     // Casse IndexedDB (le stockage réel utilisé par idb-keyval) AVANT tout script de page, pour
-    // que saveConversation() échoue de façon déterministe — sans mocker les fonctions JS de
-    // l'appli (on veut prouver le comportement de bout en bout, pas court-circuiter le code testé).
+    // que engageProject() échoue de façon déterministe — sans mocker les fonctions JS de l'appli
+    // (on veut prouver le comportement de bout en bout, pas court-circuiter le code testé).
     await page.addInitScript(() => {
       Object.defineProperty(window.indexedDB, "open", {
         value: () => {
@@ -250,13 +266,22 @@ test.describe("/echange — passerelle « Transformer en projet »", () => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ reply: "Réponse du bras droit." }),
+        body: JSON.stringify({
+          reply: "Réponse du bras droit.",
+          mode: "echange",
+          isNote: false,
+          questions: null,
+          spoken: null,
+          board: null,
+        }),
       });
     });
 
     await page.goto("/echange");
+    await expect(page).toHaveURL(/\/voice$/);
+
     await page
-      .getByPlaceholder("Écrivez votre message…")
+      .getByRole("textbox", { name: "Décrivez votre activité" })
       .fill("Quel statut juridique choisir pour mon activité ?");
     await page.getByRole("button", { name: "Envoyer" }).click();
 
@@ -265,12 +290,13 @@ test.describe("/echange — passerelle « Transformer en projet »", () => {
 
     await page.getByRole("button", { name: /Transformer en projet/ }).click();
 
-    // Invariant central : PAS de navigation vers /voice, une bannière d'erreur explicite, et
-    // l'échange reste intact et exploitable sur /echange.
+    // Invariant central : PAS de navigation, une bannière d'erreur explicite, et l'échange reste
+    // intact et exploitable (pas de demi-état, stage toujours "echange").
     await expect(
       page.getByText("Impossible de transformer cet échange en projet", { exact: false }),
     ).toBeVisible();
-    await expect(page).toHaveURL(/\/echange/);
+    await expect(page).toHaveURL(/\/voice$/);
+    await expect(page.getByRole("button", { name: /Transformer en projet/ })).toBeVisible();
     await expect(page.getByText("Quel statut juridique choisir pour mon activité ?")).toBeVisible();
     await expect(page.getByText("Réponse du bras droit.")).toBeVisible();
   });
