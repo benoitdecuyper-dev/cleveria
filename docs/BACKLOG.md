@@ -17,12 +17,16 @@ Mis à jour le **2026-07-03 (soir)**.
 - **Passerelle** : « transformer en projet » doit-elle **promouvoir le fil en place** (même id, recommandé par l'architecte, ≠ code actuel qui forke) ou créer un **nouveau fil** ? → gate CLV-52/53.
 - **Récurrent** : abonnement (hébergement + maintenance + mémoire) en **défaut assumé** (position business-dev) ou **optionnel** (position finance) ? → gate le packaging `docs/21`.
 
-**À reprendre, dans l'ordre :**
-1. ~~Cadrer CLV-E-ARCHI~~ ✅ (`docs/22` + `docs/23`) → **construire l'étage 1** : CLV-51→54 (retrait switch, garde-fou d'état, passerelle, écran « Mes projets »). Modèle retenu par l'archi : discriminant `stage: echange|cadrage|maquette|prod` porté par l'objet, engagement = acte utilisateur (`engageProject()`), jamais le `MODE:` LLM. Effort ≈ **1,5–2,5 sem**, risque concentré sur la fusion des 2 surfaces streamées (4–7 j).
-2. **Refonte espace Projet** (CLV-41/42) — proposition **VALIDÉE** (board pleine hauteur redimensionnable, identité au-dessus du chat, historique visible). → UX/UI fin puis dev. (CLV-44/45 absorbés par CLV-51/54.)
-3. **CLV-43** — maquettiste : imposer la structure « vrai site » (À propos, Tarifs, Contact…).
-4. **CLV-50** — reformuler l'histoire du logo « relais » sans référence au switch (→ `factory-marketing`).
-5. ~~Étude de marché + tarifs~~ ✅ `docs/20` + `docs/21`. Convergence des 2 : positionnement **sous le freelance**, rival le plus proche = **B12.io** (pas d'équivalent FR), **risque n°1 commun = conversion gratuit→payé non testée** (hypothèse n°1 doc 08).
+**✅ MàJ 2026-07-04 (soir) — TOUTE LA REPRISE EST ABOUTIE.** Tous les items ci-dessous faits, chacun dev → lead-tech → QA → commit vert.
+1. ~~Cadrer CLV-E-ARCHI~~ ✅ → **étage 1 CONSTRUIT** : fusion CLV-53 complète (voir épic plus bas) — 6 incréments + durcissement, `/echange` fondu dans `/voice`, `stage` porté par l'objet, engagement = acte user. Zéro régression du flux qui vend.
+2. ~~Refonte espace Projet~~ ✅ CLV-41/42/45 (`docs/27`, commit `e7fec2b`) : board redimensionnable + « Agrandir », en-tête titre+badge, historique visible, onglets mobile.
+3. ~~CLV-43 maquettiste « vrai site »~~ ✅ (commit `94ae42b`) : structure 8 sections imposée + 2 maquettes-exemples dans `apps/web/samples/` (démarchage).
+4. ~~CLV-50 logo « relais »~~ ✅ (commit `d2d1315`) : « Vous en parlez. L'équipe prend le relais. »
+5. ~~Étude marché + tarifs~~ ✅ `docs/20`/`docs/21`.
+
+**Cible suivante (Ben, 2026-07-04) : DÉMARCHAGE** assos + entreprises en leur montrant des maquettes + un lien clean vers l'interface. Prérequis surfacé = **l'app doit être LIVE** (le provider local est local-only) → **mettre du crédit Anthropic** sur le compte (funnel maquette = centimes/prospect ; prod payée derrière le devis). Décision de dépense = Ben.
+
+**Dettes ouvertes (edge, non bloquantes) :** CLV-55 (course index inter-ids) · CLV-56 (`engagedAt` mort) · `listConversations(mode)` sans appelant (gardée, testée) · doc `sourceConversationId` à réaligner · **espace Projet** : D1 (board agrandi + resize desktop→mobile = composer masqué, edge) / D2 (blanc sous board mobile fil long) / D3 + `.status-line` (overflow &lt;380px) / R1 (pas de `pointercancel` sur le drag) · **pitch `docs/17` §1/§2/§4 encore en tutoiement** (tension registre vs entrée au vous, à trancher). · Lien « Juste discuter » sur l'accueil ✅ ajouté (`ba13b6c`).
 
 **Artifacts du jour :** couleur `https://claude.ai/code/artifact/e4b74af9-4a91-474a-b721-48a4f27e65f1` · logos `https://claude.ai/code/artifact/c2e48373-ba18-4f9f-8e6e-3ac6504e72fa` · refonte Projet `https://claude.ai/code/artifact/d1f2e267-aab5-4385-9a5b-81ef336cf766`. **Docs clés :** marque `docs/14`, pitch `docs/17`, service site `docs/19`, archi maquette `docs/18`.
 
