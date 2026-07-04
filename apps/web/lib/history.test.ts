@@ -10,6 +10,7 @@ import {
   getConversation,
   type StoredConversation,
 } from "./history";
+import { set as idbSet } from "idb-keyval";
 
 // ── Mock idb-keyval (CLV-52) ────────────────────────────────────────────────────
 // Pas d'IndexedDB en environnement `node` (vitest.config.ts) : on remplace get/set/del par un
@@ -25,6 +26,13 @@ vi.mock("idb-keyval", () => ({
     idbStore.delete(key);
   }),
 }));
+
+// Isolation réelle entre tests : on vide le store en mémoire avant CHAQUE test. Les tests sont
+// indépendants (ids distincts), mais ce reset évite tout état fantôme si un futur test réutilise
+// un id — et rend vrai le commentaire ci-dessus.
+beforeEach(() => {
+  idbStore.clear();
+});
 
 describe("autoTitle", () => {
   it("titre par défaut si le texte est vide", () => {
@@ -250,5 +258,121 @@ describe("engageProject", () => {
     expect(out?.messages).toEqual(conv.messages);
     expect(out?.title).toBe(conv.title);
     expect(out?.id).toBe("c4");
+  });
+});
+
+// ── CLV-53 : verrou par id — sérialisation de saveConversation/engageProject/… ──────────────
+// Chaque test « race » retarde délibérément le PREMIER `set` IndexedDB avec une porte
+// (`gate`) qu'on ne relâche qu'après avoir vérifié que rien n'a encore committé. Sans verrou,
+// un appel lancé APRÈS mais dont l'écriture est plus rapide pourrait committer AVANT — c'est
+// exactement la course que le durcissement doit neutraliser (dernier `set` gagnant, sans
+// rapport avec l'ordre d'appel). Le gate rend la preuve déterministe (pas de timing réel).
+describe("Sérialisation par id (durcissement CLV-53)", () => {
+  const mkConv = (over: Partial<StoredConversation> = {}): StoredConversation => ({
+    id: "lock",
+    stage: "echange",
+    title: "Un besoin",
+    titleIsCustom: false,
+    messages: [{ role: "user", text: "Salut" }],
+    board: null,
+    createdAt: "2026-07-04T09:00:00.000Z",
+    updatedAt: "2026-07-04T09:00:00.000Z",
+    userId: null,
+    schemaVersion: 2,
+    ...over,
+  });
+
+  /** Bloque jusqu'à `release()` : simule un `set` IndexedDB « encore en vol ». */
+  function makeGate() {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    return { gate, release };
+  }
+
+  /** Laisse le microtask queue s'écouler complètement (flush via un macrotask). */
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+
+  it("deux saveConversation concurrents sur le même id committent dans l'ordre d'appel (pas de last-write-wins arbitraire)", async () => {
+    const { gate, release } = makeGate();
+    vi.mocked(idbSet).mockImplementationOnce(async (key: IDBValidKey, val: unknown) => {
+      await gate; // le 1er appel (A) est retardé : son `set` ne résout que quand on le décide
+      idbStore.set(key as string, val);
+    });
+
+    const convA = mkConv({ id: "race-order", title: "A", stage: "cadrage" });
+    const convB = mkConv({ id: "race-order", title: "B", stage: "maquette" });
+
+    const pA = saveConversation(convA); // appelé en premier ; son écriture est retardée (gate)
+    const pB = saveConversation(convB); // appelé juste après
+
+    await flush();
+    // Tant que le gate reste fermé, RIEN n'est committé : B est chaîné derrière A, il ne peut
+    // pas l'avoir doublé même si son propre `set` (non retardé) serait naturellement plus rapide.
+    expect(await getConversation("race-order")).toBeNull();
+
+    release();
+    await Promise.all([pA, pB]);
+
+    const final = await getConversation("race-order");
+    expect(final?.title).toBe("B"); // B, appelé après A, committe après A : pas de résultat arbitraire
+    expect(final?.stage).toBe("maquette");
+  });
+
+  it("persist(stage:echange) en vol PUIS engageProject concurrent : jamais de régression, jamais de faux null", async () => {
+    // État initial déjà en base (une conversation "echange" existante), posé AVANT la course.
+    await saveConversation(mkConv({ id: "race-engage" }));
+
+    const { gate, release } = makeGate();
+    // Le PREMIER `set` qui suit est retardé : il simule le `saveConversation` (autosave stage
+    // "echange") encore « en vol » au moment où l'utilisateur clique sur « Transformer en projet ».
+    vi.mocked(idbSet).mockImplementationOnce(async (key: IDBValidKey, val: unknown) => {
+      await gate;
+      idbStore.set(key as string, val);
+    });
+
+    // 1) Persist "en vol" — rejoue un stage:echange (autosave arrivé en retard), appelé EN PREMIER.
+    const stalePersist = saveConversation(
+      mkConv({ id: "race-engage", stage: "echange", updatedAt: "2026-07-04T09:00:01.000Z" }),
+    );
+    // 2) engageProject, déclenché juste après (l'utilisateur clique pendant que l'autosave est en vol).
+    const engage = engageProject("race-engage");
+
+    await flush();
+    // Rien n'est encore committé : engageProject ne peut pas avoir dépassé le persist verrouillé
+    // devant lui (sinon on aurait ici un état déjà "cadrage", écrasé ensuite par le persist en
+    // retard — exactement la régression que le verrou doit empêcher).
+    const mid = await getConversation("race-engage");
+    expect(mid?.stage).toBe("echange");
+    expect(mid?.updatedAt).toBe("2026-07-04T09:00:00.000Z"); // état initial, pas encore touché
+
+    release();
+    const [, engaged] = await Promise.all([stalePersist, engage]);
+
+    expect(engaged).not.toBeNull(); // pas de fausse alerte « introuvable »
+    expect(engaged?.stage).toBe("cadrage");
+
+    const final = await getConversation("race-engage");
+    expect(final?.stage).toBe("cadrage"); // jamais régressé à "echange"
+  });
+
+  it("deux ids différents ne se sérialisent pas (pas de blocage croisé)", async () => {
+    const { gate, release } = makeGate();
+    vi.mocked(idbSet).mockImplementationOnce(async (key: IDBValidKey, val: unknown) => {
+      await gate; // bloque l'écriture de idA tant qu'on ne relâche pas
+      idbStore.set(key as string, val);
+    });
+
+    const order: string[] = [];
+    const pA = saveConversation(mkConv({ id: "race-idA" })).then(() => order.push("A"));
+    const pB = saveConversation(mkConv({ id: "race-idB" })).then(() => order.push("B"));
+
+    await pB; // idB (verrou distinct) doit se terminer SANS attendre le verrou de idA
+    expect(order).toEqual(["B"]);
+
+    release();
+    await pA;
+    expect(order).toEqual(["B", "A"]);
   });
 });

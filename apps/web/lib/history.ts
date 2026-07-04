@@ -94,6 +94,43 @@ const convKey = (id: string) => `cleveria:conv:${id}`;
 const LEGACY_KEY = "cleveria.voice.v1";
 const MIGRATED_FLAG = "cleveria.history.migrated.v1";
 
+// ── Verrou asynchrone par id (durcissement CLV-53, pré-mortem risques n°1 et n°6) ──────────────
+// saveConversation / engageProject / renameConversation / deleteConversation mutent toutes la
+// MÊME clé (`conv:<id>`), sans autre garde que celle d'IndexedDB — qui ne sérialise RIEN entre
+// deux appels JS distincts. Deux mutations concurrentes sur un même id peuvent donc committer
+// dans le désordre (dernier `set` gagnant, sans rapport avec l'ordre d'appel) :
+//   - régression de stage : un `saveConversation({stage:"echange"})` encore « en vol » commit
+//     APRÈS le `saveConversation({stage:"cadrage"})` d'engageProject → retour à echange/board
+//     perdu (docs/23 — le « casser » redouté) ;
+//   - fausse alerte stockage : le `getConversation(id)` interne d'engageProject peut lire `null`
+//     si un persist a posé l'id mais pas encore committé son `set` → « introuvable » à tort.
+//
+// Le verrou ci-dessous sérialise les opérations PAR id : chaque appel sur un id chaîne derrière
+// la fin (succès OU échec) du précédent appel sur ce MÊME id, dans l'ordre où les appels ont été
+// FAITS (pas dans l'ordre où ils finissent). Deux ids différents ont chacun leur propre chaîne :
+// ils ne se bloquent jamais l'un l'autre.
+const locks = new Map<string, Promise<unknown>>();
+
+function withLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
+  const previous = locks.get(id) ?? Promise.resolve();
+  // `run` porte le résultat RÉEL (succès ou échec) de CET appel : c'est lui qu'on renvoie tel
+  // quel à l'appelant, donc une erreur de stockage (P0-2) n'est JAMAIS avalée par le verrou.
+  const run = previous.catch(() => undefined).then(fn);
+  // `chained` ne sert qu'à faire progresser la chaîne pour les appels SUIVANTS, même si CET
+  // appel échoue — sinon un premier échec bloquerait indéfiniment tout appel ultérieur sur le
+  // même id.
+  const chained = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  locks.set(id, chained);
+  return run.finally(() => {
+    // Nettoyage : si aucun appel plus récent n'a chaîné après nous, la chaîne est retombée au
+    // repos → on retire l'entrée pour ne pas faire grossir la Map indéfiniment.
+    if (locks.get(id) === chained) locks.delete(id);
+  });
+}
+
 // Garde de session (module-level) contre le double-appel de migrateLegacyVoice : React 19
 // StrictMode double-invoque les effets en dev, et l'id migré est régénéré à chaque essai
 // (donc un 2e essai dans la même session créerait un doublon). Le flag persistant ci-dessus
@@ -146,11 +183,13 @@ export async function getConversation(id: string): Promise<StoredConversation | 
 }
 
 /**
- * Crée + persiste (ou met à jour) une conversation, et rafraîchit l'index.
+ * Écriture brute (sans verrou) : réservée aux appelants internes qui exécutent DÉJÀ dans une
+ * section critique `withLock(id, …)` (engageProject, renameConversation). Ne PAS appeler
+ * directement depuis l'extérieur — passer par `saveConversation`, qui pose le verrou.
  * NE PAS avaler l'échec (IndexedDB bloqué en navigation privée stricte, quota…) : on
  * REMONTE une erreur claire pour que l'appelant puisse prévenir l'utilisateur (P0-2).
  */
-export async function saveConversation(conv: StoredConversation): Promise<void> {
+async function writeConversation(conv: StoredConversation): Promise<void> {
   try {
     await set(convKey(conv.id), conv);
     const idx = await readIndex();
@@ -160,11 +199,23 @@ export async function saveConversation(conv: StoredConversation): Promise<void> 
   }
 }
 
+/**
+ * Crée + persiste (ou met à jour) une conversation, et rafraîchit l'index.
+ * Sérialisé par id (CLV-53) : deux appels concurrents sur le même id committent dans l'ordre
+ * d'appel, jamais en dernier-write-gagnant arbitraire. NE PAS avaler l'échec — remonté tel quel
+ * par le verrou (P0-2, cf. withLock).
+ */
+export async function saveConversation(conv: StoredConversation): Promise<void> {
+  return withLock(conv.id, () => writeConversation(conv));
+}
+
 export async function renameConversation(id: string, title: string): Promise<void> {
-  const conv = await getConversation(id);
-  if (!conv) return;
-  const updated: StoredConversation = { ...conv, title, titleIsCustom: true, updatedAt: nowIso() };
-  await saveConversation(updated); // remonte déjà l'erreur (cf. saveConversation)
+  return withLock(id, async () => {
+    const conv = await getConversation(id);
+    if (!conv) return;
+    const updated: StoredConversation = { ...conv, title, titleIsCustom: true, updatedAt: nowIso() };
+    await writeConversation(updated); // remonte déjà l'erreur (cf. writeConversation)
+  });
 }
 
 /**
@@ -176,26 +227,33 @@ export async function renameConversation(id: string, title: string): Promise<voi
  * engagé) — JAMAIS par une ligne `MODE:` du LLM ni par un effet de bord du parsing de flux.
  * Remonte l'échec (P0-2) : pas de conversation trouvée → no-op ; sauvegarde bloquée → l'appelant
  * est prévenu (comme saveConversation).
+ *
+ * Sérialisé par id (CLV-53) : la lecture (`getConversation`) ET l'écriture s'exécutent dans la
+ * MÊME section critique — un `saveConversation` encore « en vol » sur ce id (appelé avant) a
+ * donc TOUJOURS fini de committer avant que cette lecture n'ait lieu. Élimine à la fois la
+ * régression de stage (risque n°1) et la fausse alerte « introuvable » (risque n°6).
  */
 export async function engageProject(
   id: string,
   toStage: Exclude<ProjectStage, "echange"> = "cadrage",
 ): Promise<StoredConversation | null> {
-  const conv = await getConversation(id);
-  if (!conv) return null;
-  if (conv.stage !== "echange") return conv; // déjà engagé : pas de régression, pas de double-trace
-  const now = nowIso();
-  const updated: StoredConversation = {
-    ...conv,
-    stage: toStage,
-    engagedAt: now,
-    updatedAt: now,
-  };
-  await saveConversation(updated); // remonte déjà l'erreur (cf. saveConversation)
-  return updated;
+  return withLock(id, async () => {
+    const conv = await getConversation(id);
+    if (!conv) return null;
+    if (conv.stage !== "echange") return conv; // déjà engagé : pas de régression, pas de double-trace
+    const now = nowIso();
+    const updated: StoredConversation = {
+      ...conv,
+      stage: toStage,
+      engagedAt: now,
+      updatedAt: now,
+    };
+    await writeConversation(updated); // remonte déjà l'erreur (cf. writeConversation)
+    return updated;
+  });
 }
 
-export async function deleteConversation(id: string): Promise<void> {
+async function removeConversation(id: string): Promise<void> {
   try {
     await del(convKey(id));
     const idx = await readIndex();
@@ -203,6 +261,10 @@ export async function deleteConversation(id: string): Promise<void> {
   } catch (e) {
     throw new Error("Impossible de supprimer la conversation (stockage du navigateur indisponible).", { cause: e });
   }
+}
+
+export async function deleteConversation(id: string): Promise<void> {
+  return withLock(id, () => removeConversation(id));
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
