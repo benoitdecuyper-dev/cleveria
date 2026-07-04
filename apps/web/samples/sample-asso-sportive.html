@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Les Aigles de Vernon — Club de Football Amateur</title>
+<style>
+  :root {
+    --vert-fonce: #0b3d24;
+    --vert: #1c6b3f;
+    --vert-clair: #2f9e5c;
+    --or: #e3b23c;
+    --or-clair: #f5d98a;
+    --creme: #fbf7ee;
+    --gris-texte: #3a3a34;
+    --blanc: #ffffff;
+    --font-titre: Georgia, 'Times New Roman', serif;
+    --font-texte: 'Segoe UI', Tahoma, Verdana, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-texte);
+    color: var(--gris-texte);
+    background: var(--creme);
+    line-height: 1.6;
+  }
+
+  a { text-decoration: none; color: inherit; }
+  ul { list-style: none; }
+  img { max-width: 100%; display: block; }
+
+  .container {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-titre);
+    color: var(--vert-fonce);
+  }
+
+  /* NAV */
+  header.site-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--vert-fonce);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  }
+
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    max-width: 1140px;
+    margin: 0 auto;
+    flex-wrap: wrap;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--creme);
+    font-family: var(--font-titre);
+    font-weight: bold;
+    font-size: 1.3rem;
+  }
+
+  .logo .badge {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+  }
+
+  nav.links {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+  }
+
+  nav.links a {
+    color: var(--creme);
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 6px 4px;
+    border-bottom: 2px solid transparent;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  nav.links a:hover {
+    border-bottom: 2px solid var(--or);
+    color: var(--or-clair);
+  }
+
+  .nav-cta {
+    background: var(--or);
+    color: var(--vert-fonce) !important;
+    padding: 8px 16px;
+    border-radius: 30px;
+    font-weight: 700 !important;
+  }
+
+  .nav-cta:hover {
+    border-bottom: 2px solid transparent !important;
+    background: var(--or-clair);
+  }
+
+  /* HERO */
+  #hero {
+    position: relative;
+    background: linear-gradient(135deg, var(--vert-fonce) 0%, var(--vert) 55%, var(--vert-clair) 100%);
+    color: var(--creme);
+    overflow: hidden;
+    padding: 90px 24px 110px;
+  }
+
+  #hero::before {
+    content: "";
+    position: absolute;
+    top: -80px;
+    right: -80px;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(227,178,60,0.25) 0%, transparent 70%);
+  }
+
+  #hero::after {
+    content: "";
+    position: absolute;
+    bottom: -120px;
+    left: -60px;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+  }
+
+  .hero-inner {
+    max-width: 1140px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 48px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .hero-text { flex: 1.2; }
+
+  .hero-tag {
+    display: inline-block;
+    background: rgba(227,178,60,0.18);
+    border: 1px solid var(--or);
+    color: var(--or-clair);
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+
+  #hero h1 {
+    color: var(--blanc);
+    font-size: 2.6rem;
+    line-height: 1.15;
+    margin-bottom: 18px;
+  }
+
+  #hero h1 span { color: var(--or-clair); }
+
+  #hero p.lead {
+    font-size: 1.1rem;
+    color: #e6f2ea;
+    max-width: 520px;
+    margin-bottom: 30px;
+  }
+
+  .hero-cta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-block;
+    padding: 13px 26px;
+    border-radius: 30px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    transition: transform 0.15s, box-shadow 0.15s;
+    border: 2px solid transparent;
+  }
+
+  .btn:hover { transform: translateY(-2px); }
+
+  .btn-primary {
+    background: var(--or);
+    color: var(--vert-fonce);
+    box-shadow: 0 6px 16px rgba(227,178,60,0.35);
+  }
+
+  .btn-primary:hover { background: var(--or-clair); }
+
+  .btn-outline {
+    border: 2px solid var(--creme);
+    color: var(--creme);
+  }
+
+  .btn-outline:hover { background: rgba(255,255,255,0.12); }
+
+  .hero-visual {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .hero-stats {
+    display: flex;
+    gap: 20px;
+    margin-top: 40px;
+    flex-wrap: wrap;
+  }
+
+  .stat-box {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 12px;
+    padding: 14px 18px;
+    text-align: center;
+    min-width: 100px;
+  }
+
+  .stat-box strong {
+    display: block;
+    font-size: 1.5rem;
+    color: var(--or-clair);
+    font-family: var(--font-titre);
+  }
+
+  .stat-box span {
+    font-size: 0.78rem;
+    color: #d7e8dd;
+  }
+
+  /* SECTION GENERIQUE */
+  section {
+    padding: 80px 0;
+  }
+
+  .section-head {
+    text-align: center;
+    max-width: 640px;
+    margin: 0 auto 50px;
+  }
+
+  .section-tag {
+    color: var(--vert-clair);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .section-head h2 {
+    font-size: 2rem;
+    margin-bottom: 14px;
+  }
+
+  .section-head p {
+    color: #6b6b5f;
+    font-size: 1rem;
+  }
+
+  /* A PROPOS */
+  #apropos {
+    background: var(--blanc);
+  }
+
+  .apropos-grid {
+    display: flex;
+    gap: 50px;
+    align-items: center;
+  }
+
+  .apropos-visual {
+    flex: 0 0 300px;
+  }
+
+  .crest-frame {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 20px;
+    background: linear-gradient(160deg, var(--vert-fonce), var(--vert));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 20px 40px rgba(11,61,36,0.25);
+  }
+
+  .apropos-text { flex: 1; }
+
+  .apropos-text h3 {
+    font-size: 1.3rem;
+    margin-bottom: 14px;
+  }
+
+  .apropos-text p { margin-bottom: 16px; color: #4a4a42; }
+
+  .timeline-mini {
+    display: flex;
+    gap: 24px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+
+  .timeline-mini div {
+    border-left: 3px solid var(--or);
+    padding-left: 12px;
+  }
+
+  .timeline-mini strong {
+    display: block;
+    color: var(--vert-fonce);
+    font-family: var(--font-titre);
+    font-size: 1.15rem;
+  }
+
+  .timeline-mini span { font-size: 0.85rem; color: #6b6b5f; }
+
+  /* EQUIPES / SERVICES */
+  #equipes { background: var(--creme); }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 26px;
+  }
+
+  .card {
+    background: var(--blanc);
+    border-radius: 16px;
+    padding: 30px 26px;
+    box-shadow: 0 8px 24px rgba(11,61,36,0.08);
+    border-top: 4px solid var(--vert-clair);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 14px 30px rgba(11,61,36,0.14);
+  }
+
+  .card .icon-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: var(--vert-fonce);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+  }
+
+  .card h3 {
+    font-size: 1.15rem;
+    margin-bottom: 10px;
+  }
+
+  .card p { color: #5b5b50; font-size: 0.95rem; margin-bottom: 12px; }
+
+  .card .tag-info {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--vert);
+    background: #e6f2ea;
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+
+  /* COTISATIONS */
+  #cotisations { background: var(--blanc); }
+
+  .prix-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 22px;
+  }
+
+  .prix-card {
+    border: 2px solid #e8e2d0;
+    border-radius: 16px;
+    padding: 28px 22px;
+    text-align: center;
+    position: relative;
+    transition: border-color 0.2s;
+  }
+
+  .prix-card.featured {
+    border-color: var(--or);
+    background: linear-gradient(180deg, #fffaf0, #fff);
+  }
+
+  .prix-card.featured::before {
+    content: "★ Le plus rejoint";
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--or);
+    color: var(--vert-fonce);
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 5px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  .prix-card h3 {
+    font-size: 1.05rem;
+    margin-bottom: 6px;
+  }
+
+  .prix-montant {
+    font-family: var(--font-titre);
+    font-size: 2rem;
+    color: var(--vert-fonce);
+    margin: 12px 0 4px;
+  }
+
+  .prix-montant sup { font-size: 1rem; }
+  .prix-montant sub { font-size: 0.85rem; font-family: var(--font-texte); color: #777; }
+
+  .prix-card ul { margin: 16px 0; text-align: left; }
+
+  .prix-card ul li {
+    font-size: 0.85rem;
+    color: #555;
+    padding: 5px 0;
+    padding-left: 22px;
+    position: relative;
+  }
+
+  .prix-card ul li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: var(--vert-clair);
+    font-weight: 800;
+  }
+
+  .prix-note {
+    text-align: center;
+    margin-top: 34px;
+    font-size: 0.9rem;
+    color: #6b6b5f;
+    background: #f3f0e6;
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  /* TEMOIGNAGES / VIE DU CLUB */
+  #vie-du-club { background: var(--vert-fonce); color: var(--creme); }
+
+  #vie-du-club .section-head p { color: #cfe3d6; }
+  #vie-du-club .section-tag { color: var(--or-clair); }
+  #vie-du-club .section-head h2 { color: var(--blanc); }
+
+  .temoin-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  .temoin-card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 26px;
+  }
+
+  .temoin-card p.quote {
+    font-style: italic;
+    color: #e6f2ea;
+    margin-bottom: 18px;
+    font-size: 0.95rem;
+  }
+
+  .temoin-author {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .avatar-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--or);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: var(--vert-fonce);
+    flex-shrink: 0;
+  }
+
+  .temoin-author strong { display: block; font-size: 0.9rem; color: var(--blanc); }
+  .temoin-author span { font-size: 0.78rem; color: var(--or-clair); }
+
+  .gallery-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-top: 40px;
+  }
+
+  .gallery-tile {
+    aspect-ratio: 4/3;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    color: rgba(255,255,255,0.85);
+  }
+
+  .g1 { background: linear-gradient(135deg, #2f9e5c, #1c6b3f); }
+  .g2 { background: linear-gradient(135deg, #e3b23c, #b9861f); }
+  .g3 { background: linear-gradient(135deg, #1c6b3f, #0b3d24); }
+  .g4 { background: linear-gradient(135deg, #4a7c59, #2f9e5c); }
+
+  /* CONTACT */
+  #contact { background: var(--creme); }
+
+  .contact-grid {
+    display: flex;
+    gap: 50px;
+  }
+
+  .contact-info { flex: 1; }
+
+  .contact-info h3 { font-size: 1.3rem; margin-bottom: 16px; }
+  .contact-info p { color: #5b5b50; margin-bottom: 24px; }
+
+  .info-row {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 20px;
+    align-items: flex-start;
+  }
+
+  .info-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--vert-fonce);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .info-row strong { display: block; color: var(--vert-fonce); font-size: 0.95rem; }
+  .info-row span { font-size: 0.9rem; color: #6b6b5f; }
+
+  .practice-box {
+    background: var(--blanc);
+    border: 1px solid #e8e2d0;
+    border-radius: 14px;
+    padding: 20px;
+    margin-top: 10px;
+  }
+
+  .practice-box h4 { font-size: 0.95rem; color: var(--vert-fonce); margin-bottom: 10px; }
+  .practice-box div { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 4px 0; color: #555; }
+
+  .contact-form {
+    flex: 1;
+    background: var(--blanc);
+    border-radius: 18px;
+    padding: 34px;
+    box-shadow: 0 12px 30px rgba(11,61,36,0.1);
+  }
+
+  .contact-form h3 { font-size: 1.2rem; margin-bottom: 4px; }
+  .contact-form p.form-sub { color: #6b6b5f; font-size: 0.88rem; margin-bottom: 22px; }
+
+  .form-row { margin-bottom: 16px; }
+  .form-row.two { display: flex; gap: 16px; }
+  .form-row.two > div { flex: 1; }
+
+  label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--vert-fonce);
+    margin-bottom: 6px;
+  }
+
+  input, select, textarea {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid #e0dbc9;
+    border-radius: 10px;
+    font-family: var(--font-texte);
+    font-size: 0.92rem;
+    background: #fdfcf8;
+    color: var(--gris-texte);
+  }
+
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--vert-clair);
+  }
+
+  textarea { resize: vertical; min-height: 90px; }
+
+  .btn-submit {
+    width: 100%;
+    background: var(--vert-fonce);
+    color: var(--creme);
+    border: none;
+    padding: 14px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.98rem;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+
+  /* FOOTER */
+  footer {
+    background: #08301b;
+    color: #cfe3d6;
+    padding: 56px 0 24px;
+  }
+
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1.2fr;
+    gap: 36px;
+    padding-bottom: 36px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--blanc);
+    font-family: var(--font-titre);
+    font-weight: bold;
+    font-size: 1.15rem;
+    margin-bottom: 14px;
+  }
+
+  footer h4 {
+    color: var(--blanc);
+    font-size: 0.92rem;
+    margin-bottom: 16px;
+    letter-spacing: 0.03em;
+  }
+
+  footer ul li { margin-bottom: 10px; font-size: 0.88rem; }
+  footer ul li a:hover { color: var(--or-clair); }
+
+  .socials { display: flex; gap: 10px; margin-top: 16px; }
+
+  .social-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+
+  .footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 22px;
+    font-size: 0.8rem;
+    color: #8fae9c;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .footer-bottom a { margin-left: 16px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .cards-grid { grid-template-columns: repeat(2, 1fr); }
+    .prix-grid { grid-template-columns: repeat(2, 1fr); }
+    .temoin-grid { grid-template-columns: 1fr; }
+    .gallery-strip { grid-template-columns: repeat(2, 1fr); }
+    .apropos-grid { flex-direction: column; }
+    .apropos-visual { flex: 0 0 auto; width: 220px; }
+    .contact-grid { flex-direction: column; }
+    .footer-grid { grid-template-columns: 1fr 1fr; }
+    .hero-inner { flex-direction: column; }
+    .hero-visual { order: -1; }
+  }
+
+  @media (max-width: 640px) {
+    nav.links { display: none; }
+    .nav-inner { justify-content: space-between; }
+    #hero h1 { font-size: 2rem; }
+    .cards-grid { grid-template-columns: 1fr; }
+    .prix-grid { grid-template-columns: 1fr; }
+    .gallery-strip { grid-template-columns: repeat(2, 1fr); }
+    .form-row.two { flex-direction: column; gap: 0; }
+    .footer-grid { grid-template-columns: 1fr; gap: 28px; }
+    .hero-stats { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-nav">
+  <div class="nav-inner">
+    <a href="#hero" class="logo">
+      <svg class="badge" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="30" cy="30" r="28" fill="#e3b23c"/>
+        <circle cx="30" cy="30" r="24" fill="#0b3d24"/>
+        <path d="M30 12 L37 24 L51 26 L41 35 L44 49 L30 42 L16 49 L19 35 L9 26 L23 24 Z" fill="#f5d98a"/>
+      </svg>
+      Les Aigles de Vernon
+    </a>
+    <nav class="links">
+      <a href="#apropos">Notre histoire</a>
+      <a href="#equipes">Nos équipes</a>
+      <a href="#cotisations">Cotisations</a>
+      <a href="#vie-du-club">Vie du club</a>
+      <a href="#contact">Contact</a>
+      <a href="#contact" class="nav-cta">Devenir adhérent</a>
+    </nav>
+  </div>
+</header>
+
+<section id="hero">
+  <div class="hero-inner container">
+    <div class="hero-text">
+      <span class="hero-tag">Club affilié FFF · Depuis 1987</span>
+      <h1>Le football amateur vernonnais, <span>une famille depuis 1987</span></h1>
+      <p class="lead">Seniors, U15, U11 et féminines : à Vernon, on chausse les crampons ensemble, on transmet la passion du ballon rond et on grandit sur et hors du terrain. Rejoignez les Aigles.</p>
+      <div class="hero-cta">
+        <a href="#contact" class="btn btn-primary">Devenir adhérent</a>
+        <a href="#contact" class="btn btn-outline">Devenir bénévole</a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-box"><strong>38</strong><span>ans d'existence</span></div>
+        <div class="stat-box"><strong>4</strong><span>équipes actives</span></div>
+        <div class="stat-box"><strong>180+</strong><span>licenciés</span></div>
+        <div class="stat-box"><strong>25</strong><span>bénévoles</span></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <svg width="280" height="280" viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="140" cy="140" r="130" fill="rgba(255,255,255,0.06)" stroke="rgba(245,217,138,0.4)" stroke-width="2"/>
+        <circle cx="140" cy="140" r="95" fill="rgba(255,255,255,0.05)"/>
+        <g transform="translate(140,140)">
+          <circle r="55" fill="#fbf7ee"/>
+          <path d="M0,-55 L16,-38 L10,-14 L-10,-14 L-16,-38 Z" fill="#0b3d24"/>
+          <path d="M-55,0 L-38,-16 L-14,-10 L-14,10 L-38,16 Z" fill="#0b3d24"/>
+          <path d="M55,0 L38,16 L14,10 L14,-10 L38,-16 Z" fill="#0b3d24"/>
+          <path d="M0,55 L-16,38 L-10,14 L10,14 L16,38 Z" fill="#0b3d24"/>
+          <circle r="15" fill="none" stroke="#0b3d24" stroke-width="2"/>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<section id="apropos">
+  <div class="container apropos-grid">
+    <div class="apropos-visual">
+      <div class="crest-frame">
+        <svg width="150" height="150" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <path d="M50 5 L90 20 L90 50 C90 75 70 90 50 95 C30 90 10 75 10 50 L10 20 Z" fill="#f5d98a"/>
+          <path d="M50 12 L83 24 L83 50 C83 70 67 83 50 88 C33 83 17 70 17 50 L17 24 Z" fill="#0b3d24"/>
+          <text x="50" y="58" font-size="34" text-anchor="middle" fill="#f5d98a" font-family="Georgia, serif">AV</text>
+        </svg>
+      </div>
+    </div>
+    <div class="apropos-text">
+      <span class="section-tag">Notre histoire</span>
+      <h3>Un club né d'une bande de copains, devenu une institution du quartier</h3>
+      <p>Tout commence en 1987, sur le terrain vague de la plaine d'Heudreville, quand Bernard Lecomte et une dizaine d'ouvriers de l'usine Renault réunissent leurs enfants autour d'un ballon les dimanches matin. L'association est officiellement déposée en préfecture la même année, sous le nom « Les Aigles de Vernon », en clin d'œil au clocher de la collégiale qui surplombe la ville.</p>
+      <p>Depuis, le club a grandi sans jamais perdre son esprit de départ : ici, chaque enfant trouve sa place, chaque parent peut s'investir, et chaque victoire se fête au club-house autour d'une galette. Nous sommes aujourd'hui présidés par Sylvie Marchand, ancienne joueuse seniors devenue dirigeante bénévole depuis 2015.</p>
+      <div class="timeline-mini">
+        <div><strong>1987</strong><span>Création du club</span></div>
+        <div><strong>2003</strong><span>Ouverture section féminine</span></div>
+        <div><strong>2019</strong><span>Nouveau terrain synthétique</span></div>
+        <div><strong>2026</strong><span>180 licenciés</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="equipes">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-tag">Nos équipes</span>
+      <h2>Une équipe pour chaque envie de jouer</h2>
+      <p>Du premier ballon touché à la compétition seniors, chacun progresse à son rythme dans un cadre bienveillant et exigeant.</p>
+    </div>
+    <div class="cards-grid">
+
+      <div class="card">
+        <div class="icon-wrap">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#f5d98a" stroke-width="2"/><path d="M12 4 L14.5 9 L20 9.5 L16 13 L17.5 18.5 L12 15.5 L6.5 18.5 L8 13 L4 9.5 L9.5 9 Z" fill="#f5d98a"/></svg>
+        </div>
+        <h3>Seniors — Équipe fanion</h3>
+        <p>Évoluant en D3 district, l'équipe s'entraîne mardi et jeudi soir sous la direction de l'entraîneur Karim Belaïd. Ambiance conviviale et esprit de compétition assumé.</p>
+        <span class="tag-info">Entraînements : mar. & jeu. 19h-20h30</span>
+      </div>
+
+      <div class="card">
+        <div class="icon-wrap">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M4 20 L4 10 L12 4 L20 10 L20 20 Z" stroke="#f5d98a" stroke-width="2" fill="none"/><path d="M9 20 L9 14 L15 14 L15 20" stroke="#f5d98a" stroke-width="2"/></svg>
+        </div>
+        <h3>U15 — Espoirs des Aigles</h3>
+        <p>Catégorie 13-15 ans, encadrée par Antoine Dupriez (diplômé BMF). Travail technique, tactique et respect des valeurs du sport collectif, en vue du passage seniors.</p>
+        <span class="tag-info">Entraînements : mer. 17h & sam. 10h</span>
+      </div>
+
+      <div class="card">
+        <div class="icon-wrap">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="7" r="3" stroke="#f5d98a" stroke-width="2"/><path d="M6 21 C6 15 9 13 12 13 C15 13 18 15 18 21" stroke="#f5d98a" stroke-width="2" fill="none"/></svg>
+        </div>
+        <h3>U11 — École de foot</h3>
+        <p>Nos plus jeunes pousses (9-11 ans) découvrent le foot à 8 dans la joie, encadrées par Fatima Cherfaoui et une équipe de parents-éducateurs formés. Priorité au plaisir de jouer.</p>
+        <span class="tag-info">Entraînements : mer. 14h & sam. 9h</span>
+      </div>
+
+      <div class="card">
+        <div class="icon-wrap">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M12 21 C7 17 3 13.5 3 9.5 C3 6.5 5.5 4 8.5 4 C10 4 11.3 4.8 12 6 C12.7 4.8 14 4 15.5 4 C18.5 4 21 6.5 21 9.5 C21 13.5 17 17 12 21 Z" stroke="#f5d98a" stroke-width="2" fill="none"/></svg>
+        </div>
+        <h3>Féminines — Section seniors</h3>
+        <p>Créée en 2003, l'équipe féminine évolue en Régional 2 et a doublé ses effectifs en trois ans. Coachée par Nadia Ben Salah, elle porte haut les couleurs vertes et or.</p>
+        <span class="tag-info">Entraînements : lun. & mer. 19h</span>
+      </div>
+
+      <div class="card">
+        <div class="icon-wrap">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M12 2 L12 22 M2 12 L22 12" stroke="#f5d98a" stroke-width="2"/><circle cx="12" cy="12" r="8" stroke="#f5d98a" stroke-width="2" fill="none"/></svg>
+        </div>
+        <h3>Vétérans — Loisir & convivialité</h3>
+        <p>Pour les plus de 35 ans qui veulent garder la forme sans la pression du classement : un entraînement hebdomadaire suivi, immanquablement, d'un pot au club-house.</p>
+        <span class="tag-info">Entraînement : ven. 20h</span>
+      </div>
+
+      <div class="card">
+        <div class="icon-wrap">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M3 21 L21 21 M6 21 L6 10 L18 10 L18 21 M9 10 L9 3 L15 3 L15 10" stroke="#f5d98a" stroke-width="2" fill="none"/></svg>
+        </div>
+        <h3>Baby-Foot (5-8 ans)</h3>
+        <p>Initiation ludique au ballon rond avant l'école de foot, en petits groupes, sans compétition : on apprend à courir, viser et surtout à s'amuser ensemble.</p>
+        <span class="tag-info">Entraînement : sam. 9h-10h</span>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section id="cotisations">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-tag">Rejoindre le club</span>
+      <h2>Une cotisation, un maillot, une famille</h2>
+      <p>Nos tarifs couvrent la licence FFF, les équipements collectifs et l'accès à toutes les activités du club. Un tarif réduit est proposé aux familles avec plusieurs enfants inscrits.</p>
+    </div>
+    <div class="prix-grid">
+
+      <div class="prix-card">
+        <h3>Baby-Foot & U11</h3>
+        <div class="prix-montant">120<sup>€</sup><sub>/saison</sub></div>
+        <ul>
+          <li>Licence FFF incluse</li>
+          <li>Survêtement offert</li>
+          <li>Plateaux découverte</li>
+          <li>Encadrement diplômé</li>
+        </ul>
+      </div>
+
+      <div class="prix-card featured">
+        <h3>U15</h3>
+        <div class="prix-montant">150<sup>€</sup><sub>/saison</sub></div>
+        <ul>
+          <li>Licence FFF incluse</li>
+          <li>Équipement complet</li>
+          <li>Championnat district</li>
+          <li>Stage vacances d'été</li>
+        </ul>
+      </div>
+
+      <div class="prix-card">
+        <h3>Seniors & Féminines</h3>
+        <div class="prix-montant">180<sup>€</sup><sub>/saison</sub></div>
+        <ul>
+          <li>Licence FFF incluse</li>
+          <li>Jeu complet floqué</li>
+          <li>Championnat régional</li>
+          <li>Accès club-house</li>
+        </ul>
+      </div>
+
+      <div class="prix-card">
+        <h3>Vétérans & Loisir</h3>
+        <div class="prix-montant">100<sup>€</sup><sub>/saison</sub></div>
+        <ul>
+          <li>Licence loisir FFF</li>
+          <li>1 entraînement/semaine</li>
+          <li>Tournois amicaux</li>
+          <li>Moments conviviaux</li>
+        </ul>
+      </div>
+
+    </div>
+    <p class="prix-note">👨‍👩‍👧‍👦 <strong>Tarif fratrie :</strong> -20€ dès le 2e enfant inscrit. Facilités de paiement en 3 fois sans frais et règlement en chèques ANCV/coupons sport acceptés. Aucune famille n'est refusée faute de moyens — parlez-en en toute confidentialité à notre trésorier.</p>
+  </div>
+</section>
+
+<section id="vie-du-club">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-tag">Vie du club</span>
+      <h2>Ce qu'ils disent des Aigles</h2>
+      <p>Joueurs, parents et bénévoles témoignent de ce qui fait, saison après saison, l'esprit du club.</p>
+    </div>
+    <div class="temoin-grid">
+
+      <div class="temoin-card">
+        <p class="quote">« Mon fils est arrivé timide à l'école de foot il y a deux ans, aujourd'hui il capitaine son équipe U11. Les éducateurs prennent vraiment le temps avec chaque enfant. »</p>
+        <div class="temoin-author">
+          <div class="avatar-circle">MP</div>
+          <div><strong>Marie Petit</strong><span>Maman d'un joueur U11</span></div>
+        </div>
+      </div>
+
+      <div class="temoin-card">
+        <p class="quote">« Après 15 ans loin du foot, j'ai repris avec les vétérans. Ce que je retiens surtout, c'est l'accueil : ici on n'est jamais un simple numéro de licence. »</p>
+        <div class="temoin-author">
+          <div class="avatar-circle">TR</div>
+          <div><strong>Thomas Roussel</strong><span>Joueur vétérans depuis 2023</span></div>
+        </div>
+      </div>
+
+      <div class="temoin-card">
+        <p class="quote">« Bénévole depuis trois saisons pour tenir la buvette les jours de match, j'y ai trouvé une deuxième famille. Le club vit grâce à des gens comme nous, et ça fait chaud au cœur. »</p>
+        <div class="temoin-author">
+          <div class="avatar-circle">CD</div>
+          <div><strong>Claire Dubosc</strong><span>Bénévole buvette & événements</span></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="gallery-strip">
+      <div class="gallery-tile g1">🏆</div>
+      <div class="gallery-tile g2">⚽</div>
+      <div class="gallery-tile g3">🎉</div>
+      <div class="gallery-tile g4">👥</div>
+    </div>
+  </div>
+</section>
+
+<section id="contact">
+  <div class="container contact-grid">
+    <div class="contact-info">
+      <span class="section-tag">Nous rejoindre</span>
+      <h3>Une question, une envie de nous rencontrer ?</h3>
+      <p>Passez nous voir un samedi matin au stade, ou écrivez-nous : nous répondons toujours, avec plaisir, à toute famille intéressée par le club.</p>
+
+      <div class="info-row">
+        <div class="info-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 22 C12 22 20 15 20 9 C20 4.5 16.5 1 12 1 C7.5 1 4 4.5 4 9 C4 15 12 22 12 22 Z" fill="#f5d98a"/><circle cx="12" cy="9" r="3" fill="#0b3d24"/></svg></div>
+        <div><strong>Stade municipal Léo-Lagrange</strong><span>12 rue des Tourelles, 27200 Vernon (quartier Boieldieu)</span></div>
+      </div>
+
+      <div class="info-row">
+        <div class="info-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 5 C4 5 6 4 8 6 L9 8 C9.5 9 9 9.5 8 10 C9 13 11 15 14 16 C14.5 15 15 14.5 16 15 L18 16 C20 18 19 20 19 20 C15 22 8 19 5 15 C2 11 2 6 4 5 Z" fill="#f5d98a"/></svg></div>
+        <div><strong>02 32 51 XX XX</strong><span>Secrétariat — mar. et jeu. 17h-19h</span></div>
+      </div>
+
+      <div class="info-row">
+        <div class="info-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" fill="#f5d98a"/><path d="M3 6 L12 13 L21 6" stroke="#0b3d24" stroke-width="1.5" fill="none"/></svg></div>
+        <div><strong>contact@aiglesdevernon-foot.fr</strong><span>Réponse sous 48h</span></div>
+      </div>
+
+      <div class="practice-box">
+        <h4>Permanences d'inscription</h4>
+        <div><span>Mardi</span><span>17h – 19h</span></div>
+        <div><span>Jeudi</span><span>17h – 19h</span></div>
+        <div><span>Samedi (juin-sept.)</span><span>9h – 12h</span></div>
+      </div>
+    </div>
+
+    <div class="contact-form">
+      <h3>Prendre contact</h3>
+      <p class="form-sub">Adhésion, bénévolat, essai gratuit pour un enfant : dites-nous ce qui vous amène.</p>
+
+      <div class="form-row two">
+        <div>
+          <label for="prenom">Prénom</label>
+          <input type="text" id="prenom" placeholder="Julie">
+        </div>
+        <div>
+          <label for="nom">Nom</label>
+          <input type="text" id="nom" placeholder="Fontaine">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label for="email">Email</label>
+        <input type="email" id="email" placeholder="julie.fontaine@email.fr">
+      </div>
+
+      <div class="form-row">
+        <label for="motif">Je souhaite</label>
+        <select id="motif">
+          <option>Inscrire mon enfant (école de foot)</option>
+          <option>Rejoindre l'équipe seniors ou féminines</option>
+          <option>Devenir bénévole / éducateur</option>
+          <option>Devenir partenaire du club</option>
+          <option>Autre demande</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label for="message">Message</label>
+        <textarea id="message" placeholder="Précisez l'âge de l'enfant, vos disponibilités, ou votre question..."></textarea>
+      </div>
+
+      <button type="button" class="btn-submit">Envoyer ma demande</button>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-brand">
+          <svg width="30" height="30" viewBox="0 0 60 60"><circle cx="30" cy="30" r="28" fill="#e3b23c"/><circle cx="30" cy="30" r="24" fill="#0b3d24"/><path d="M30 12 L37 24 L51 26 L41 35 L44 49 L30 42 L16 49 L19 35 L9 26 L23 24 Z" fill="#f5d98a"/></svg>
+          Les Aigles de Vernon
+        </div>
+        <p style="font-size:0.88rem; max-width:280px; color:#a9c6b4;">Association loi 1901 affiliée à la Fédération Française de Football, fondée en 1987. Le foot amateur, pour tous, à Vernon.</p>
+        <div class="socials">
+          <div class="social-circle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M14 9 L17 9 L17 6 L14 6 C12 6 11 7.5 11 9.5 L11 12 L9 12 L9 15 L11 15 L11 22 L14 22 L14 15 L16.5 15 L17 12 L14 12 Z" fill="#f5d98a"/></svg></div>
+          <div class="social-circle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="5" stroke="#f5d98a" stroke-width="1.6" fill="none"/><circle cx="12" cy="12" r="4" stroke="#f5d98a" stroke-width="1.6" fill="none"/><circle cx="17.5" cy="6.5" r="1.2" fill="#f5d98a"/></svg></div>
+          <div class="social-circle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 6 C20.3 6.4 19.5 6.6 18.7 6.7 C19.5 6.2 20.1 5.5 20.4 4.6 C19.7 5 18.9 5.3 18 5.5 C17.3 4.8 16.3 4.3 15.2 4.3 C13.1 4.3 11.4 6 11.4 8.1 C11.4 8.4 11.4 8.7 11.5 9 C8.3 8.8 5.5 7.3 3.6 5 C3.3 5.6 3.1 6.2 3.1 7 C3.1 8.3 3.8 9.5 4.9 10.2 C4.2 10.1 3.6 9.9 3.1 9.7 L3.1 9.7 C3.1 11.5 4.4 13 6.1 13.4 C5.8 13.5 5.4 13.5 5.1 13.5 C4.9 13.5 4.6 13.5 4.4 13.4 C4.9 15 6.3 16.1 8 16.1 C6.7 17.1 5.1 17.7 3.3 17.7 C3 17.7 2.7 17.7 2.4 17.6 C4.1 18.7 6.1 19.3 8.3 19.3 C15.2 19.3 19 13.6 19 8.6 L19 8.1 C19.7 7.6 20.4 6.9 21 6 Z" fill="#f5d98a"/></svg></div>
+        </div>
+      </div>
+
+      <div>
+        <h4>Navigation</h4>
+        <ul>
+          <li><a href="#apropos">Notre histoire</a></li>
+          <li><a href="#equipes">Nos équipes</a></li>
+          <li><a href="#cotisations">Cotisations</a></li>
+          <li><a href="#vie-du-club">Vie du club</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>Le club</h4>
+        <ul>
+          <li><a href="#hero">Accueil</a></li>
+          <li><a href="#contact">Nous contacter</a></li>
+          <li><a href="#contact">Devenir bénévole</a></li>
+          <li><a href="#contact">Partenaires & sponsors</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>Coordonnées</h4>
+        <ul>
+          <li>Stade Léo-Lagrange</li>
+          <li>12 rue des Tourelles</li>
+          <li>27200 Vernon</li>
+          <li>02 32 51 XX XX</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <span>© 2026 Association Les Aigles de Vernon — Loi 1901. Tous droits réservés.</span>
+      <span>
+        <a href="#hero">Mentions légales</a>
+        <a href="#hero">Statuts de l'association</a>
+      </span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

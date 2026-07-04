@@ -15,14 +15,14 @@ export function buildUserMessage(seed: string, previousHtml?: string, feedback?:
       "## Retour du client à intégrer",
       feedback,
       "",
-      "Régénère le document HTML ENTIER en intégrant ce retour. Réponds UNIQUEMENT par le document HTML complet, de <!DOCTYPE html> à </html>.",
+      "Régénère le document HTML ENTIER en intégrant ce retour, en conservant la structure complète du vrai site (nav, hero, sections, footer) — pas seulement la section concernée. Réponds UNIQUEMENT par le document HTML complet, de <!DOCTYPE html> à </html>.",
     ].join("\n");
   }
   return [
     "## Brief",
     seed,
     "",
-    "Génère une première maquette. Réponds UNIQUEMENT par le document HTML complet, de <!DOCTYPE html> à </html>.",
+    "Génère une première maquette : un vrai site d'exploitation multi-sections (nav avec ancres, hero, à propos, services/offres, tarifs si pertinent, témoignages ou galerie, contact, footer), pas une simple page vitrine à une accroche. Réponds UNIQUEMENT par le document HTML complet, de <!DOCTYPE html> à </html>.",
   ].join("\n");
 }
 

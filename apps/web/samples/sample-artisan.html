@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ateliers Lefèvre — Menuiserie sur-mesure à Rennes</title>
+<style>
+  :root{
+    --wood-dark:#2b2015;
+    --wood:#5c3d24;
+    --wood-mid:#8a5a34;
+    --wood-light:#c89a68;
+    --cream:#f6f1e7;
+    --cream-2:#efe6d6;
+    --ink:#2a2118;
+    --ink-soft:#5a4d3f;
+    --gold:#b8863a;
+    --gold-light:#d9b26a;
+    --line:#e2d5bd;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:'Segoe UI', system-ui, -apple-system, Helvetica, Arial, sans-serif;
+    color:var(--ink);
+    background:var(--cream);
+    line-height:1.6;
+  }
+  h1,h2,h3,h4{
+    font-family:Georgia,'Times New Roman',serif;
+    color:var(--wood-dark);
+    font-weight:700;
+    line-height:1.2;
+  }
+  a{color:inherit;text-decoration:none;}
+  ul{list-style:none;}
+  img,svg{display:block;max-width:100%;}
+  .container{
+    max-width:1140px;
+    margin:0 auto;
+    padding:0 24px;
+  }
+  .eyebrow{
+    display:inline-block;
+    text-transform:uppercase;
+    letter-spacing:2.5px;
+    font-size:0.75rem;
+    font-weight:700;
+    color:var(--gold);
+    margin-bottom:14px;
+  }
+  .section-title{
+    font-size:clamp(1.7rem,3vw,2.4rem);
+    margin-bottom:12px;
+  }
+  .section-lead{
+    max-width:640px;
+    color:var(--ink-soft);
+    font-size:1.05rem;
+    margin-bottom:48px;
+  }
+  section{padding:88px 0;}
+
+  /* NAV */
+  header.site-nav{
+    position:fixed;
+    top:0;left:0;right:0;
+    z-index:1000;
+    background:rgba(246,241,231,0.96);
+    border-bottom:1px solid var(--line);
+    backdrop-filter:blur(4px);
+  }
+  .nav-inner{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:16px 24px;
+    max-width:1140px;
+    margin:0 auto;
+  }
+  .logo{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-family:Georgia,serif;
+    font-weight:700;
+    font-size:1.25rem;
+    color:var(--wood-dark);
+    letter-spacing:0.5px;
+  }
+  .logo-mark{
+    width:38px;height:38px;
+    border-radius:6px;
+    background:linear-gradient(135deg,var(--wood-mid),var(--wood-dark));
+    display:flex;align-items:center;justify-content:center;
+    color:var(--cream);
+    font-family:Georgia,serif;
+    font-size:1.1rem;
+    flex-shrink:0;
+  }
+  nav.links{
+    display:flex;
+    gap:28px;
+  }
+  nav.links a{
+    font-size:0.92rem;
+    font-weight:600;
+    color:var(--ink);
+    position:relative;
+    padding:6px 0;
+  }
+  nav.links a:hover{color:var(--gold);}
+  .nav-cta{
+    display:inline-block;
+    background:var(--wood-dark);
+    color:var(--cream)!important;
+    padding:10px 20px;
+    border-radius:4px;
+    font-size:0.88rem;
+    font-weight:700;
+    letter-spacing:0.3px;
+  }
+  .nav-cta:hover{background:var(--gold);}
+  .burger{display:none;font-size:1.6rem;color:var(--wood-dark);}
+
+  /* HERO */
+  #accueil{
+    padding:170px 0 100px;
+    background:
+      radial-gradient(circle at 85% 20%, rgba(184,134,58,0.18), transparent 45%),
+      linear-gradient(160deg,var(--cream) 0%, var(--cream-2) 55%, #e6d8bd 100%);
+    position:relative;
+    overflow:hidden;
+  }
+  .hero-grid{
+    display:grid;
+    grid-template-columns:1.1fr 0.9fr;
+    gap:56px;
+    align-items:center;
+  }
+  .hero-title{
+    font-size:clamp(2.1rem,4.4vw,3.4rem);
+    margin-bottom:20px;
+  }
+  .hero-title span{color:var(--gold);}
+  .hero-text{
+    font-size:1.12rem;
+    color:var(--ink-soft);
+    max-width:520px;
+    margin-bottom:32px;
+  }
+  .hero-ctas{display:flex;gap:16px;flex-wrap:wrap;}
+  .btn{
+    display:inline-block;
+    padding:14px 26px;
+    border-radius:4px;
+    font-weight:700;
+    font-size:0.95rem;
+    letter-spacing:0.3px;
+    border:2px solid transparent;
+    transition:transform .15s ease;
+  }
+  .btn:hover{transform:translateY(-2px);}
+  .btn-primary{background:var(--wood-dark);color:var(--cream);}
+  .btn-primary:hover{background:var(--gold);}
+  .btn-outline{border-color:var(--wood-dark);color:var(--wood-dark);}
+  .btn-outline:hover{background:var(--wood-dark);color:var(--cream);}
+  .hero-stats{
+    display:flex;
+    gap:32px;
+    margin-top:44px;
+    flex-wrap:wrap;
+  }
+  .hero-stats div{min-width:100px;}
+  .hero-stats strong{
+    display:block;
+    font-family:Georgia,serif;
+    font-size:1.9rem;
+    color:var(--wood-dark);
+  }
+  .hero-stats span{
+    font-size:0.82rem;
+    color:var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+  }
+  .hero-visual{
+    aspect-ratio:4/5;
+    border-radius:10px;
+    background:
+      repeating-linear-gradient(100deg, rgba(255,255,255,0.05) 0 2px, transparent 2px 26px),
+      linear-gradient(155deg,var(--wood-mid) 0%, var(--wood) 45%, var(--wood-dark) 100%);
+    position:relative;
+    box-shadow:0 30px 60px -20px rgba(43,32,21,0.45);
+  }
+  .hero-visual::before{
+    content:"ATELIERS\A LEFÈVRE";
+    white-space:pre;
+    position:absolute;
+    bottom:28px;left:28px;
+    font-family:Georgia,serif;
+    color:rgba(246,241,231,0.85);
+    font-size:1.1rem;
+    letter-spacing:2px;
+    line-height:1.4;
+  }
+  .hero-visual::after{
+    content:"";
+    position:absolute;
+    top:24px;right:24px;
+    width:64px;height:64px;
+    border:2px solid rgba(246,241,231,0.5);
+    border-radius:50%;
+  }
+
+  /* APROPOS */
+  #apropos{background:var(--cream);}
+  .about-grid{
+    display:grid;
+    grid-template-columns:0.9fr 1.1fr;
+    gap:56px;
+    align-items:center;
+  }
+  .about-photo{
+    aspect-ratio:1/1;
+    border-radius:10px;
+    background:
+      linear-gradient(135deg, var(--wood-light) 0%, var(--wood-mid) 50%, var(--wood) 100%);
+    position:relative;
+    box-shadow:0 20px 40px -18px rgba(43,32,21,0.35);
+  }
+  .about-photo::before{
+    content:"J.L.";
+    position:absolute;inset:0;
+    display:flex;align-items:center;justify-content:center;
+    font-family:Georgia,serif;
+    font-size:3.5rem;
+    color:rgba(246,241,231,0.75);
+    letter-spacing:2px;
+  }
+  .about-badge{
+    position:absolute;
+    bottom:-18px;right:-18px;
+    background:var(--gold);
+    color:var(--wood-dark);
+    padding:16px 20px;
+    border-radius:8px;
+    font-weight:700;
+    font-size:0.85rem;
+    text-align:center;
+    box-shadow:0 10px 20px -8px rgba(43,32,21,0.4);
+  }
+  .about-badge strong{display:block;font-size:1.6rem;font-family:Georgia,serif;}
+  .about-text p{color:var(--ink-soft);margin-bottom:16px;}
+  .about-text h3{margin-bottom:14px;}
+  .about-list{margin-top:20px;}
+  .about-list li{
+    padding:10px 0 10px 28px;
+    position:relative;
+    color:var(--ink-soft);
+    border-top:1px solid var(--line);
+  }
+  .about-list li:first-child{border-top:none;}
+  .about-list li::before{
+    content:"✓";
+    position:absolute;left:0;
+    color:var(--gold);
+    font-weight:700;
+  }
+
+  /* PRESTATIONS */
+  #prestations{background:var(--cream-2);}
+  .services-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:28px;
+  }
+  .service-card{
+    background:var(--cream);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:32px 26px;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .service-card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 16px 32px -18px rgba(43,32,21,0.3);
+  }
+  .service-icon{
+    width:52px;height:52px;
+    border-radius:8px;
+    background:linear-gradient(135deg,var(--wood-mid),var(--wood-dark));
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:18px;
+  }
+  .service-card h3{font-size:1.15rem;margin-bottom:10px;}
+  .service-card p{color:var(--ink-soft);font-size:0.95rem;}
+
+  /* TARIFS */
+  #tarifs{background:var(--cream);}
+  .price-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:24px;
+  }
+  .price-card{
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:30px 24px;
+    background:var(--cream-2);
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .price-card.featured{
+    background:var(--wood-dark);
+    color:var(--cream);
+    border-color:var(--wood-dark);
+    position:relative;
+  }
+  .price-card.featured h3, .price-card.featured .price-from{color:var(--cream);}
+  .price-card.featured p{color:#d9cdb8;}
+  .price-tag{
+    position:absolute;
+    top:-12px;right:20px;
+    background:var(--gold);
+    color:var(--wood-dark);
+    font-size:0.72rem;
+    font-weight:700;
+    padding:5px 12px;
+    border-radius:20px;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+  }
+  .price-card h3{font-size:1.05rem;}
+  .price-from{
+    font-family:Georgia,serif;
+    font-size:1.7rem;
+    color:var(--wood-dark);
+  }
+  .price-from small{font-size:0.9rem;font-weight:400;color:var(--ink-soft);}
+  .price-card p{font-size:0.88rem;color:var(--ink-soft);flex-grow:1;}
+  .price-note{
+    margin-top:36px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:0.95rem;
+    font-style:italic;
+  }
+
+  /* REALISATIONS */
+  #realisations{background:var(--cream-2);}
+  .gallery-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:20px;
+    margin-bottom:60px;
+  }
+  .gallery-item{
+    aspect-ratio:4/3;
+    border-radius:8px;
+    position:relative;
+    overflow:hidden;
+    box-shadow:0 12px 24px -14px rgba(43,32,21,0.35);
+  }
+  .gallery-item .cap{
+    position:absolute;
+    bottom:0;left:0;right:0;
+    padding:16px;
+    background:linear-gradient(0deg, rgba(20,14,8,0.85), transparent);
+    color:var(--cream);
+  }
+  .gallery-item .cap strong{display:block;font-family:Georgia,serif;font-size:1.05rem;}
+  .gallery-item .cap span{font-size:0.78rem;color:#e6dcc8;}
+  .g1{background:linear-gradient(145deg,#c89a68,#8a5a34);}
+  .g2{background:linear-gradient(145deg,#a9784f,#5c3d24);}
+  .g3{background:linear-gradient(145deg,#8a5a34,#2b2015);}
+  .g4{background:linear-gradient(145deg,#d9b26a,#8a5a34);}
+  .g5{background:linear-gradient(145deg,#b8863a,#5c3d24);}
+  .g6{background:linear-gradient(145deg,#8a5a34,#a9784f);}
+
+  .testimonials{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:24px;
+  }
+  .testimonial{
+    background:var(--cream);
+    border-left:4px solid var(--gold);
+    border-radius:6px;
+    padding:26px 24px;
+    box-shadow:0 8px 20px -14px rgba(43,32,21,0.25);
+  }
+  .testimonial p{color:var(--ink-soft);font-style:italic;margin-bottom:16px;font-size:0.95rem;}
+  .testimonial .author{
+    display:flex;align-items:center;gap:12px;
+  }
+  .avatar{
+    width:38px;height:38px;
+    border-radius:50%;
+    background:linear-gradient(135deg,var(--wood-mid),var(--wood-dark));
+    color:var(--cream);
+    display:flex;align-items:center;justify-content:center;
+    font-family:Georgia,serif;
+    font-size:0.9rem;
+    flex-shrink:0;
+  }
+  .author strong{display:block;font-size:0.9rem;color:var(--wood-dark);}
+  .author span{font-size:0.78rem;color:var(--ink-soft);}
+
+  /* CONTACT */
+  #contact{background:var(--wood-dark);color:var(--cream);}
+  #contact .eyebrow{color:var(--gold-light);}
+  #contact h2{color:var(--cream);}
+  #contact .section-lead{color:#d9cdb8;}
+  .contact-grid{
+    display:grid;
+    grid-template-columns:0.9fr 1.1fr;
+    gap:56px;
+  }
+  .contact-info li{
+    display:flex;
+    gap:16px;
+    padding:16px 0;
+    border-top:1px solid rgba(246,241,231,0.15);
+  }
+  .contact-info li:first-child{border-top:none;}
+  .contact-info .icn{
+    width:40px;height:40px;
+    border-radius:8px;
+    background:rgba(246,241,231,0.1);
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+  .contact-info strong{display:block;font-size:0.95rem;}
+  .contact-info span{font-size:0.88rem;color:#d9cdb8;}
+  .contact-hours{
+    margin-top:28px;
+    padding:20px;
+    background:rgba(246,241,231,0.06);
+    border-radius:8px;
+  }
+  .contact-hours h4{color:var(--cream);font-size:0.95rem;margin-bottom:10px;}
+  .contact-hours div{
+    display:flex;justify-content:space-between;
+    font-size:0.85rem;color:#d9cdb8;
+    padding:4px 0;
+  }
+  .contact-form{
+    background:var(--cream);
+    border-radius:10px;
+    padding:36px;
+    color:var(--ink);
+  }
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+  .field label{font-size:0.85rem;font-weight:700;color:var(--wood-dark);}
+  .field input, .field select, .field textarea{
+    padding:12px 14px;
+    border:1px solid var(--line);
+    border-radius:5px;
+    font-size:0.92rem;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+  .field textarea{resize:vertical;min-height:100px;}
+  .submit-btn{
+    width:100%;
+    padding:15px;
+    background:var(--wood-dark);
+    color:var(--cream);
+    border:none;
+    border-radius:5px;
+    font-weight:700;
+    font-size:0.98rem;
+    letter-spacing:0.3px;
+    cursor:pointer;
+  }
+  .submit-btn:hover{background:var(--gold);}
+  .form-note{
+    font-size:0.78rem;
+    color:var(--ink-soft);
+    margin-top:10px;
+    text-align:center;
+  }
+
+  /* FOOTER */
+  footer{
+    background:#1d1610;
+    color:#c9bda4;
+    padding:56px 0 24px;
+  }
+  .footer-grid{
+    display:grid;
+    grid-template-columns:1.4fr 1fr 1fr;
+    gap:40px;
+    margin-bottom:40px;
+  }
+  .footer-logo{
+    font-family:Georgia,serif;
+    color:var(--cream);
+    font-size:1.2rem;
+    margin-bottom:14px;
+  }
+  footer h4{color:var(--cream);font-size:0.9rem;margin-bottom:16px;text-transform:uppercase;letter-spacing:1px;}
+  footer ul li{padding:6px 0;font-size:0.88rem;}
+  footer ul li a:hover{color:var(--gold-light);}
+  .socials{display:flex;gap:12px;margin-top:16px;}
+  .socials a{
+    width:36px;height:36px;
+    border-radius:50%;
+    background:rgba(246,241,231,0.08);
+    display:flex;align-items:center;justify-content:center;
+    font-size:0.9rem;
+  }
+  .socials a:hover{background:var(--gold);color:var(--wood-dark);}
+  .footer-bottom{
+    border-top:1px solid rgba(246,241,231,0.1);
+    padding-top:20px;
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+    font-size:0.78rem;
+    color:#8a7c63;
+  }
+
+  @media (max-width: 900px){
+    nav.links{display:none;}
+    .burger{display:block;}
+    .hero-grid, .about-grid, .contact-grid{grid-template-columns:1fr;}
+    .hero-visual{order:-1;max-width:340px;margin:0 auto;}
+    .services-grid{grid-template-columns:repeat(2,1fr);}
+    .price-grid{grid-template-columns:repeat(2,1fr);}
+    .gallery-grid, .testimonials{grid-template-columns:repeat(2,1fr);}
+    .footer-grid{grid-template-columns:1fr 1fr;}
+  }
+  @media (max-width: 560px){
+    section{padding:64px 0;}
+    #accueil{padding:150px 0 70px;}
+    .services-grid, .price-grid, .gallery-grid, .testimonials{grid-template-columns:1fr;}
+    .form-row{grid-template-columns:1fr;}
+    .footer-grid{grid-template-columns:1fr;}
+    .hero-stats{gap:20px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="site-nav">
+  <div class="nav-inner">
+    <a href="#accueil" class="logo">
+      <span class="logo-mark">AL</span>
+      Ateliers Lefèvre
+    </a>
+    <nav class="links">
+      <a href="#accueil">Accueil</a>
+      <a href="#apropos">À propos</a>
+      <a href="#prestations">Prestations</a>
+      <a href="#tarifs">Tarifs</a>
+      <a href="#realisations">Réalisations</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <a href="#contact" class="nav-cta">Demander un devis</a>
+    <span class="burger">☰</span>
+  </div>
+</header>
+
+<section id="accueil">
+  <div class="container hero-grid">
+    <div>
+      <span class="eyebrow">Menuisier ébéniste — Rennes &amp; périphérie</span>
+      <h1 class="hero-title">Du bois massif façonné pour durer, <span>sur-mesure</span>, dans votre intérieur</h1>
+      <p class="hero-text">Cuisines, dressings, escaliers et agencements conçus et fabriqués à l'atelier de Saint-Grégoire, à quelques minutes de Rennes. Un seul artisan du premier croquis à la pose, depuis 2013.</p>
+      <div class="hero-ctas">
+        <a href="#contact" class="btn btn-primary">Demander un devis gratuit</a>
+        <a href="#realisations" class="btn btn-outline">Voir nos réalisations</a>
+      </div>
+      <div class="hero-stats">
+        <div><strong>12 ans</strong><span>D'expérience</span></div>
+        <div><strong>210+</strong><span>Chantiers livrés</span></div>
+        <div><strong>100%</strong><span>Fabrication française</span></div>
+      </div>
+    </div>
+    <div class="hero-visual" role="img" aria-label="Illustration d'un plan de menuiserie sur bois massif"></div>
+  </div>
+</section>
+
+<section id="apropos">
+  <div class="container about-grid">
+    <div class="about-photo">
+      <span class="about-badge">Depuis<strong>2013</strong></span>
+    </div>
+    <div class="about-text">
+      <span class="eyebrow">Notre histoire</span>
+      <h2 class="section-title">Un artisan, un atelier, une exigence</h2>
+      <p>Ateliers Lefèvre est né en 2013 de l'envie de Julien Lefèvre, menuisier formé au compagnonnage puis dix ans en atelier d'ébénisterie à Vitré, de créer sa propre structure à taille humaine. L'atelier s'installe à Saint-Grégoire, en périphérie nord de Rennes, dans un ancien corps de ferme réaménagé en local de production.</p>
+      <p>Ici, chaque commande est unique : pas de catalogue figé, pas de sous-traitance à la chaîne. Le bois est choisi en fonction du projet, dessiné sur-mesure au millimètre, façonné à l'atelier puis posé personnellement chez vous par la même main qui l'a conçu.</p>
+      <h3>Ce qui nous distingue</h3>
+      <ul class="about-list">
+        <li>Un seul interlocuteur du devis à la pose finale</li>
+        <li>Essences locales et européennes privilégiées (chêne, hêtre, frêne)</li>
+        <li>Visite et prise de mesures à domicile incluses</li>
+        <li>Garantie décennale sur l'ensemble des ouvrages fixes</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="prestations">
+  <div class="container">
+    <span class="eyebrow">Nos prestations</span>
+    <h2 class="section-title">Du dessin à la pose, un savoir-faire complet</h2>
+    <p class="section-lead">Chaque prestation est pensée comme un projet à part entière : étude sur-mesure, choix des matériaux, fabrication en atelier et installation soignée.</p>
+    <div class="services-grid">
+
+      <div class="service-card">
+        <div class="service-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f6f1e7" stroke-width="1.8"><rect x="3" y="10" width="18" height="9" rx="1"/><path d="M3 10V7a2 2 0 0 1 2-2h4"/><path d="M8 19v-9"/><path d="M14 5h4a2 2 0 0 1 2 2v3"/><circle cx="6" cy="14.5" r="0.8" fill="#f6f1e7"/></svg>
+        </div>
+        <h3>Cuisines sur-mesure</h3>
+        <p>Conception complète de votre cuisine en bois massif ou plaqué, plans de travail sur-mesure, rangements optimisés selon l'espace disponible.</p>
+      </div>
+
+      <div class="service-card">
+        <div class="service-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f6f1e7" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="1"/><line x1="12" y1="3" x2="12" y2="21"/><circle cx="9" cy="12" r="0.8" fill="#f6f1e7"/><circle cx="15" cy="12" r="0.8" fill="#f6f1e7"/></svg>
+        </div>
+        <h3>Dressings &amp; rangements</h3>
+        <p>Dressings d'angle, sous-pentes ou en niche, penderies et tiroirs sur-mesure adaptés à chaque recoin, même les plus contraints.</p>
+      </div>
+
+      <div class="service-card">
+        <div class="service-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f6f1e7" stroke-width="1.8"><path d="M4 20V16H8V12H12V8H16V4H20"/></svg>
+        </div>
+        <h3>Escaliers en bois massif</h3>
+        <p>Escaliers droits, quart tournant ou balancés, en chêne ou hêtre, avec rampes et garde-corps assortis, dessinés selon votre volume disponible.</p>
+      </div>
+
+      <div class="service-card">
+        <div class="service-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f6f1e7" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="20"/></svg>
+        </div>
+        <h3>Agencement intérieur</h3>
+        <p>Bibliothèques sur-mesure, meubles TV intégrés, banquettes et têtes de lit, pour habiller un intérieur au millimètre près.</p>
+      </div>
+
+      <div class="service-card">
+        <div class="service-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f6f1e7" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="1"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/></svg>
+        </div>
+        <h3>Portes &amp; verrières intérieures</h3>
+        <p>Verrières d'atelier, portes coulissantes et placards sur-mesure en bois et métal, pour cloisonner sans fermer la lumière.</p>
+      </div>
+
+      <div class="service-card">
+        <div class="service-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f6f1e7" stroke-width="1.8"><path d="M12 2 L21 7 L21 17 L12 22 L3 17 L3 7 Z"/><path d="M12 22 L12 12 L3 7"/><path d="M12 12 L21 7"/></svg>
+        </div>
+        <h3>Restauration de mobilier</h3>
+        <p>Rénovation et remise en état de meubles anciens ou familiaux : ponçage, réparation de structure, finition sur-mesure.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section id="tarifs">
+  <div class="container">
+    <span class="eyebrow">Tarifs indicatifs</span>
+    <h2 class="section-title">Une estimation avant tout engagement</h2>
+    <p class="section-lead">Chaque projet étant sur-mesure, ces montants sont des ordres de grandeur constatés sur nos derniers chantiers. Le devis précis est établi après la visite à domicile, toujours gratuite et sans engagement.</p>
+    <div class="price-grid">
+
+      <div class="price-card">
+        <h3>Dressing sur-mesure</h3>
+        <div class="price-from">Dès <span>2 200 €</span></div>
+        <p>Dressing en niche ou sous pente, bois massif, portes et tiroirs sur mesure, pose incluse.</p>
+      </div>
+
+      <div class="price-card featured">
+        <span class="price-tag">Le plus demandé</span>
+        <h3>Cuisine sur-mesure</h3>
+        <div class="price-from">Dès <span>8 500 €</span></div>
+        <p>Meubles bas et hauts, plan de travail massif, quincaillerie qualité pro, étude 3D comprise.</p>
+      </div>
+
+      <div class="price-card">
+        <h3>Escalier bois massif</h3>
+        <div class="price-from">Dès <span>4 900 €</span></div>
+        <p>Structure crémaillère ou limon central, rampe assortie, pose et finition sur site.</p>
+      </div>
+
+      <div class="price-card">
+        <h3>Agencement &amp; sur-mesure</h3>
+        <div class="price-from">Sur devis</div>
+        <p>Bibliothèques, verrières, restauration : chaque projet est chiffré après visite selon les contraintes réelles.</p>
+      </div>
+
+    </div>
+    <p class="price-note">Premier rendez-vous, prise de mesures et devis détaillé : toujours offerts, sans obligation d'achat.</p>
+  </div>
+</section>
+
+<section id="realisations">
+  <div class="container">
+    <span class="eyebrow">Réalisations</span>
+    <h2 class="section-title">Quelques chantiers livrés récemment</h2>
+    <p class="section-lead">Un aperçu de projets menés ces derniers mois autour de Rennes, de la conception à la pose finale.</p>
+
+    <div class="gallery-grid">
+      <div class="gallery-item g1">
+        <div class="cap"><strong>Cuisine chêne massif</strong><span>Saint-Grégoire — 2025</span></div>
+      </div>
+      <div class="gallery-item g2">
+        <div class="cap"><strong>Dressing sous pente</strong><span>Cesson-Sévigné — 2025</span></div>
+      </div>
+      <div class="gallery-item g3">
+        <div class="cap"><strong>Escalier quart tournant</strong><span>Rennes, quartier Thabor — 2024</span></div>
+      </div>
+      <div class="gallery-item g4">
+        <div class="cap"><strong>Bibliothèque sur-mesure</strong><span>Betton — 2024</span></div>
+      </div>
+      <div class="gallery-item g5">
+        <div class="cap"><strong>Verrière d'atelier</strong><span>La Mézière — 2024</span></div>
+      </div>
+      <div class="gallery-item g6">
+        <div class="cap"><strong>Restauration buffet ancien</strong><span>Vezin-le-Coquet — 2023</span></div>
+      </div>
+    </div>
+
+    <div class="testimonials">
+      <div class="testimonial">
+        <p>« Julien a redessiné notre cuisine autour d'un angle impossible à exploiter. Le résultat est exactement celui du plan présenté, au détail près. »</p>
+        <div class="author">
+          <div class="avatar">SM</div>
+          <div><strong>Sophie Martineau</strong><span>Cesson-Sévigné</span></div>
+        </div>
+      </div>
+      <div class="testimonial">
+        <p>« Devis clair, délais respectés, et un escalier qui devient la pièce centrale du salon. On recommande sans hésiter. »</p>
+        <div class="author">
+          <div class="avatar">TG</div>
+          <div><strong>Thomas Guillou</strong><span>Rennes</span></div>
+        </div>
+      </div>
+      <div class="testimonial">
+        <p>« Notre dressing sous les combles semblait impossible à aménager. Ateliers Lefèvre a trouvé la solution en une visite. »</p>
+        <div class="author">
+          <div class="avatar">EP</div>
+          <div><strong>Élodie Perrault</strong><span>Betton</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="contact">
+  <div class="container contact-grid">
+    <div>
+      <span class="eyebrow">Contact</span>
+      <h2 class="section-title">Parlons de votre projet</h2>
+      <p class="section-lead">Décrivez-nous votre besoin, nous revenons vers vous sous 48h pour convenir d'une visite à domicile.</p>
+
+      <ul class="contact-info">
+        <li>
+          <div class="icn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f6f1e7" stroke-width="1.8"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          </div>
+          <div><strong>Atelier &amp; showroom</strong><span>12 rue des Frères Lumière, 35760 Saint-Grégoire</span></div>
+        </li>
+        <li>
+          <div class="icn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f6f1e7" stroke-width="1.8"><path d="M4 4h4l2 5-2.5 1.5a12 12 0 0 0 6 6L15 14l5 2v4a2 2 0 0 1-2 2C9.5 22 2 14.5 2 6a2 2 0 0 1 2-2z"/></svg>
+          </div>
+          <div><strong>Téléphone</strong><span>02 99 41 27 58</span></div>
+        </li>
+        <li>
+          <div class="icn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f6f1e7" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+          </div>
+          <div><strong>Email</strong><span>contact@ateliers-lefevre.fr</span></div>
+        </li>
+      </ul>
+
+      <div class="contact-hours">
+        <h4>Horaires de l'atelier</h4>
+        <div><span>Lundi – Vendredi</span><span>8h30 – 18h00</span></div>
+        <div><span>Samedi</span><span>9h00 – 12h30 (sur RDV)</span></div>
+        <div><span>Dimanche</span><span>Fermé</span></div>
+      </div>
+    </div>
+
+    <div class="contact-form">
+      <div class="field">
+        <label for="nom">Nom et prénom</label>
+        <input type="text" id="nom" placeholder="Votre nom">
+      </div>
+      <div class="form-row">
+        <div class="field" style="margin-bottom:0">
+          <label for="email">Email</label>
+          <input type="email" id="email" placeholder="vous@exemple.fr">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label for="tel">Téléphone</label>
+          <input type="tel" id="tel" placeholder="06 12 34 56 78">
+        </div>
+      </div>
+      <div class="field">
+        <label for="projet">Type de projet</label>
+        <select id="projet">
+          <option>Cuisine sur-mesure</option>
+          <option>Dressing / rangements</option>
+          <option>Escalier</option>
+          <option>Agencement intérieur</option>
+          <option>Restauration de mobilier</option>
+          <option>Autre projet</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="message">Votre projet en quelques mots</label>
+        <textarea id="message" placeholder="Décrivez votre besoin, la pièce concernée, vos délais souhaités..."></textarea>
+      </div>
+      <button type="button" class="submit-btn">Envoyer ma demande de devis</button>
+      <p class="form-note">Réponse sous 48h ouvrées — aucun engagement de votre part.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-logo">Ateliers Lefèvre</div>
+        <p>Menuiserie sur-mesure, ébénisterie et agencement intérieur, à l'atelier de Saint-Grégoire depuis 2013.</p>
+        <div class="socials">
+          <a href="#contact" aria-label="Facebook">f</a>
+          <a href="#contact" aria-label="Instagram">◎</a>
+          <a href="#contact" aria-label="Houzz">h</a>
+        </div>
+      </div>
+      <div>
+        <h4>Navigation</h4>
+        <ul>
+          <li><a href="#apropos">À propos</a></li>
+          <li><a href="#prestations">Prestations</a></li>
+          <li><a href="#tarifs">Tarifs</a></li>
+          <li><a href="#realisations">Réalisations</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Coordonnées</h4>
+        <ul>
+          <li>12 rue des Frères Lumière</li>
+          <li>35760 Saint-Grégoire</li>
+          <li>02 99 41 27 58</li>
+          <li>contact@ateliers-lefevre.fr</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Ateliers Lefèvre — SARL au capital de 8 000 € — SIRET 802 456 913 00027</span>
+      <span>Artisan menuisier — Chambre de Métiers et de l'Artisanat d'Ille-et-Vilaine</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
