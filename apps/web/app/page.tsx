@@ -24,6 +24,8 @@ export default function Home() {
         la maquette avec vous, à votre rythme.
       </p>
       <p className="muted hero-solo-links">
+        <Link href="/voice?echange=1">Juste discuter</Link>
+        <span aria-hidden> · </span>
         <Link href="/voice?history=1">Retrouver mes projets</Link>
         <span aria-hidden> · </span>
         <Link href="/voice?demo=1">Voir une démo</Link>
