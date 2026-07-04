@@ -11,12 +11,18 @@ Mis à jour le **2026-07-03 (soir)**.
 
 **Fait aujourd'hui (tout vert : typecheck + 50 tests + e2e) :** 2 modes (Assistant `/echange` + Projet `/voice`) · auto fin-de-parole (VAD silence) · historique IndexedDB (`idb-keyval`) · dark mode · nav + fil d'Ariane · accueil 2 dalles · **marque VIOLETTE** (Projet en magenta) + **logo « relais »** + **i violet** + favicon · **maquette-first** (génération + itération HTML sandbox) · **fast-path retouche** (une retouche ne repasse plus par le bras droit) · **prompt caching** (prod) · fixes (arrêt run, `/brief`→`/voice`, voix pas réécrite dans le chat).
 
-**À reprendre demain, dans l'ordre :**
-1. **Cadrer CLV-E-ARCHI** (PO + `factory-architecte`) — la conversation comme surface unique, le Projet comme objet ; étage 1 (retirer le switch, cheap) vs étage 2 (fil+mémoire par projet, V2/Supabase).
-2. **Refonte espace Projet** (CLV-41/42/44/45) — proposition **VALIDÉE** (board pleine hauteur redimensionnable, identité au-dessus du chat, historique visible ; NB le switch de mode sera retiré cf. archi). → UX/UI fin puis dev.
+**MàJ 2026-07-04 (matin).** Journée du 03/07 **commitée** (`66d069c`, était non sauvegardée). Cadrage CLV-E-ARCHI **FAIT** (PO → `docs/22`, architecte → `docs/23`). Étude marché + tarifs **PRODUITES** (`docs/20`, `docs/21` — elles n'existaient pas malgré la mention ci-dessous).
+
+**2 décisions produit ouvertes (Benoit) avant de coder l'étage 1 :**
+- **Passerelle** : « transformer en projet » doit-elle **promouvoir le fil en place** (même id, recommandé par l'architecte, ≠ code actuel qui forke) ou créer un **nouveau fil** ? → gate CLV-52/53.
+- **Récurrent** : abonnement (hébergement + maintenance + mémoire) en **défaut assumé** (position business-dev) ou **optionnel** (position finance) ? → gate le packaging `docs/21`.
+
+**À reprendre, dans l'ordre :**
+1. ~~Cadrer CLV-E-ARCHI~~ ✅ (`docs/22` + `docs/23`) → **construire l'étage 1** : CLV-51→54 (retrait switch, garde-fou d'état, passerelle, écran « Mes projets »). Modèle retenu par l'archi : discriminant `stage: echange|cadrage|maquette|prod` porté par l'objet, engagement = acte utilisateur (`engageProject()`), jamais le `MODE:` LLM. Effort ≈ **1,5–2,5 sem**, risque concentré sur la fusion des 2 surfaces streamées (4–7 j).
+2. **Refonte espace Projet** (CLV-41/42) — proposition **VALIDÉE** (board pleine hauteur redimensionnable, identité au-dessus du chat, historique visible). → UX/UI fin puis dev. (CLV-44/45 absorbés par CLV-51/54.)
 3. **CLV-43** — maquettiste : imposer la structure « vrai site » (À propos, Tarifs, Contact…).
-4. **CLV-50** — reformuler l'histoire du logo « relais » sans référence au switch (il survit : relais = « toi → l'équipe qui livre »).
-5. **Étude de marché + tarifs** (produite en fond ce soir par business-dev + finance) → lire **`docs/20-etude-marche-cleveria.md`** (marché, concurrence + tarifs réels recoupés, positionnement, packaging) et **`docs/21-tarifs-cleveria.md`** (grille tarifaire chiffrée, unit economics, marges, point mort, garde-fous quotas).
+4. **CLV-50** — reformuler l'histoire du logo « relais » sans référence au switch (→ `factory-marketing`).
+5. ~~Étude de marché + tarifs~~ ✅ `docs/20` + `docs/21`. Convergence des 2 : positionnement **sous le freelance**, rival le plus proche = **B12.io** (pas d'équivalent FR), **risque n°1 commun = conversion gratuit→payé non testée** (hypothèse n°1 doc 08).
 
 **Artifacts du jour :** couleur `https://claude.ai/code/artifact/e4b74af9-4a91-474a-b721-48a4f27e65f1` · logos `https://claude.ai/code/artifact/c2e48373-ba18-4f9f-8e6e-3ac6504e72fa` · refonte Projet `https://claude.ai/code/artifact/d1f2e267-aab5-4385-9a5b-81ef336cf766`. **Docs clés :** marque `docs/14`, pitch `docs/17`, service site `docs/19`, archi maquette `docs/18`.
 
@@ -182,14 +188,18 @@ L'historique EXISTE (bouton horloge + tiroir) mais il est noyé dans la barre du
 
 Décision d'**identité/positionnement** (avis unanime bras droit + `factory-direction` + `factory-business-dev`, cf. Reprise en tête). On supprime le switch Assistant/Projet ; la conversation devient la surface par défaut ; le Projet est un objet créé depuis la conversation ; l'Assistant N'EST PAS externalisé (c'est la douve + le tunnel de conversion). Home/pitch = mener par le Projet.
 
-### ⬜ CLV-46 — Cadrage produit + archi cible (PO + `factory-architecte`)
-Traduire la décision en structure : conversation = surface unique ; passerelle « transformer en projet » = geste central ; Projet = objet de 1er niveau avec **état explicite** (échange / maquette / devis / prod). **Garde-fou non négociable** : l'état « je fabrique » est porté par **l'objet projet** (a-t-il un board actif ?), JAMAIS par une reclassification LLM phrase-par-phrase (sinon on rouvre le bug que le switch réglait — cf. doc 12, fragilité n°1). Séquencer étage 1 (V1) / étage 2 (V2). Livrable : spec + schéma d'états.
+### ✅ CLV-46 — Cadrage produit + archi cible (PO + `factory-architecte`) — FAIT 2026-07-04
+Livrables : **`docs/22-cadrage-conversation-surface.md`** (cadrage produit PO) + **`docs/23-archi-conversation-surface.md`** (archi technique). Décision de modèle : le discriminant actuel `mode:"echange"|"voice"` (qui confond surface ET engagement) est remplacé par un **`stage: echange|cadrage|maquette|prod`** porté par l'objet (+ `runId`, `engagedAt`, `schemaVersion` 1→2, remap paresseux). **Garde-fou câblé** : la transition échange→engagé est un **acte utilisateur** (`engageProject()`), le serveur choisit ses ops d'après le `stage`, JAMAIS d'après la ligne `MODE:` du LLM. Routes : `/echange`+`/voice` fusionnent en une surface (moteur = `/voice`), `/echange` redirige, `/` perd les 2 dalles, `/run/[id]` devient la « vue prod » de l'objet. Effort étage 1 ≈ 1,5–2,5 sem, risque concentré sur la fusion des 2 surfaces streamées.
 
 ### ⬜ CLV-47 — Étage 1 (V1, cheap) : retirer le switch, conversation = atterrissage
-Supprimer le sélecteur Assistant/Projet du header (`SiteNav`). L'échange devient l'atterrissage par défaut = l'**état zéro d'un projet pas encore engagé**. « Projet » n'est plus un onglet : c'est un objet **créé DEPUIS la conversation** (via « transformer en projet »). Petit chantier front, zéro nouvelle infra. Dépend de CLV-46. Se combine avec la refonte de l'espace Projet (CLV-41/42/44/45).
+Umbrella, éclaté par le PO en 4 tickets. Zéro nouvelle infra (IndexedDB existant). Dépend de CLV-46 (fait).
+- **⬜ CLV-51** — Retrait `SiteNav` (switch) + refonte accueil `/` (hero 1 CTA, plus de 2 dalles). *Clôt et remplace CLV-44.*
+- **⬜ CLV-52** — Garde-fou d'état : `stage` sur l'objet + `engageProject()` ; le serveur route ses ops sur le `stage`, pas sur `MODE:`. **Décision Benoit requise** (promotion en place vs nouveau fil, cf. Reprise).
+- **⬜ CLV-53** — Passerelle « transformer en projet » remise au centre (promotion en place de l'objet — à confirmer). *Dépend de CLV-52.*
+- **⬜ CLV-54** — Écran « Mes projets » (liste des objets engagés, déjà stockés en IndexedDB). *Recoupe/absorbe CLV-45.*
 
-### ⬜ CLV-48 — Étage 2 (V2) : projets first-class + fil & mémoire par projet
-Chaque projet = son propre **fil de conversation + sa mémoire** (résout « plusieurs assistants » sans assistants rivaux). Touche auth/Supabase → séquencer avec **CLV-MEM** (mémoire V2). Poser l'archi dès la V1 pour ne pas fermer la porte (le modèle `Conversation` de `CLV-E-HIST` est déjà prêt, cf. `13-...` §8).
+### ⬜ CLV-48 — Étage 2 (V2) : fil & mémoire par projet — = application de CLV-MEM
+Chaque projet = son propre **fil + sa mémoire distillée**. **Doublon résolu (PO)** : **CLV-MEM** reste le mécanisme générique (auth + Supabase + faits distillés), **CLV-48 en est l'application « scopée par Projet »** — ne pas dupliquer, séquencer sous CLV-MEM. Archi déjà dérisquée côté V1 (`userId:null`, `schemaVersion`, slot `prefsBlock()`, `runId` posés → upsert par `id`, zéro réécriture). Seul verrou = externe (quota Supabase, docs/06 §5).
 
 ### ⬜ CLV-49 — Upsell / B2B2C (PARKÉ) : assistant scopé post-vente + marque blanche agences
 Post-vente : un assistant **scopé au site vendu** (connaît l'offre/le contenu) = upsell naturel. Angle **agences/freelances** : « un assistant par mandat client » en marque blanche (récurrence, valeur par siège). À explorer **après** validation de l'hypothèse n°1. Parké (idée business-dev).
