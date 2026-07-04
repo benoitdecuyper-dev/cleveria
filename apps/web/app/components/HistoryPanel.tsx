@@ -3,8 +3,19 @@
 // Panneau d'historique (docs/13) — rail latéral (Projet) ou tiroir overlay (Échange).
 // Liste les conversations d'un mode, ouvre/crée/renomme/supprime. Pattern ChatGPT/Claude.
 import { useEffect, useRef, useState } from "react";
-import type { ConversationSummary } from "../../lib/history";
+import type { ConversationSummary, ProjectStage } from "../../lib/history";
 import { relativeDate } from "../../lib/history";
+
+// Badge de stage (docs/26 §incrément 4) : discret, distingue une conversation non-engagée
+// (« Discussion », stage "echange") d'une conversation engagée (« Projet » / « En prod »).
+// N'existe que pour l'AFFICHAGE — jamais utilisé pour dériver un comportement (le garde-fou
+// stage reste `engageProject()` sur acte utilisateur, cf. docs/23 §2.1).
+const STAGE_LABEL: Record<ProjectStage, string> = {
+  echange: "Discussion",
+  cadrage: "Projet",
+  maquette: "Projet",
+  prod: "En prod",
+};
 
 const IcoPlus = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -111,7 +122,12 @@ export default function HistoryPanel({ items, activeId, variant, open, onClose, 
                 />
               ) : (
                 <button type="button" className="hist-open" onClick={() => onSelect(s.id)} title={s.title}>
-                  <span className="hist-title">{s.title}</span>
+                  <span className="hist-title-row">
+                    <span className="hist-title">{s.title}</span>
+                    <span className="hist-badge" data-stage={s.stage}>
+                      {STAGE_LABEL[s.stage]}
+                    </span>
+                  </span>
                   <span className="hist-date">{relativeDate(s.updatedAt)}</span>
                 </button>
               )}

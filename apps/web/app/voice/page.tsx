@@ -13,7 +13,7 @@ import {
   deleteConversation,
   engageProject,
   getConversation,
-  listConversations,
+  listAllConversations,
   migrateLegacyVoice,
   newId,
   nowIso,
@@ -394,9 +394,12 @@ export default function VoicePage() {
     }
   }, []);
 
-  // Historique : rafraîchit la liste des conversations Projet.
+  // Historique UNIFIÉ (docs/26 §incrément 4) : TOUS les stages, échange compris — sinon les
+  // conversations `echange` deviendraient invisibles/injoignables une fois `/echange` redirigé
+  // (incr. 5). Une conversation promue (echange→cadrage) reste dans CETTE liste : `engageProject`
+  // ne change que son `stage` sur le même objet, elle ne quitte jamais l'index (risque n°7).
   const refreshList = useCallback(async () => {
-    setConvList(await listConversations("voice"));
+    setConvList(await listAllConversations());
   }, []);
 
   // Init au chargement : migration legacy → historique, liste, et (depuis la passerelle

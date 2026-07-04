@@ -173,6 +173,23 @@ export async function listConversations(mode: ConversationMode): Promise<Convers
     .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
 }
 
+/**
+ * Historique UNIFIÉ (docs/26 §incrément 4) : TOUS les stages, échange compris — le renversement
+ * acté de `docs/13` §1 (deux listes filtrées → une liste badgée par `stage`, cf. `HistoryPanel`).
+ * Additif : ne touche pas `listConversations(mode)` ci-dessus, qui reste la source de vérité de
+ * `/echange` tant que cette page n'est pas redirigée (incr. 5) — les deux fonctions lisent le même
+ * index, aucune divergence de données possible, seul le filtre change.
+ *
+ * C'est ce qui résout le risque n°7 du pré-mortem (« une conversation disparaît de la sidebar
+ * après promotion ») : `engageProject` ne fait QUE changer `stage` sur le MÊME objet (même id,
+ * même `updatedAt` remis à jour) — dans une liste non filtrée par stage, l'objet ne quitte donc
+ * jamais l'index, il change seulement de badge à l'écran.
+ */
+export async function listAllConversations(): Promise<ConversationSummary[]> {
+  const idx = await readIndex();
+  return [...idx].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+}
+
 export async function getConversation(id: string): Promise<StoredConversation | null> {
   try {
     const raw = await get<StoredConversation | StoredConversationV1>(convKey(id));

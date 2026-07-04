@@ -485,3 +485,115 @@ test.describe("/voice — rail échange, « Transformer en projet »", () => {
     await expect(page.getByPlaceholder("Votre réponse…")).toBeEnabled();
   });
 });
+
+// Historique unifié sur /voice (docs/26 §incrément 4) : les conversations "echange" doivent être
+// VISIBLES et sélectionnables depuis l'historique /voice (sinon elles deviennent injoignables une
+// fois /echange redirigé, incr. 5) — badgées "Discussion" vs "Projet", et une conversation promue
+// reste dans la MÊME liste (peur n°1 de Benoit : rien ne doit disparaître de la sidebar).
+test.describe("/voice — historique unifié (échange + projets)", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/tts", (route) => route.abort());
+  });
+
+  test("une conversation echange est visible dans l'historique /voice, badgée « Discussion », et l'ouvrir montre « Transformer en projet »", async ({
+    page,
+  }) => {
+    await page.route("**/api/brief", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          reply: "Le statut auto-entrepreneur convient pour démarrer seul.",
+          mode: "echange",
+          isNote: false,
+          questions: null,
+          spoken: null,
+          board: null,
+        }),
+      });
+    });
+
+    await page.goto("/voice?echange=1");
+    await page
+      .getByRole("textbox", { name: "Décrivez votre activité" })
+      .fill("Quel statut juridique choisir pour mon activité ?");
+    await page.getByRole("button", { name: "Envoyer" }).click();
+    await expect(page.getByText("Le statut auto-entrepreneur convient pour démarrer seul.")).toBeVisible();
+
+    // Reload : preuve que la conversation est bien retrouvée depuis l'historique PERSISTÉ (et pas
+    // seulement de l'état en mémoire de cette session), comme le canari maquette existant.
+    await page.reload();
+    await page.getByRole("button", { name: "Historique des conversations" }).click();
+
+    const item = page.locator(".hist-item").first();
+    await expect(item).toBeVisible();
+    await expect(item.locator(".hist-badge")).toHaveText("Discussion");
+
+    await item.locator(".hist-open").click();
+
+    // Ouvre le rail échange proprement (docs/26 incr. 3) : le bouton de transformation apparaît,
+    // et le contenu de l'échange est bien celui qu'on avait tapé (même fil, pas un demi-état).
+    await expect(page.getByRole("button", { name: /Transformer en projet/ })).toBeVisible();
+    await expect(page.getByText("Quel statut juridique choisir pour mon activité ?")).toBeVisible();
+    await expect(page.getByText("Le statut auto-entrepreneur convient pour démarrer seul.")).toBeVisible();
+  });
+
+  test("une conversation promue (echange → cadrage) reste VISIBLE dans la même liste — jamais de disparition (risque n°7)", async ({
+    page,
+  }) => {
+    let briefCalls = 0;
+    await page.route("**/api/brief", async (route) => {
+      briefCalls += 1;
+      if (briefCalls === 1) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            reply: "Le statut auto-entrepreneur convient pour démarrer seul.",
+            mode: "echange",
+            isNote: false,
+            questions: null,
+            spoken: null,
+            board: null,
+          }),
+        });
+        return;
+      }
+      // 2e appel : le tour de cadrage forcé déclenché par « Transformer en projet ».
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          reply: "",
+          mode: "cadrage",
+          isNote: true,
+          questions: null,
+          spoken: "Voici le besoin cristallisé.",
+          board: { title: "Besoin validé", content: "Le besoin est cadré." },
+        }),
+      });
+    });
+
+    await page.goto("/voice?echange=1");
+    await page
+      .getByRole("textbox", { name: "Décrivez votre activité" })
+      .fill("Quel statut juridique choisir pour mon activité ?");
+    await page.getByRole("button", { name: "Envoyer" }).click();
+    await expect(page.getByText("Le statut auto-entrepreneur convient pour démarrer seul.")).toBeVisible();
+
+    // Un seul objet dans l'historique, badgé "Discussion" avant transformation.
+    await page.getByRole("button", { name: "Historique des conversations" }).click();
+    await expect(page.locator(".hist-item")).toHaveCount(1);
+    await expect(page.locator(".hist-item .hist-badge").first()).toHaveText("Discussion");
+    await page.getByRole("button", { name: "Fermer l'historique" }).click();
+
+    await page.getByRole("button", { name: /Transformer en projet/ }).click();
+    await expect(page.getByText("Le besoin est cadré.")).toBeVisible();
+
+    // Ré-ouvre l'historique : LA MÊME conversation (id inchangé côté produit) est toujours là —
+    // aucune disparition, aucun doublon, juste le badge qui change (echange → projet engagé).
+    await page.getByRole("button", { name: "Historique des conversations" }).click();
+    await expect(page.locator(".hist-item")).toHaveCount(1);
+    await expect(page.locator(".hist-item .hist-badge").first()).toHaveText("Projet");
+  });
+});

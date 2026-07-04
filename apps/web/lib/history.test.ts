@@ -8,6 +8,8 @@ import {
   engageProject,
   saveConversation,
   getConversation,
+  listConversations,
+  listAllConversations,
   type StoredConversation,
 } from "./history";
 import { set as idbSet } from "idb-keyval";
@@ -374,5 +376,55 @@ describe("Sérialisation par id (durcissement CLV-53)", () => {
     release();
     await pA;
     expect(order).toEqual(["B", "A"]);
+  });
+});
+
+// ── CLV-53 incr. 4 : historique unifié (`listAllConversations`) ────────────────────────────────
+describe("listAllConversations", () => {
+  const mkConv = (over: Partial<StoredConversation> = {}): StoredConversation => ({
+    id: "c1",
+    stage: "echange",
+    title: "Un besoin",
+    titleIsCustom: false,
+    messages: [{ role: "user", text: "Salut" }],
+    board: null,
+    createdAt: "2026-07-01T10:00:00.000Z",
+    updatedAt: "2026-07-01T10:00:00.000Z",
+    userId: null,
+    schemaVersion: 2,
+    ...over,
+  });
+
+  it("retourne TOUS les stages (echange + engagés), triés par activité récente", async () => {
+    await saveConversation(mkConv({ id: "e1", stage: "echange", updatedAt: "2026-07-01T10:00:00.000Z" }));
+    await saveConversation(mkConv({ id: "c1", stage: "cadrage", updatedAt: "2026-07-02T10:00:00.000Z" }));
+    await saveConversation(mkConv({ id: "m1", stage: "maquette", updatedAt: "2026-07-03T10:00:00.000Z" }));
+    await saveConversation(mkConv({ id: "p1", stage: "prod", updatedAt: "2026-07-04T10:00:00.000Z" }));
+
+    const all = await listAllConversations();
+    expect(all.map((s) => s.id)).toEqual(["p1", "m1", "c1", "e1"]); // plus récent d'abord
+    expect(all.map((s) => s.stage)).toEqual(["prod", "maquette", "cadrage", "echange"]);
+  });
+
+  it("n'altère pas listConversations(mode) — les deux lisent le même index, additif seulement", async () => {
+    await saveConversation(mkConv({ id: "e2", stage: "echange" }));
+    await saveConversation(mkConv({ id: "c2", stage: "cadrage" }));
+
+    expect((await listConversations("echange")).map((s) => s.id)).toEqual(["e2"]);
+    expect((await listConversations("voice")).map((s) => s.id)).toEqual(["c2"]);
+    expect((await listAllConversations()).map((s) => s.id).sort()).toEqual(["c2", "e2"]);
+  });
+
+  it("une conversation promue (echange → cadrage) reste dans la liste unifiée — ne disparaît jamais (risque n°7)", async () => {
+    await saveConversation(mkConv({ id: "promo", stage: "echange", updatedAt: "2026-07-01T10:00:00.000Z" }));
+    expect((await listAllConversations()).map((s) => s.id)).toContain("promo");
+
+    const engaged = await engageProject("promo");
+    expect(engaged?.stage).toBe("cadrage");
+
+    const after = await listAllConversations();
+    expect(after.map((s) => s.id)).toContain("promo"); // toujours présente, même id
+    expect(after.find((s) => s.id === "promo")?.stage).toBe("cadrage"); // juste le badge qui change
+    expect(after.length).toBe(1); // pas de doublon (pas de 2e entrée "echange" fantôme)
   });
 });

@@ -628,8 +628,20 @@ h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
   flex: 1; min-width: 0; text-align: left; background: none; border: none; cursor: pointer;
   font: inherit; color: inherit; padding: 0.5rem 0.55rem; display: flex; flex-direction: column; gap: 1px;
 }
-.hist-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.92rem; font-weight: 600; }
+.hist-title-row { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.hist-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.92rem; font-weight: 600; }
 .hist-date { font-size: 0.74rem; color: var(--muted); }
+/* Badge de stage (docs/26 §incrément 4) — discret, via les variables de thème (pas de couleur en
+   dur) : "Discussion" (echange, non engagé) en neutre, "Projet"/"En prod" (engagé) en teinte
+   --primary — qui vaut déjà le violet (marque) ou le magenta (`.voice[data-mode="projet"]`) selon
+   la page, et s'adapte au dark mode via les mêmes variables. */
+.hist-badge {
+  flex: none; font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+  padding: 0.08rem 0.42rem; border-radius: 999px; background: var(--surface-2); color: var(--muted);
+}
+.hist-badge[data-stage="cadrage"],
+.hist-badge[data-stage="maquette"],
+.hist-badge[data-stage="prod"] { background: var(--primary-50); color: var(--primary-600); }
 .hist-menu-btn {
   flex: none; width: 30px; height: 30px; border: none; background: none; cursor: pointer;
   color: var(--muted); border-radius: 6px; opacity: 0; display: grid; place-items: center; margin-right: 3px;
