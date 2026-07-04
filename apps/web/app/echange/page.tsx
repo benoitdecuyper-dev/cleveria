@@ -12,6 +12,7 @@ import HistoryPanel from "../components/HistoryPanel";
 import {
   autoTitle,
   deleteConversation,
+  engageProject,
   getConversation,
   listConversations,
   migrateLegacyVoice,
@@ -572,40 +573,68 @@ export default function EchangePage() {
     [newConversation, refreshList],
   );
 
-  // Passerelle → mode Projet : crée une NOUVELLE conversation projet (jamais d'écrasement),
-  // pré-remplie avec l'échange + trace de l'échange source, puis ouvre /voice dessus.
+  // Passerelle → mode Projet (CLV-53 incr. 1) : PROMOTION EN PLACE. Le MÊME objet passe
+  // echange→cadrage via `engageProject()` (monotone) et /voice rouvre le MÊME id — fini le fork
+  // (nouvelle conversation + sourceConversationId) qui ouvrait la porte à une navigation
+  // inter-conversations pendant qu'un flux est en vol (docs/26 incr. 1, le vecteur que Benoit
+  // craint). Séquence stricte, non négociable : (1) abort de tout flux en vol AVANT toute
+  // mutation d'id, (2) engageProject en place, (3) navigation sur succès seulement.
   const toProject = useCallback(async () => {
+    // Garde-fou n°1 — abort-all AVANT toute mutation d'id : abandonne le flux SSE /api/brief en
+    // vol, la reconnaissance vocale et la lecture TTS (comme un changement de conversation). Un
+    // delta périmé ne doit plus jamais écrire une fois l'objet promu.
     endSession();
-    const slim = messagesRef.current
-      .filter((m) => !m.streaming && m.text.trim())
-      .map((m) => ({ role: m.role, text: m.text }));
-    const id = newId();
-    const now = nowIso();
+
+    // Course « conv pas encore persistée avant d'engager » (docs/26 incr. 1) : si aucun message
+    // stabilisé n'a encore déclenché `persist()` (convIdRef.current encore null), on persiste
+    // explicitement en stage "echange" d'abord — jamais d'engagement sur un id fantôme.
+    let id = convIdRef.current;
+    if (!id) {
+      const slim = messagesRef.current
+        .filter((m) => !m.streaming && m.text.trim())
+        .map((m) => ({ role: m.role, text: m.text }));
+      if (slim.length === 0) return; // rien à transformer
+      const now = nowIso();
+      const firstUser = slim.find((m) => m.role === "user")?.text ?? "";
+      const title = titleCustomRef.current ? titleRef.current : autoTitle(firstUser);
+      const freshId = newId();
+      try {
+        await saveConversation({
+          id: freshId,
+          stage: "echange",
+          title,
+          titleIsCustom: titleCustomRef.current,
+          messages: slim,
+          board: null,
+          createdAt: now,
+          updatedAt: now,
+          userId: null,
+          schemaVersion: 2,
+        });
+      } catch {
+        setError("Impossible de transformer cet échange en projet — le stockage du navigateur est peut-être bloqué.");
+        return;
+      }
+      id = freshId;
+      convIdRef.current = id;
+      convCreatedAtRef.current = now;
+      titleRef.current = title;
+      setConvId(id);
+    }
+
+    // Garde-fou n°2 (monotonie) + n°3 (pas de double-objet) : `engageProject` promeut LE MÊME id
+    // en place — jamais de nouvelle conversation, jamais de `sourceConversationId`, jamais de
+    // régression d'un stage déjà engagé. P0-2 : échec de stockage (ou id introuvable) → bannière,
+    // AUCUNE navigation, l'échange reste intact et exploitable sur /echange.
     try {
-      await saveConversation({
-        id,
-        // NB : la passerelle fork encore une nouvelle conversation ici (comportement actuel,
-        // inchangé — la promotion EN PLACE est CLV-53, hors périmètre CLV-52). Le nouvel objet
-        // nait directement engagé : stage "cadrage", pas "echange".
-        stage: "cadrage",
-        title: autoTitle(slim.find((m) => m.role === "user")?.text ?? ""),
-        titleIsCustom: false,
-        messages: slim,
-        board: null,
-        sourceConversationId: convIdRef.current ?? undefined,
-        createdAt: now,
-        updatedAt: now,
-        userId: null,
-        schemaVersion: 2,
-      });
+      const updated = await engageProject(id);
+      if (!updated) throw new Error("conversation introuvable");
     } catch {
-      // P0-2 : stockage indisponible → on NE navigue PAS vers /voice (qui repartirait vide,
-      // silencieusement, avec l'échange perdu) ; on prévient et on laisse l'utilisateur sur
-      // l'échange, qu'il peut toujours continuer/réessayer.
       setError("Impossible de transformer cet échange en projet — le stockage du navigateur est peut-être bloqué.");
       return;
     }
-    // ?cadrer=1 → /voice produit tout de suite la carte récap ; ?conv=<id> = la conv à ouvrir.
+    // ?cadrer=1 → /voice produit tout de suite la carte récap ; ?conv=<id> = le MÊME fil (plus de
+    // fork, plus de synchro inter-conversations).
     router.push(`/voice?cadrer=1&conv=${id}`);
   }, [endSession, router]);
 

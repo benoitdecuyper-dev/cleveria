@@ -174,3 +174,102 @@ test.describe("/voice — parcours maquette", () => {
     await expect(page.getByText("🎨 Maquette mise à jour")).toHaveCount(2);
   });
 });
+
+// Passerelle "/echange" → "/voice" (CLV-53 incr. 1). Les 2 tests ci-dessous sont des CANARIS
+// écrits sur des INVARIANTS (pas sur l'implémentation fork/promotion) : ils doivent rester verts
+// AVANT (comportement actuel : fork d'une nouvelle conversation) ET APRÈS (promotion en place via
+// `engageProject`) le changement de `toProject()` dans app/echange/page.tsx.
+test.describe("/echange — passerelle « Transformer en projet »", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/tts", (route) => route.abort());
+  });
+
+  test("nominal : atterrit sur /voice, mode projet, contenu de l'échange préservé", async ({ page }) => {
+    // Un seul mock pour les deux appels /api/brief (le tour d'échange, puis le cadrage auto
+    // déclenché par ?cadrer=1 sur /voice) — distingués par numéro d'appel pour ne jamais produire
+    // deux bulles au texte strictement identique (ce qui casserait `getByText(...).toBeVisible()`
+    // en mode strict s'il y avait plusieurs correspondances).
+    let briefCalls = 0;
+    await page.route("**/api/brief", async (route) => {
+      briefCalls += 1;
+      const reply =
+        briefCalls === 1
+          ? "Le statut auto-entrepreneur convient pour démarrer seul."
+          : "Récapitulatif du besoin pris en compte.";
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          reply,
+          mode: "cadrage",
+          isNote: false,
+          questions: null,
+          spoken: reply,
+          board: null,
+        }),
+      });
+    });
+
+    await page.goto("/echange");
+    await page
+      .getByPlaceholder("Écrivez votre message…")
+      .fill("Quel statut juridique choisir pour mon activité ?");
+    await page.getByRole("button", { name: "Envoyer" }).click();
+
+    await expect(page.getByText("Quel statut juridique choisir pour mon activité ?")).toBeVisible();
+    await expect(page.getByText("Le statut auto-entrepreneur convient pour démarrer seul.")).toBeVisible();
+
+    await page.getByRole("button", { name: /Transformer en projet/ }).click();
+
+    // Invariant : on atterrit sur /voice, en mode projet — PAS l'id de la conversation (il change
+    // entre fork et promotion, ce n'est volontairement pas asserté ici).
+    await expect(page).toHaveURL(/\/voice/);
+    await expect(page.locator('[data-mode="projet"]')).toBeVisible();
+    // Invariant central : le contenu de l'échange source n'est PAS perdu, qu'il ait été forké dans
+    // une nouvelle conversation ou promu en place.
+    await expect(page.getByText("Quel statut juridique choisir pour mon activité ?")).toBeVisible();
+    await expect(page.getByText("Le statut auto-entrepreneur convient pour démarrer seul.")).toBeVisible();
+  });
+
+  test("panne de stockage : aucune navigation, bannière d'erreur, échange intact (anti-perte silencieuse)", async ({
+    page,
+  }) => {
+    // Casse IndexedDB (le stockage réel utilisé par idb-keyval) AVANT tout script de page, pour
+    // que saveConversation() échoue de façon déterministe — sans mocker les fonctions JS de
+    // l'appli (on veut prouver le comportement de bout en bout, pas court-circuiter le code testé).
+    await page.addInitScript(() => {
+      Object.defineProperty(window.indexedDB, "open", {
+        value: () => {
+          throw new Error("IndexedDB indisponible (test e2e)");
+        },
+      });
+    });
+    await page.route("**/api/brief", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ reply: "Réponse du bras droit." }),
+      });
+    });
+
+    await page.goto("/echange");
+    await page
+      .getByPlaceholder("Écrivez votre message…")
+      .fill("Quel statut juridique choisir pour mon activité ?");
+    await page.getByRole("button", { name: "Envoyer" }).click();
+
+    await expect(page.getByText("Quel statut juridique choisir pour mon activité ?")).toBeVisible();
+    await expect(page.getByText("Réponse du bras droit.")).toBeVisible();
+
+    await page.getByRole("button", { name: /Transformer en projet/ }).click();
+
+    // Invariant central : PAS de navigation vers /voice, une bannière d'erreur explicite, et
+    // l'échange reste intact et exploitable sur /echange.
+    await expect(
+      page.getByText("Impossible de transformer cet échange en projet", { exact: false }),
+    ).toBeVisible();
+    await expect(page).toHaveURL(/\/echange/);
+    await expect(page.getByText("Quel statut juridique choisir pour mon activité ?")).toBeVisible();
+    await expect(page.getByText("Réponse du bras droit.")).toBeVisible();
+  });
+});
