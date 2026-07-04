@@ -10,7 +10,7 @@ import { relativeDate } from "../../lib/history";
 // (« Discussion », stage "echange") d'une conversation engagée (« Projet » / « En prod »).
 // N'existe que pour l'AFFICHAGE — jamais utilisé pour dériver un comportement (le garde-fou
 // stage reste `engageProject()` sur acte utilisateur, cf. docs/23 §2.1).
-const STAGE_LABEL: Record<ProjectStage, string> = {
+export const STAGE_LABEL: Record<ProjectStage, string> = {
   echange: "Discussion",
   cadrage: "Projet",
   maquette: "Projet",

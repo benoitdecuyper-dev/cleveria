@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import NoteView from "../brief/NoteView";
 import Markdown from "../components/Markdown";
 import MockupFrame from "../components/MockupFrame";
-import HistoryPanel from "../components/HistoryPanel";
+import HistoryPanel, { STAGE_LABEL } from "../components/HistoryPanel";
 import { parseStream, speakable } from "../../lib/format";
 import { parseReply } from "../../lib/parseReply";
 import {
@@ -158,6 +158,23 @@ const IcoHistory = () => (
     <path d="M12 7v5l3 2" />
   </svg>
 );
+// Agrandir / Revenir à la taille normale — board quasi plein écran (CLV-41 §3.2).
+const IcoExpand = () => (
+  <svg {...svg.base} aria-hidden>
+    <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+    <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+    <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+    <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+  </svg>
+);
+const IcoCollapse = () => (
+  <svg {...svg.base} aria-hidden>
+    <path d="M8 3v3a2 2 0 0 1-2 2H3" />
+    <path d="M21 8h-3a2 2 0 0 1-2-2V3" />
+    <path d="M3 16h3a2 2 0 0 1 2 2v3" />
+    <path d="M16 21v-3a2 2 0 0 1 2-2h3" />
+  </svg>
+);
 // Indicateur "il écrit…" : 3 points animés, comme dans une vraie messagerie.
 const TypingDots = () => (
   <span className="typing-dots" aria-label="en train d'écrire" role="status">
@@ -216,6 +233,23 @@ export default function VoicePage() {
   // on ne l'injecte PAS dans le champ de saisie.
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
 
+  // ── Espace Projet — board redimensionnable + en-tête (docs/27, CLV-41/42/45) ────────────────
+  // États 100% UI, isolés du streaming (docs/27 §12 pt.2) : ne doivent JAMAIS entrer dans les
+  // dépendances des effets qui pilotent send()/la persistance/les refs d'abort.
+  // Fil courant reflété en state (docs/27 §7, §12) : `titleRef.current` existait déjà mais
+  // n'était jamais lu au rendu — resynchronisé à CHAQUE point où titleRef.current l'est.
+  const [convTitle, setConvTitle] = useState("");
+  // Board « agrandi » (§3.2) : quasi plein écran desktop, chat masqué (display:none autorisé ici
+  // — CE mode assume que le composer disparaît, contrairement à la bascule mobile, cf. §6).
+  const [boardMaximized, setBoardMaximized] = useState(false);
+  // Bascule mobile Discussion/Aperçu (§4, §6) — jamais démonté, jamais display:none. Reset "chat"
+  // à chaque nouvelle conversation/ouverture ; passe à "board" tout seul au 1er board REÇU dans
+  // la session en cours (pas si la conversation rouverte en avait déjà un, cf. boardEverRef).
+  const [mobileView, setMobileView] = useState<"chat" | "board">("chat");
+  // Pastilles "nouveau contenu pendant que vous regardiez l'autre panneau" — purement informatif.
+  const [pulseBoard, setPulseBoard] = useState(false);
+  const [pulseChat, setPulseChat] = useState(false);
+
   const router = useRouter();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ttsAbortRef = useRef<AbortController | null>(null);
@@ -256,6 +290,24 @@ export default function VoicePage() {
   const skipPersistRef = useRef(false); // saute la sauvegarde juste après un chargement/reset
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // ── Refs du board redimensionnable / bascule mobile (docs/27) ───────────────────────────────
+  // Nœud DOM de .workspace.split, pour la manipulation impérative du drag (§5 : AUCUN setState
+  // par pointermove — jank + collision possible avec le streaming/scroll).
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ startX: number; startW: number } | null>(null);
+  const handleElRef = useRef<HTMLDivElement | null>(null);
+  // Miroirs "état frais lisible sans dépendance d'effet" — même patron que recognizingRef/
+  // loadingRef plus haut : évite de coupler l'effet de pastille à mobileView/boardMaximized.
+  const mobileViewRef = useRef<"chat" | "board">("chat");
+  const boardMaximizedRef = useRef(false);
+  // "Un board a déjà existé dans CETTE conversation" — distingue la 1re apparition (bascule
+  // auto vers "Aperçu", §4.1) d'une conversation rouverte qui en avait déjà un (pas de bascule
+  // forcée, cf. §10 : mobileView ne change qu'au board REÇU, pas au board déjà chargé).
+  const boardEverRef = useRef(false);
+  // Nombre de messages déjà "vus" (chargés/affichés) — sert à ne pastiller "Discussion" que sur
+  // un message réellement NOUVEAU pendant la session, jamais au chargement d'un historique.
+  const seenMsgCountRef = useRef(0);
 
   const started = messages.length > 0;
 
@@ -384,6 +436,39 @@ export default function VoicePage() {
   useEffect(() => {
     loadingRef.current = loading;
   }, [loading]);
+  useEffect(() => {
+    mobileViewRef.current = mobileView;
+  }, [mobileView]);
+  useEffect(() => {
+    boardMaximizedRef.current = boardMaximized;
+  }, [boardMaximized]);
+
+  // Bascule auto vers "Aperçu" au 1er board REÇU dans la session (§4.1) — purement l'affichage
+  // mobile, jamais lu par send()/callMaquette(). `boardEverRef` distingue cette 1re apparition
+  // d'une simple mise à jour (retouche) : dans ce dernier cas, pas de bascule forcée, juste une
+  // pastille si l'utilisateur regarde l'autre panneau (§4.1, purement informatif).
+  useEffect(() => {
+    if (!board) {
+      boardEverRef.current = false;
+      return;
+    }
+    if (!boardEverRef.current) {
+      boardEverRef.current = true;
+      setMobileView("board");
+      return;
+    }
+    if (mobileViewRef.current === "chat") setPulseBoard(true);
+  }, [board]);
+
+  // Pastille "Discussion" (mobile) / pastille sur la pastille de retour (board agrandi, desktop) :
+  // un nouveau message est arrivé pendant que l'utilisateur ne regarde pas le fil. `seenMsgCountRef`
+  // évite de pastiller au simple chargement d'un historique (longueur qui saute d'un coup).
+  useEffect(() => {
+    if (messages.length > seenMsgCountRef.current && (mobileViewRef.current === "board" || boardMaximizedRef.current)) {
+      setPulseChat(true);
+    }
+    seenMsgCountRef.current = messages.length;
+  }, [messages]);
 
   // ?demo=1
   useEffect(() => {
@@ -435,16 +520,25 @@ export default function VoicePage() {
           titleCustomRef.current = conv.titleIsCustom;
           titleRef.current = conv.title;
           setConvId(conv.id);
+          setConvTitle(conv.title); // reflet React du fil courant (docs/27 §7) — même point d'écriture que titleRef
           setStage(conv.stage);
           const msgs = conv.messages as Msg[];
           setMessages(msgs);
           autoPlayedRef.current = msgs.length - 1; // ne pas relire l'historique à voix haute
+          seenMsgCountRef.current = msgs.length; // pas de pastille "nouveau message" sur du contenu déjà chargé
           // Garde de cohérence (revue reportée incr. 2, docs/26 §incrément 3) : un `?conv=`
           // pointant vers une conversation "echange" ouvre le rail échange PROPREMENT — jamais de
           // demi-état (board affiché alors que rien n'est engagé), même si l'objet stocké est
           // incohérent (legacy/corrompu). Cf. `boardForStage`.
           const loadedBoard = boardForStage(conv.stage, (conv.board as Board) ?? null);
           setBoard(loadedBoard);
+          // Un board déjà présent au chargement n'est pas une "1re apparition" (§4.1) — pas de
+          // bascule forcée vers "Aperçu", cf. boardEverRef plus haut.
+          boardEverRef.current = !!loadedBoard;
+          setMobileView("chat");
+          mobileViewRef.current = "chat";
+          setBoardMaximized(false);
+          boardMaximizedRef.current = false;
           // La maquette survit au refresh : kind + seed voyagent gratis dans le board
           // (IndexedDB, unknown) — on redérive juste la phase pour router les tours suivants.
           setPhase(loadedBoard?.kind === "maquette" ? "maquette" : "chat");
@@ -551,6 +645,7 @@ export default function VoicePage() {
       const firstUser = messages.find((m) => m.role === "user")?.text ?? "";
       const title = titleCustomRef.current ? titleRef.current : autoTitle(firstUser);
       titleRef.current = title;
+      setConvTitle(title); // reflet React du fil courant (docs/27 §7) — même point d'écriture que titleRef
       // P0-2 : saveConversation REMONTE l'échec (stockage bloqué/quota) — on ne l'avale pas,
       // on prévient l'utilisateur via la bannière d'erreur existante. On continue à travailler
       // (pas de blocage), juste sans persistance tant que le stockage reste indisponible.
@@ -1130,6 +1225,7 @@ export default function VoicePage() {
     titleCustomRef.current = false;
     titleRef.current = "";
     setConvId(null);
+    setConvTitle(""); // reflet React du fil courant (docs/27 §7) — même point d'écriture que titleRef
     // Défaut STRICTEMENT inchangé (docs/26 §incrément 2) : une nouvelle conversation démarre
     // toujours engagée (cadrage/maquette-first) — le stage "echange" n'est jamais le point de
     // départ d'une conversation neuve.
@@ -1150,6 +1246,15 @@ export default function VoicePage() {
     autoPlayedRef.current = -1;
     pendingAutoListenRef.current = false;
     setHistOpen(false);
+    // Espace Projet (docs/27) : états 100% UI, remis à zéro à chaque conversation neuve.
+    seenMsgCountRef.current = 0;
+    boardEverRef.current = false;
+    setMobileView("chat");
+    mobileViewRef.current = "chat";
+    setBoardMaximized(false);
+    boardMaximizedRef.current = false;
+    setPulseBoard(false);
+    setPulseChat(false);
   }
 
   // ── Historique : ouvrir / renommer / supprimer ────────────────────────────────
@@ -1171,6 +1276,7 @@ export default function VoicePage() {
     titleCustomRef.current = conv.titleIsCustom;
     titleRef.current = conv.title;
     setConvId(conv.id);
+    setConvTitle(conv.title); // reflet React du fil courant (docs/27 §7) — même point d'écriture que titleRef
     // Rail docs/26 §incrément 2 : le stage suit celui de LA CONVERSATION OUVERTE (jamais dérivé
     // du contenu/LLM) — c'est l'un des deux chemins par lesquels /voice porte un stage "echange",
     // l'autre étant l'entrée `?echange=1` du bootstrap (docs/26 §incrément 5).
@@ -1178,11 +1284,21 @@ export default function VoicePage() {
     const msgs = conv.messages as Msg[];
     setMessages(msgs);
     autoPlayedRef.current = msgs.length - 1;
+    seenMsgCountRef.current = msgs.length; // pas de pastille "nouveau message" sur du contenu déjà chargé
     // Garde de cohérence (revue reportée incr. 2, docs/26 §incrément 3) : ouvrir depuis
     // l'historique une conversation "echange" ouvre le rail échange PROPREMENT — jamais de
     // demi-état, même si l'objet stocké contient un board incohérent. Cf. `boardForStage`.
     const loadedBoard = boardForStage(conv.stage, (conv.board as Board) ?? null);
     setBoard(loadedBoard);
+    // Un board déjà présent au chargement n'est pas une "1re apparition" (§4.1) — pas de bascule
+    // forcée vers "Aperçu", cf. boardEverRef plus haut.
+    boardEverRef.current = !!loadedBoard;
+    setMobileView("chat");
+    mobileViewRef.current = "chat";
+    setBoardMaximized(false);
+    boardMaximizedRef.current = false;
+    setPulseBoard(false);
+    setPulseChat(false);
     // La maquette survit au refresh/à la réouverture : kind + seed voyagent gratis via le board
     // (IndexedDB, unknown) — on redérive juste la phase pour router les tours suivants.
     setPhase(loadedBoard?.kind === "maquette" ? "maquette" : "chat");
@@ -1204,6 +1320,7 @@ export default function VoicePage() {
       if (id === convIdRef.current) {
         titleCustomRef.current = true;
         titleRef.current = title;
+        setConvTitle(title); // reflet React du fil courant (docs/27 §7) — même point d'écriture que titleRef
       }
       await refreshList();
     } catch {
@@ -1231,6 +1348,102 @@ export default function VoicePage() {
     a.download = `${(board.title || "brouillon").replace(/[^\w-]+/g, "-").toLowerCase()}.${isMockup ? "html" : "md"}`;
     a.click();
     URL.revokeObjectURL(blobUrl);
+  }
+
+  // ── Poignée de redimensionnement board↔chat (docs/27 §5, §12 pt.6) ───────────────────────────
+  // Drag = manipulation DOM IMPÉRATIVE, JAMAIS de setState par pointermove (jank + collision
+  // possible avec le streaming/scroll d'une page déjà chargée en état). On écrit directement
+  // la variable CSS --chat-w sur le nœud .workspace.split ; on ne commit dans localStorage
+  // (préférence, optionnelle) qu'au relâchement du pointeur.
+  const CHAT_W_KEY = "cleveria.voice.chatw";
+  const clampChatW = (px: number) => Math.min(560, Math.max(320, px));
+
+  const onHandlePointerMove = useCallback((e: PointerEvent) => {
+    const st = dragRef.current;
+    const el = workspaceRef.current;
+    if (!st || !el) return;
+    const next = clampChatW(st.startW + (e.clientX - st.startX));
+    el.style.setProperty("--chat-w", `${next}px`);
+  }, []);
+  const onHandlePointerUp = useCallback(() => {
+    dragRef.current = null;
+    handleElRef.current?.classList.remove("dragging");
+    document.body.style.removeProperty("cursor");
+    window.removeEventListener("pointermove", onHandlePointerMove);
+    window.removeEventListener("pointerup", onHandlePointerUp);
+    const el = workspaceRef.current;
+    if (!el) return;
+    const w = getComputedStyle(el).getPropertyValue("--chat-w").trim();
+    if (w) {
+      try {
+        window.localStorage.setItem(CHAT_W_KEY, w);
+      } catch {
+        /* stockage indisponible — pas bloquant, juste pas de préférence retenue */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  function onHandlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    const el = workspaceRef.current;
+    if (!el) return;
+    const cur = parseFloat(getComputedStyle(el).getPropertyValue("--chat-w")) || 400;
+    dragRef.current = { startX: e.clientX, startW: cur };
+    handleElRef.current?.classList.add("dragging");
+    document.body.style.cursor = "col-resize";
+    // Capture explicite du pointeur (docs/27 — durci en cours d'implémentation) : le board peut
+    // contenir une iframe sandboxée (MockupFrame) juste à côté de la poignée. Sans capture, dès
+    // que le curseur passe AU-DESSUS de l'iframe pendant le drag, la frame (origine opaque, cf.
+    // sandbox="") peut intercepter les événements pointer et bloquer la suite du drag (constaté en
+    // e2e : un drag qui traverse l'iframe se figeait). `setPointerCapture` force TOUS les
+    // événements pointer suivants vers la poignée elle-même jusqu'au relâchement, quel que soit
+    // l'élément survolé — la poignée reste seule responsable du drag.
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* setPointerCapture indisponible (environnement de test) — le drag reste fonctionnel */
+    }
+    window.addEventListener("pointermove", onHandlePointerMove);
+    window.addEventListener("pointerup", onHandlePointerUp);
+  }
+  // Double-clic = reset à la largeur par défaut (nice-to-have, docs/27 §5).
+  function onHandleDoubleClick() {
+    const el = workspaceRef.current;
+    if (!el) return;
+    el.style.setProperty("--chat-w", "400px");
+    try {
+      window.localStorage.setItem(CHAT_W_KEY, "400px");
+    } catch {
+      /* stockage indisponible — pas bloquant */
+    }
+  }
+  // Callback ref (pas un simple useRef+useEffect) : appliqué à chaque (re)montage de
+  // .workspace.split — utile puisque ce nœud n'existe que lorsque `board` est présent, et peut
+  // donc se démonter/remonter au fil de la conversation (board fermé puis rouvert).
+  const setWorkspaceRef = useCallback((el: HTMLDivElement | null) => {
+    workspaceRef.current = el;
+    if (!el) return;
+    try {
+      const saved = window.localStorage.getItem(CHAT_W_KEY);
+      if (saved) el.style.setProperty("--chat-w", saved);
+    } catch {
+      /* stockage indisponible — largeur par défaut (400px, cf. CSS) */
+    }
+  }, []);
+
+  // ── Bascule mobile Discussion/Aperçu (docs/27 §4, §6) — purement UI ──────────────────────────
+  function selectMobileView(v: "chat" | "board") {
+    setMobileView(v);
+    mobileViewRef.current = v;
+    if (v === "board") setPulseBoard(false);
+    else setPulseChat(false);
+  }
+  function toggleBoardMaximized() {
+    setBoardMaximized((v) => {
+      const next = !v;
+      boardMaximizedRef.current = next;
+      if (!next) setPulseChat(false); // on revient au fil → plus besoin de le signaler
+      return next;
+    });
   }
 
   // En phase maquette, une retouche est déjà en cours de génération → on bloque le composer
@@ -1294,6 +1507,7 @@ export default function VoicePage() {
             title="Historique"
           >
             <IcoHistory />
+            <span className="hist-btn-label">Historique</span>
           </button>
           {heroState === "crystal" ? (
             <div className="sh-crystal">
@@ -1452,10 +1666,26 @@ export default function VoicePage() {
             title="Historique"
           >
             <IcoHistory />
+            <span className="hist-btn-label">Historique</span>
           </button>
           <div className={`avatar ${avatarState}`}>CdP</div>
+          {/* Fil courant + badge de stage sur la MÊME ligne que le nom (docs/27 §7, §12 pt.1) :
+              le titre/badge tiennent sur la ligne du nom plutôt que d'en ajouter une — la
+              hauteur de .vbar reste inchangée, donc le `top: 98px` codé en dur du board
+              (calé sur header+fil d'Ariane) reste valide (vérifié en e2e, cf. vbar.spec.ts). */}
           <div className="id">
-            <span className="name">Chef de projet</span>
+            <span className="name-row">
+              <span className="name">Chef de projet</span>
+              {convTitle && (
+                <>
+                  <span className="name-sep" aria-hidden>·</span>
+                  <span className="conv-title-inline" title={convTitle}>« {convTitle} »</span>
+                </>
+              )}
+              <span className="hist-badge" data-stage={stage}>
+                {STAGE_LABEL[stage]}
+              </span>
+            </span>
             <span className="status-line">
               <span className={`live-dot ${busy ? "busy" : ""}`} /> {statusText}
             </span>
@@ -1507,26 +1737,81 @@ export default function VoicePage() {
         </div>
       )}
 
+      {started && board && (
+        // Onglets mobile Discussion/Aperçu (docs/27 §4.1) — seulement si un board existe (même
+        // condition que .workspace.split). Le libellé distingue maquette ("site")/markdown
+        // ("document"), cf. §11. Purement UI : ne pilote jamais send()/callMaquette().
+        <div className="mtabs" role="tablist" aria-label="Vue mobile">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mobileView === "chat"}
+            onClick={() => selectMobileView("chat")}
+          >
+            Discussion
+            {pulseChat && mobileView !== "chat" && <span className="mtab-dot" aria-hidden />}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mobileView === "board"}
+            onClick={() => selectMobileView("board")}
+          >
+            {board.kind === "maquette" ? "Aperçu du site" : "Le document"}
+            {pulseBoard && mobileView !== "board" && <span className="mtab-dot" aria-hidden />}
+          </button>
+        </div>
+      )}
+
       {started && (
-      <div className={`workspace ${board ? "split" : ""}`}>
+      <div
+        className={`workspace ${board ? "split" : ""} ${boardMaximized ? "board-max" : ""}`}
+        ref={setWorkspaceRef}
+        data-mobile-view={mobileView}
+      >
         {board && (
+          <>
           <aside className="board-pane">
             <div className="board-head">
-              <div className="board-titlewrap">
-                <div className="board-eyebrow-row">
-                  <div className="eyebrow">{board.kind === "maquette" ? "Board · maquette en live" : "Board · brouillon en live"}</div>
-                  {/* Badge de réassurance (docs/25 §3) : la promesse "gratuit" du hero reste
-                      visible pendant la construction de la maquette, pas seulement au souvenir. */}
-                  {board.kind === "maquette" && <span className="pill soft">Gratuit</span>}
+              {boardMaximized ? (
+                <button
+                  type="button"
+                  className="board-back-pill"
+                  onClick={toggleBoardMaximized}
+                  aria-label={
+                    pulseChat ? "Revenir à la discussion — un nouveau message vous attend" : "Revenir à la discussion"
+                  }
+                >
+                  ← Revenir à la discussion
+                  {pulseChat && <span className="pulse-dot" aria-hidden />}
+                </button>
+              ) : (
+                <div className="board-titlewrap">
+                  <div className="board-eyebrow-row">
+                    <div className="eyebrow">{board.kind === "maquette" ? "Board · maquette en live" : "Board · brouillon en live"}</div>
+                    {/* Badge de réassurance (docs/25 §3) : la promesse "gratuit" du hero reste
+                        visible pendant la construction de la maquette, pas seulement au souvenir. */}
+                    {board.kind === "maquette" && <span className="pill soft">Gratuit</span>}
+                  </div>
+                  <div className="board-title">
+                    {board.title}
+                    {board.kind === "maquette" && mockupBuilding && (
+                      <span className="muted" style={{ fontWeight: 500, fontSize: "0.85rem" }}> · en construction…</span>
+                    )}
+                  </div>
                 </div>
-                <div className="board-title">
-                  {board.title}
-                  {board.kind === "maquette" && mockupBuilding && (
-                    <span className="muted" style={{ fontWeight: 500, fontSize: "0.85rem" }}> · en construction…</span>
-                  )}
-                </div>
-              </div>
+              )}
               <div className="board-actions">
+                <button
+                  type="button"
+                  className="cbtn board-max-btn"
+                  onClick={toggleBoardMaximized}
+                  title={boardMaximized ? "Revenir à la taille normale" : "Agrandir l'aperçu"}
+                  aria-label={boardMaximized ? "Revenir à la taille normale" : "Agrandir l'aperçu"}
+                  aria-pressed={boardMaximized}
+                >
+                  {boardMaximized ? <IcoCollapse /> : <IcoExpand />}
+                </button>
                 <button
                   type="button"
                   className="cbtn"
@@ -1559,6 +1844,16 @@ export default function VoicePage() {
               )}
             </div>
           </aside>
+          <div
+            className="split-handle"
+            ref={handleElRef}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Redimensionner la conversation et l'aperçu"
+            onPointerDown={onHandlePointerDown}
+            onDoubleClick={onHandleDoubleClick}
+          />
+          </>
         )}
         <div className="chat-pane">
       {/* Fil de conversation */}

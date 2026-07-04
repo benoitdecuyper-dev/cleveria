@@ -364,8 +364,37 @@ h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
   padding: 0.6rem 0 0.7rem; margin-bottom: 0.4rem;
   border-bottom: 1px solid var(--border);
 }
-.vbar .id { display: flex; flex-direction: column; gap: 0.05rem; min-width: 0; }
-.vbar .id .name { font-weight: 800; font-size: 0.98rem; letter-spacing: -0.02em; }
+.vbar .id { display: flex; flex-direction: column; gap: 0.05rem; min-width: 0; flex: 1 1 auto; }
+.vbar .id .name { font-weight: 800; font-size: 0.98rem; letter-spacing: -0.02em; flex: none; }
+/* Fil courant + badge de stage (docs/27 §7, CLV-42/45) : posés sur la MÊME ligne que le nom,
+   PAS une ligne en plus — la hauteur de .vbar reste strictement inchangée, donc le `top: 98px`
+   codé en dur du board (§12 pt.1, calé sur .site-header + .crumbs-bar) reste valide sans y
+   toucher. `white-space: nowrap` + ellipsis empêchent tout retour à la ligne quel que soit le
+   titre — jamais un 3e wrap, la troncature absorbe la longueur. */
+.vbar .id .name-row { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.vbar .id .name-sep { color: var(--muted); font-weight: 400; flex: none; }
+.vbar .id .conv-title-inline {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--muted); font-weight: 600; font-size: 0.92rem;
+}
+/* En dessous de 480px (même seuil que le libellé Historique juste au-dessus), la place restante
+   pour le nom + le fil + le badge devient trop juste pour un rendu propre du titre (ellipsis
+   réduite à ~rien, "· «  »" orphelin) : on masque proprement le fil courant plutôt que de
+   laisser un séparateur flottant sans texte. Le badge de stage reste visible (repère essentiel),
+   le titre complet reste consultable via Historique. */
+@media (max-width: 480px) {
+  .vbar .id .name-sep, .vbar .id .conv-title-inline { display: none; }
+}
+/* Libellé texte du bouton Historique (CLV-45) : icône seule en dessous de 480px (cible tactile
+   inchangée), icône + texte au-dessus — sur les DEUX états de la page (conversation + accueil).
+   Sélecteur composé `.cbtn.hist-btn` : la spécificité doit battre `.cbtn` (largeur 44px fixe),
+   peu importe l'ordre des règles dans la feuille de style. */
+.cbtn.hist-btn { width: auto; padding: 0 0.7rem 0 0.55rem; gap: 0.4rem; border-radius: 22px; }
+.hist-btn-label { font-size: 0.86rem; font-weight: 650; }
+@media (max-width: 480px) {
+  .cbtn.hist-btn { width: 44px; padding: 0; }
+  .hist-btn-label { display: none; }
+}
 
 /* Fil de conversation */
 .thread { display: flex; flex-direction: column; gap: 0.55rem; flex: 1; padding: 0.6rem 0 0.4rem; }
@@ -487,19 +516,41 @@ h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
 .linkbtn:hover { text-decoration: underline; }
 .linkbtn.subtle { color: var(--muted); }
 
-/* Workspace : chat seul, ou split board (scène, gauche) + chat (rail, droite) façon Teams */
+/* Workspace : chat seul, ou split board (scène, gauche) + chat (rail, droite) façon Teams.
+   CLV-41 (docs/27 §5, §10) : le split passe en CSS GRID — largeur du chat pilotée par la
+   variable --chat-w (drag impératif côté JS, cf. page.tsx onHandlePointerMove), plus de
+   breakpoints figés (420/440/400/460px). Bornes 320–560px imposées côté JS (clampChatW) ; le
+   board (3e piste, minmax(0,1fr)) absorbe tout le reste, sans borne haute. */
 .workspace { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .chat-pane { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
-.workspace.split { flex-direction: row; align-items: stretch; gap: 1.1rem; }
-.workspace.split .chat-pane { flex: 0 0 420px; max-width: 440px; }
+.workspace.split {
+  display: grid;
+  grid-template-columns: var(--chat-w, 400px) 8px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 1.1rem;
+}
+.workspace.split .chat-pane { grid-column: 1; grid-row: 1; max-width: none; }
+/* Poignée de redimensionnement (docs/27 §5) : bande de préhension ~8px, trait visuel 1-2px,
+   surlignage --primary au survol/drag. Le drag lui-même est 100% impératif côté JS (aucun
+   setState par pointermove, cf. page.tsx §12 pt.6) — cette classe ne fait QUE l'habillage.
+   grid-row:1 explicite sur les 3 pistes (chat/poignée/board) : lève toute ambiguïté de
+   l'algorithme d'auto-placement (les 3 doivent partager EXACTEMENT la même ligne). */
+.split-handle { grid-column: 2; grid-row: 1; align-self: stretch; width: 8px; cursor: col-resize; position: relative; }
+.split-handle::before {
+  content: ""; position: absolute; inset: 0 auto 0 50%; width: 2px; transform: translateX(-50%);
+  background: var(--border); border-radius: 2px; transition: background .12s ease;
+}
+.split-handle:hover::before, .split-handle.dragging::before { background: var(--primary); }
 .board-pane {
-  flex: 1; min-width: 0;
+  grid-column: 3; grid-row: 1; min-width: 0;
   display: flex; flex-direction: column;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); box-shadow: var(--shadow);
   padding: 0.9rem 1.05rem 1rem;
   /* top: 98px (P2) — le fil d'Ariane (sticky, 58px header + 40px crumbs) occupe jusqu'à 98px ;
-     à 70px le board passait sous lui. */
+     à 70px le board passait sous lui. RESTE VALIDE après CLV-42 (docs/27 §12 pt.1) : le fil
+     courant + le badge de stage de .vbar tiennent sur la ligne du nom (cf. .vbar .id .name-row),
+     la hauteur de .vbar n'a pas bougé — vérifié en e2e (vbar.spec.ts, alignement crumbs/board). */
   position: sticky; top: 98px;
   max-height: calc(100vh - 88px);
   animation: boardin .22s ease-out;
@@ -518,13 +569,64 @@ h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
 .mockup-frame { flex: 1; width: 100%; height: 100%; border: none; border-radius: var(--radius-sm); background: #fff; }
 .mockup-building { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.55rem; color: var(--muted); font-weight: 600; }
 
+/* Board « agrandi » (docs/27 §3.2) : le chat disparaît (display:none volontaire — CE mode
+   assume la disparition du composer, contrairement à la bascule mobile ci-dessous où
+   display:none est proscrit, cf. §6/§12 pt.3) ; le board prend toute la largeur. On neutralise
+   les 2 premières pistes de la grille plutôt que de déplacer board-pane, pour ne jamais changer
+   sa grid-column (moins de règles à maintenir en cohérence). */
+.workspace.split.board-max { grid-template-columns: 0 0 1fr; gap: 0; }
+.workspace.split.board-max .chat-pane,
+.workspace.split.board-max .split-handle { display: none; }
+.board-back-pill {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  background: none; border: none; cursor: pointer; padding: 0.2rem 0; margin-top: 0.05rem;
+  font-weight: 700; font-size: 0.92rem; color: var(--primary-600);
+}
+.board-back-pill:hover { text-decoration: underline; }
+.board-back-pill .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block; }
+
+/* Onglets Discussion/Aperçu : masqués par défaut — mécanique 100% mobile (docs/27 §4). Réactivés
+   uniquement dans le media query ≤860px ci-dessous. */
+.mtabs { display: none; }
+
 @media (max-width: 860px) {
-  .workspace.split { flex-direction: column; gap: 0.8rem; }
-  /* P1-6 : sur mobile, le fil de conversation + le composer doivent être visibles AVANT le
-     board (jusqu'à 56vh de haut) — sinon l'utilisateur doit scroller pour voir le chat. On ne
-     touche PAS au DOM (le board reste avant le chat en desktop) : `order` suffit. */
-  .workspace.split .chat-pane { flex: 1 1 auto; max-width: none; order: -1; }
-  .board-pane { position: static; max-height: 56vh; order: 0; }
+  /* Onglets Discussion/Aperçu (docs/27 §4, §6) : sticky sous le fil d'Ariane (même repère
+     `top: 98px` que .board-pane desktop — pas une nouvelle valeur magique, cf. §12 pt.1). */
+  .mtabs {
+    position: sticky; top: 98px; z-index: 8;
+    display: flex; gap: 0.25rem; padding: 0.3rem;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    margin-bottom: 0.7rem; box-shadow: var(--shadow-sm);
+  }
+  .mtabs button {
+    flex: 1; position: relative; display: inline-flex; align-items: center; justify-content: center;
+    gap: 0.3rem; font: inherit; font-weight: 650; font-size: 0.85rem; color: var(--muted);
+    background: transparent; border: none; border-radius: 999px; padding: 0.5rem 0.4rem; cursor: pointer;
+  }
+  .mtabs button[aria-selected="true"] { background: var(--primary-50); color: var(--primary-600); }
+  .mtab-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: inline-block; }
+  .board-max-btn, .board-back-pill { display: none; } /* pas de mode "agrandi" desktop sur mobile — les onglets remplissent déjà ce rôle */
+
+  /* Le piège (docs/27 §6) : display:none sur .chat-pane casserait AUSSI le composer (descendant,
+     même en position:fixed/sticky) — la bascule utilise donc visibility/pointer-events, JAMAIS
+     display. Les deux panneaux restent MONTÉS en permanence (MockupFrame ne recharge jamais,
+     §12 pt.3) : ils partagent la MÊME cellule de grille (empilement CSS Grid, pas de
+     position:absolute — évite le piège classique "inset:0 sans hauteur définie sur le parent",
+     et préserve le scroll de PAGE du fil de conversation, §12 pt.5, non touché par ce lot). */
+  .workspace.split { display: grid; grid-template-columns: 1fr; gap: 0; }
+  .workspace.split .chat-pane,
+  .workspace.split .board-pane { grid-column: 1; grid-row: 1; max-width: none; }
+  .board-pane { position: static; max-height: 70vh; }
+  .split-handle { display: none; }
+
+  .workspace.split[data-mobile-view="board"] .chat-pane { visibility: hidden; pointer-events: none; }
+  .workspace.split[data-mobile-view="chat"] .board-pane { visibility: hidden; pointer-events: none; }
+  /* La visibilité ne se propage pas à un descendant qui la réaffirme explicitement (contrairement
+     à display) : le composer reste donc actionnable même quand .chat-pane est masqué. */
+  .workspace.split .chat-pane .composer {
+    visibility: visible; pointer-events: auto; z-index: 12;
+    padding-bottom: calc(0.9rem + env(safe-area-inset-bottom));
+  }
 }
 
 /* PC : le board mérite de la place. On sort du conteneur 860px (full-bleed centré
@@ -537,13 +639,10 @@ h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
     margin-inline: calc((100% - min(94vw, 1500px)) / 2);
     gap: 1.4rem;
   }
-  .workspace.split .chat-pane { flex: 0 0 400px; max-width: 420px; }
+  .workspace.split.board-max { gap: 0; }
   .board-pane { padding: 1.1rem 1.4rem 1.2rem; }
   /* Confort de lecture du board large : titres aérés, contenu non bridé en largeur */
   .board-body .md { font-size: 0.98rem; }
-}
-@media (min-width: 1500px) {
-  .workspace.split .chat-pane { flex: 0 0 440px; max-width: 460px; }
 }
 
 /* Responsive */
