@@ -5,6 +5,13 @@
 > `docs/15-logo-pistes.md` (Concept 4, Direction C — « le relais »). Rien de nouveau n'est
 > promis ici : ce texte reformule ce qui est déjà posé, pour que Ben puisse le dire ou le
 > coller tel quel.
+>
+> **MàJ 2026-07-04 (CLV-50)** : la fusion Échange/Projet (CLV-53) a supprimé le switch de
+> mode entre lequel l'histoire du logo (§3) faisait initialement basculer. La section 3
+> ci-dessous est reformulée en conséquence — le relais raconte désormais le passage de
+> témoin de vous (qui confiez votre besoin en conversation) vers l'équipe qui le prend en
+> charge et livre, pas un mode d'écran vers un autre. Le reste du pitch (§1, §2, §4) n'a
+> pas besoin de changer : il ne mentionnait déjà pas le switch.
 
 ## 1. Le pitch éclair (15 secondes, à l'oral)
 
@@ -27,14 +34,36 @@
 
 ## 3. L'histoire du logo — « le relais »
 
-> Le logo montre deux formes qui se chevauchent : une petite, neutre, en dessous — le bras
-> droit qui répond tout de suite à ta demande. Une grande, violette, vient la recouvrir —
-> l'équipe qui prend le relais pour livrer. Ce n'est pas une flèche ni une mascotte : c'est
-> le moment précis où Cleveria bascule, celui où une simple question devient un vrai projet.
-> Le violet ne décore pas la forme, il marque le passage de relais.
+> Le logo montre deux formes qui se chevauchent : une petite, neutre, en dessous — votre
+> besoin, tel que vous le confiez en conversation. Une grande, violette, vient la
+> recouvrir — l'équipe qui prend le relais pour le livrer pour de vrai. Ce n'est pas une
+> flèche ni une mascotte : c'est le passage de témoin, de vous vers l'équipe qui construit.
+> Le violet ne décore pas la forme, il marque ce relais.
 
-À ressortir quand on présente l'identité, pas à mettre dans le pitch produit lui-même — le
-pitch parle du bras droit, le logo raconte comment on l'a dessiné.
+À ressortir quand on présente l'identité (page « à propos », dossier de marque), pas dans
+le pitch produit lui-même — le pitch parle du bras droit et de l'équipe, le logo raconte
+comment on l'a dessiné.
+
+*Note de registre* : ce paragraphe est rédigé au vouvoiement, par cohérence avec l'entrée
+du produit telle que repositionnée dans `docs/24-positionnement-entree.md` et
+`docs/25-entree-voice.md` (le client qui vient chercher un site est vouvoyé dès `/`). Le
+reste de ce pitch (§1, §2, §4) reste au tutoiement d'origine — c'est la même tension de
+registre déjà signalée sans trancher dans `docs/24` §4, pas une nouvelle incohérence
+introduite ici : à ré-harmoniser le jour où le pitch général sera repassé en revue.
+
+### Formulations courtes (à coller telles quelles)
+
+- *Footer / tagline* : **« Vous en parlez. L'équipe prend le relais. »**
+- *Variante* : « Confiez votre besoin. L'équipe prend le relais et livre. »
+
+### Version développée (page « à propos », dossier de marque)
+
+> Deux formes qui se chevauchent : une petite, neutre — votre besoin, dit avec vos mots,
+> le temps d'une conversation. Une grande, violette, qui vient la recouvrir — l'équipe
+> qui le prend en charge et le transforme en résultat livré. Ce n'est pas une flèche ni
+> une mascotte, c'est un passage de témoin : de vous, qui exprimez ce dont vous avez
+> besoin, à l'équipe qui construit pour de vrai. Le violet ne décore pas la forme — il
+> marque l'instant où le relais est pris.
 
 ## 4. Phrases signatures (réutilisables, candidates tagline)
 

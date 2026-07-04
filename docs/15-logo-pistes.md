@@ -236,8 +236,16 @@ nom sans être un « C » cliché en arc de cercle (ce que Ben avait déjà éca
 chevauchent en diagonale — pas une main, pas un objet, un mouvement. La première, plus
 petite et neutre, est en bas à gauche ; la seconde, plus grande et violette, la recouvre
 en haut à droite, sans dégradé de fusion (la seconde est simplement posée par-dessus, en
-aplat) — la bascule du mode Échange (petit, neutre) vers le mode Projet (plus grand,
-violet, qui prend le relais) qui structure le produit.
+aplat) — le passage de témoin entre vous, qui confiez votre besoin en conversation (petit,
+neutre), et l'équipe qui prend le relais pour le livrer pour de vrai (plus grand, violet,
+qui recouvre).
+
+> **MàJ 2026-07-04 (CLV-50)** : la fusion Échange/Projet (CLV-53) a fait disparaître le
+> switch de mode qui portait initialement cette narration. Le concept survit — le relais
+> ne se raconte plus comme une bascule interne entre deux modes du produit, mais comme le
+> passage de témoin **de vous vers l'équipe qui livre** : vous confiez votre besoin en
+> conversation, l'équipe le prend en charge et produit le résultat. Voir « Ce que ça
+> raconte » ci-dessous, reformulé en conséquence.
 
 ### (a) Icône seule — favicon / app icon (40×40)
 
@@ -270,11 +278,12 @@ violet, qui prend le relais) qui structure le produit.
 
 ### Ce que ça raconte
 
-Le moment charnière du produit — la bascule entre le bras droit qui répond tout de suite
-(petite forme, neutre, discrète) et l'équipe qui prend le relais pour livrer un vrai
-projet (grande forme, violette, qui recouvre et prend le dessus) — sans flèche générique
+Le passage de témoin qui structure le service — vous confiez votre besoin en conversation
+(petite forme, neutre, discrète) et l'équipe le prend en relais pour livrer un vrai
+résultat (grande forme, violette, qui recouvre et prend le dessus) — sans flèche générique
 ni mallette. La lecture ne dépend pas de connaître le produit : deux formes qui se
-chevauchent racontent déjà un passage, une prise de relais.
+chevauchent racontent déjà un passage, une prise de relais — de vous vers l'équipe qui
+livre, pas d'un mode d'un outil vers un autre.
 
 ### Lisibilité / robustesse
 
@@ -286,9 +295,9 @@ chevauchent racontent déjà un passage, une prise de relais.
   narration « neutre → violet » qui est la moitié du sens du concept.
 - **Risque à surveiller** : deux formes arrondies qui se chevauchent, c'est aussi un
   motif très répandu comme icône d'app générique (beaucoup de startups y sont déjà
-  allées). Le lien avec « échange → projet » sauve le concept d'être un simple exercice
-  de style, mais c'est la piste la plus proche d'un standard déjà vu — à garder en tête
-  si on la retient.
+  allées). Le lien avec le passage de témoin vous → équipe sauve le concept d'être un
+  simple exercice de style, mais c'est la piste la plus proche d'un standard déjà vu — à
+  garder en tête si on la retient.
 - **Fond sombre** : la forme neutre en `currentColor` s'inverse automatiquement, la forme
   violette reste fixe `#7c3aed` par-dessus, dans les deux cas la superposition reste
   lisible car les deux formes ont des masses différentes (jamais de zone ambiguë où les
