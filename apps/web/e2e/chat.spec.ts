@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+import { createServer, type Server, type ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
 
 // Parcours chat en mode démo (déterministe, sans appel IA).
 // Couvre : rendu de l'accueil, état du composer, et un aller-retour complet
@@ -271,5 +273,215 @@ test.describe("/echange — passerelle « Transformer en projet »", () => {
     await expect(page).toHaveURL(/\/echange/);
     await expect(page.getByText("Quel statut juridique choisir pour mon activité ?")).toBeVisible();
     await expect(page.getByText("Réponse du bras droit.")).toBeVisible();
+  });
+});
+
+// ── Aide de test : un vrai flux SSE qui streame quelques deltas puis RESTE OUVERT ──────────────
+// Playwright `route.fulfill()` ne peut fournir qu'un corps COMPLET (pas de livraison incrémentale
+// réelle dans le temps) — impossible d'y simuler un flux "encore en vol" de façon déterministe.
+// On lance donc un vrai petit serveur HTTP local (Node) et on y redirige la requête `/api/brief`
+// via `route.continue({ url })` (le protocole reste `http:`, seul le host:port change — CORS
+// ouvert explicitement ci-dessous). Le flux est un VRAI flux réseau : aborter le fetch ferme
+// réellement la connexion TCP, ce qui rend le canari central authentique (pas un mock synchrone).
+async function startSlowSseServer() {
+  let res: ServerResponse | null = null;
+  let resolveConnected!: () => void;
+  const connected = new Promise<void>((resolve) => {
+    resolveConnected = resolve;
+  });
+  const server: Server = createServer((_req, response) => {
+    res = response;
+    response.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "Access-Control-Allow-Origin": "*",
+    });
+    resolveConnected();
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
+  return {
+    url: `http://127.0.0.1:${port}/slow-brief`,
+    connected,
+    sendDelta(text: string) {
+      res?.write(`data: ${JSON.stringify({ t: "delta", text })}\n\n`);
+    },
+    // Écriture tardive (après que le client a déjà aborté) : simule un "done" périmé qui tente
+    // d'atterrir APRÈS la bascule — doit rester sans effet côté client.
+    finishLate(payload: Record<string, unknown>) {
+      try {
+        res?.write(`data: ${JSON.stringify({ t: "done", ...payload })}\n\n`);
+        res?.end();
+      } catch {
+        /* connexion déjà fermée côté client (abort) — c'est exactement ce qu'on veut prouver */
+      }
+    },
+    close() {
+      return new Promise<void>((resolve) => server.close(() => resolve()));
+    },
+  };
+}
+
+// Rail échange sur /voice (CLV-53 incr. 3) — le POINT DUR : transformer un échange en projet SANS
+// navigation, SANS fork, en abandonnant proprement un tour en vol.
+test.describe("/voice — rail échange, « Transformer en projet »", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/tts", (route) => route.abort());
+  });
+
+  test("transformer PENDANT un tour en vol : flux périmé abandonné, engagement unique, need card unique, contenu préservé", async ({
+    page,
+  }) => {
+    const slow = await startSlowSseServer();
+    let briefCalls = 0;
+
+    await page.route("**/api/brief", async (route) => {
+      briefCalls += 1;
+      if (briefCalls === 1) {
+        // 1er tour d'échange : réponse JSON immédiate (établit un contenu d'échange RÉEL et
+        // déjà complet, pour prouver qu'il survit à la transformation).
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            reply: "Le statut auto-entrepreneur convient pour démarrer seul.",
+            mode: "echange",
+            isNote: false,
+            questions: null,
+            spoken: null,
+            board: null,
+          }),
+        });
+        return;
+      }
+      if (briefCalls === 2) {
+        // 2e tour d'échange : streame quelques deltas puis reste ouvert (le test central).
+        await route.continue({ url: slow.url });
+        return;
+      }
+      // 3e appel : le tour de cadrage forcé déclenché par « Transformer en projet ».
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          reply: "",
+          mode: "cadrage",
+          isNote: true,
+          questions: null,
+          spoken: "Voici le besoin cristallisé.",
+          board: { title: "Besoin validé", content: "Le besoin est cadré." },
+        }),
+      });
+    });
+
+    await page.goto("/voice?echange=1");
+    // Entrée dormante (docs/26 §incrément 3) : l'URL est nettoyée après lecture.
+    await expect(page).toHaveURL(/\/voice$/);
+
+    await page
+      .getByRole("textbox", { name: "Décrivez votre activité" })
+      .fill("Quel statut juridique choisir pour mon activité ?");
+    await page.getByRole("button", { name: "Envoyer" }).click();
+
+    await expect(page.getByText("Quel statut juridique choisir pour mon activité ?")).toBeVisible();
+    await expect(page.getByText("Le statut auto-entrepreneur convient pour démarrer seul.")).toBeVisible();
+
+    // 2e tour d'échange, EN VOL : quelques deltas arrivent et s'affichent en live…
+    await page.getByPlaceholder("Votre réponse…").fill("Et pour la TVA, comment ça marche ?");
+    await page.getByRole("button", { name: "Envoyer" }).click();
+    await expect(page.getByText("Et pour la TVA, comment ça marche ?")).toBeVisible();
+
+    await slow.connected;
+    slow.sendDelta("Vous êtes en franchise ");
+    slow.sendDelta("en base de TVA au démarrage.");
+    await expect(
+      page.getByText("Vous êtes en franchise en base de TVA au démarrage.", { exact: false }),
+    ).toBeVisible();
+
+    // …puis on transforme PENDANT que le flux est encore ouvert (aucun "done" n'a été envoyé).
+    await page.getByRole("button", { name: /Transformer en projet/ }).click();
+
+    // Le tour de cadrage se déclenche automatiquement, UNE SEULE FOIS : une need card unique.
+    await expect(page.locator(".go-bar")).toHaveCount(1);
+    await expect(page.getByText("Le besoin est cadré.")).toBeVisible();
+    expect(briefCalls).toBe(3);
+    // Le bouton disparaît : la conversation n'est plus au stage "echange".
+    await expect(page.getByRole("button", { name: /Transformer en projet/ })).toHaveCount(0);
+
+    // Pas de bulle fantôme : le contenu partiel du tour ABANDONNÉ a disparu.
+    await expect(
+      page.getByText("Vous êtes en franchise en base de TVA au démarrage.", { exact: false }),
+    ).toHaveCount(0);
+
+    // Le contenu RÉEL de l'échange (tour complet + dernière question) reste préservé, même fil.
+    await expect(page.getByText("Quel statut juridique choisir pour mon activité ?")).toBeVisible();
+    await expect(page.getByText("Le statut auto-entrepreneur convient pour démarrer seul.")).toBeVisible();
+    await expect(page.getByText("Et pour la TVA, comment ça marche ?")).toBeVisible();
+
+    // Écriture tardive du flux abandonné (après la bascule) : AUCUN effet, aucune requête de plus.
+    slow.finishLate({
+      reply: "MARQUEUR_PERIME_NE_DOIT_JAMAIS_APPARAITRE",
+      mode: "echange",
+      isNote: false,
+      questions: null,
+      spoken: null,
+      board: null,
+    });
+    await page.waitForTimeout(300);
+    await expect(page.getByText("MARQUEUR_PERIME_NE_DOIT_JAMAIS_APPARAITRE")).toHaveCount(0);
+    expect(briefCalls).toBe(3);
+
+    await slow.close();
+  });
+
+  test("transformer avec échec d'engagement (stockage bloqué) : aucune corruption, bannière, échange intact et utilisable", async ({
+    page,
+  }) => {
+    // Casse IndexedDB AVANT tout script de page (comme le canari équivalent de /echange) : cette
+    // fois c'est `engageProject` (pas la persistance de l'échange lui-même) qui doit échouer.
+    await page.addInitScript(() => {
+      Object.defineProperty(window.indexedDB, "open", {
+        value: () => {
+          throw new Error("IndexedDB indisponible (test e2e)");
+        },
+      });
+    });
+    await page.route("**/api/brief", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          reply: "Le statut auto-entrepreneur convient pour démarrer seul.",
+          mode: "echange",
+          isNote: false,
+          questions: null,
+          spoken: null,
+          board: null,
+        }),
+      });
+    });
+
+    await page.goto("/voice?echange=1");
+    await page
+      .getByRole("textbox", { name: "Décrivez votre activité" })
+      .fill("Quel statut juridique choisir pour mon activité ?");
+    await page.getByRole("button", { name: "Envoyer" }).click();
+
+    await expect(page.getByText("Quel statut juridique choisir pour mon activité ?")).toBeVisible();
+    await expect(page.getByText("Le statut auto-entrepreneur convient pour démarrer seul.")).toBeVisible();
+
+    await page.getByRole("button", { name: /Transformer en projet/ }).click();
+
+    // Invariant central : bannière d'erreur, AUCUNE corruption d'état (pas de demi-engagement).
+    await expect(
+      page.getByText("Impossible de transformer cet échange en projet", { exact: false }),
+    ).toBeVisible();
+    // Pas de demi-état : le bouton reste (stage toujours "echange"), la conversation reste
+    // utilisable (contenu intact, composer toujours actif).
+    await expect(page.getByRole("button", { name: /Transformer en projet/ })).toBeVisible();
+    await expect(page.getByText("Quel statut juridique choisir pour mon activité ?")).toBeVisible();
+    await expect(page.getByText("Le statut auto-entrepreneur convient pour démarrer seul.")).toBeVisible();
+    await expect(page.getByPlaceholder("Votre réponse…")).toBeEnabled();
   });
 });

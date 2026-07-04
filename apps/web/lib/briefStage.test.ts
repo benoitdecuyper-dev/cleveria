@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stageForBrief, derivePersistStage } from "./briefStage";
+import { stageForBrief, derivePersistStage, boardForStage } from "./briefStage";
 
 // CLV-53 incr. 2 : /voice sait porter un stage "echange" non-engagé (rail dormant, pas encore
 // branché à l'UI). Ces deux fonctions pures décident (1) ce qu'on envoie au serveur pour CE tour,
@@ -46,5 +46,23 @@ describe("derivePersistStage", () => {
     // pas la logique de run/prod (posée ailleurs, runId). Un stage "prod" n'est normalement
     // jamais recalculé par ce chemin en usage réel ; on documente juste le comportement pur.
     expect(derivePersistStage("prod", { kind: "maquette" })).toBe("maquette");
+  });
+});
+
+// CLV-53 incr. 3 (garde-fou reporté de la revue de l'incr. 2) : un stage "echange" n'affiche
+// JAMAIS de board à l'ouverture, même si l'objet stocké en contient un (donnée legacy/incohérente).
+describe("boardForStage", () => {
+  it('stage "echange" → null, quel que soit le board stocké (jamais de demi-état)', () => {
+    expect(boardForStage("echange", { kind: "maquette" })).toBeNull();
+    expect(boardForStage("echange", { kind: "markdown", title: "x", content: "y" })).toBeNull();
+    expect(boardForStage("echange", null)).toBeNull();
+  });
+
+  it("stage engagé (cadrage/maquette/prod) → board inchangé (identité)", () => {
+    const board = { kind: "maquette", content: "<html/>" };
+    expect(boardForStage("cadrage", board)).toBe(board);
+    expect(boardForStage("maquette", board)).toBe(board);
+    expect(boardForStage("prod", board)).toBe(board);
+    expect(boardForStage("cadrage", null)).toBeNull();
   });
 });

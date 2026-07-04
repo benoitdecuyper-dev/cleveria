@@ -30,3 +30,16 @@ export function derivePersistStage(stage: ProjectStage, board: BoardKind): Proje
   if (stage === "echange") return "echange";
   return board?.kind === "maquette" ? "maquette" : "cadrage";
 }
+
+/**
+ * Board à CHARGER à l'ouverture d'une conversation (bootstrap `?conv=`, `openConversation`) —
+ * garde-fou de cohérence (docs/26 §incrément 3, revue reportée de l'incrément 2) : un stage
+ * `"echange"` n'affiche JAMAIS de board ni n'entre en phase maquette, MÊME si l'objet stocké en
+ * contient un (donnée legacy ou incohérente) — un stage `"echange"` est par construction
+ * non-engagé, jamais de livrable en cours. Sans cette garde, un `?conv=` pointant vers un objet
+ * mal formé pourrait ouvrir un demi-état (rail échange + board affiché). Pure, ne modifie rien :
+ * appelée à la LECTURE, jamais à l'écriture (qui reste `derivePersistStage`, ci-dessus).
+ */
+export function boardForStage<B>(stage: ProjectStage, board: B | null): B | null {
+  return stage === "echange" ? null : board;
+}

@@ -11,6 +11,7 @@ import { parseReply } from "../../lib/parseReply";
 import {
   autoTitle,
   deleteConversation,
+  engageProject,
   getConversation,
   listConversations,
   migrateLegacyVoice,
@@ -21,7 +22,7 @@ import {
   type ConversationSummary,
   type ProjectStage,
 } from "../../lib/history";
-import { stageForBrief, derivePersistStage } from "../../lib/briefStage";
+import { stageForBrief, derivePersistStage, boardForStage } from "../../lib/briefStage";
 
 // ── Types (alignés sur /api/brief et /api/plan) ───────────────────────────────
 type Question = {
@@ -206,6 +207,9 @@ export default function VoicePage() {
   // depuis l'historique une conversation qui l'a déjà (rail dormant : aucun point d'entrée ne
   // crée encore de conversation "echange" sur /voice — posé pour les incréments 3 et 5).
   const [stage, setStage] = useState<ProjectStage>("cadrage");
+  // Bouton « Transformer en projet » (docs/26 §incrément 3) : true pendant la promotion en place
+  // (engageProject) — évite un double-clic pendant l'attente du verrou de stockage.
+  const [engaging, setEngaging] = useState(false);
 
   const [launching, setLaunching] = useState(false);
   // Réponses sélectionnées au formulaire de questions (par id de question). On envoie la sélection,
@@ -407,9 +411,16 @@ export default function VoicePage() {
     const cadrer = params.get("cadrer") === "1";
     const openId = params.get("conv");
     const openHist = params.get("history") === "1"; // arrivée depuis « Retrouver mes projets »
+    // Rail docs/26 §incrément 3 : entrée dédiée pour ATTEINDRE le stage "echange" sur /voice sans
+    // passer par l'historique (c'est l'entrée que la redirection de /echange utilisera à
+    // l'incrément 5 ; ici on la pose et on la teste). Un `?conv=` explicite reste PRIORITAIRE —
+    // sa conversation stockée fait foi sur son propre stage (branche `openId` ci-dessous), jamais
+    // l'URL : `?echange=1` ne joue que pour démarrer une conversation NEUVE.
+    const echangeEntry = params.get("echange") === "1" && !openId;
     if (cadrer) autoCadreRef.current = true;
     if (openHist) setHistOpen(true);
-    if (cadrer || openId || openHist) window.history.replaceState(null, "", "/voice");
+    if (echangeEntry) setStage("echange");
+    if (cadrer || openId || openHist || echangeEntry) window.history.replaceState(null, "", "/voice");
     void (async () => {
       await migrateLegacyVoice();
       if (openId) {
@@ -425,7 +436,11 @@ export default function VoicePage() {
           const msgs = conv.messages as Msg[];
           setMessages(msgs);
           autoPlayedRef.current = msgs.length - 1; // ne pas relire l'historique à voix haute
-          const loadedBoard = (conv.board as Board) ?? null;
+          // Garde de cohérence (revue reportée incr. 2, docs/26 §incrément 3) : un `?conv=`
+          // pointant vers une conversation "echange" ouvre le rail échange PROPREMENT — jamais de
+          // demi-état (board affiché alors que rien n'est engagé), même si l'objet stocké est
+          // incohérent (legacy/corrompu). Cf. `boardForStage`.
+          const loadedBoard = boardForStage(conv.stage, (conv.board as Board) ?? null);
           setBoard(loadedBoard);
           // La maquette survit au refresh : kind + seed voyagent gratis dans le board
           // (IndexedDB, unknown) — on redérive juste la phase pour router les tours suivants.
@@ -439,7 +454,14 @@ export default function VoicePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Cadrage auto (passerelle) : quand la conversation ouverte est chargée, produire la carte récap.
+  // Cadrage auto (passerelle `?cadrer=1`, ET bouton « Transformer en projet » docs/26
+  // §incrément 3) : quand la conversation ouverte est chargée (ou vient d'être engagée),
+  // produire la carte récap. `stage` est dans les dépendances : le clic sur « Transformer »
+  // change `stage` SANS changer `messages` — sans cette dépendance, l'effet ne re-tournerait
+  // jamais après la bascule de stage (une ref seule ne déclenche pas de re-render). Crucial
+  // aussi pour la CORRECTION du tour envoyé : `send()` lit `stage` depuis LA FERMETURE de ce
+  // rendu — il faut donc que l'effet s'exécute APRÈS le rendu qui a commité "cadrage" (jamais un
+  // appel synchrone juste après `setStage`, qui lirait encore l'ancienne valeur).
   useEffect(() => {
     if (!autoCadreRef.current || didAutoCadreRef.current || loading) return;
     if (messages.length === 0) return; // on attend la conversation ouverte
@@ -447,7 +469,63 @@ export default function VoicePage() {
     void send({ force: true });
     // send est stable au runtime (fonction hoistée) ; on ne le met pas en dépendance.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, loading]);
+  }, [messages, loading, stage]);
+
+  // ── Bouton « Transformer en projet » (docs/26 §incrément 3, cœur §4.3 du plan de fusion) ────
+  // Promotion en place INTRA-surface : sur /voice, une conversation au stage "echange" devient
+  // "cadrage" SANS navigation, SANS fork, SANS changer de conversation. Séquence STRICTE et non
+  // négociable (pré-mortem risque n°3, docs/26) :
+  //   a. abort de TOUT flux en vol (SSE /api/brief, maquette, TTS, STT) — AVANT toute mutation de
+  //      stage/id, pour qu'un delta périmé ne puisse plus jamais écrire une fois l'objet engagé ;
+  //   b. engageProject(id) — même id, monotone, sérialisé par le verrou (lib/history) ;
+  //   c. succès → setStage("cadrage") puis armement du MÊME mécanisme que `?cadrer=1` (un seul
+  //      send({force:true}), jamais réinventé) ;
+  //   d. échec → bannière, PAS de changement de stage, l'échange reste intact et exploitable.
+  async function engageToProject() {
+    // (a) Abandon de tout tour en vol — même patron que newConversation()/openConversation() :
+    // on RÉ-ASSIGNE les refs à null (pas seulement .abort()) pour que isCurrent() des flux
+    // encore en cours de traitement (delta déjà reçu, pas encore rendu) devienne faux à coup sûr.
+    sendAbortRef.current?.abort();
+    sendAbortRef.current = null;
+    maquetteAbortRef.current?.abort();
+    maquetteAbortRef.current = null;
+    stopAudio();
+    resetRecognition();
+    // Le tour abandonné ne réinitialisera plus jamais `loading` lui-même (son `isCurrent()` est
+    // désormais faux) — sans ce reset explicite, le composer resterait bloqué "Je réfléchis…" et
+    // l'effet de cadrage auto ci-dessus ne se déclencherait JAMAIS (il exige `!loading`).
+    setLoading(false);
+    // Pas de bulle fantôme (docs/26 §incrément 3) : une bulle assistant encore `streaming:true`
+    // (tour "echange" en vol, jamais finalisé) est retirée — le contenu RÉEL de l'échange (tours
+    // déjà complets + la dernière question utilisateur) est conservé tel quel. On renvoie LA MÊME
+    // référence quand il n'y a rien à retirer (rien en vol) : un nouveau tableau identique en
+    // contenu re-déclencherait inutilement l'effet de persistance (dépendant de `messages`), ce
+    // qui peut le faire courir contre l'écriture de CETTE fonction (deux bannières d'erreur qui se
+    // disputent le même état `error` en cas d'échec de stockage).
+    setMessages((prev) => (prev.some((m) => m.streaming) ? prev.filter((m) => !m.streaming) : prev));
+
+    const id = convIdRef.current;
+    if (!id) return; // rien à transformer — le bouton n'existe qu'une fois la conv persistée
+
+    setError("");
+    setEngaging(true);
+    try {
+      // (b) Promotion en place — monotone, sérialisée par id (lib/history, durcissement CLV-53).
+      const updated = await engageProject(id);
+      if (!updated) throw new Error("conversation introuvable");
+      // (c) Bascule + UN SEUL tour de cadrage forcé, via le mécanisme EXISTANT (réarmé pour ce
+      // nouveau cycle : `didAutoCadreRef` peut déjà avoir servi une fois dans cette session).
+      didAutoCadreRef.current = false;
+      autoCadreRef.current = true;
+      setStage("cadrage");
+    } catch {
+      // (d) Échec (id introuvable après coup, ou stockage bloqué) : bannière, aucun changement de
+      // stage, l'échange reste intact — jamais de demi-état.
+      setError("Impossible de transformer cet échange en projet — le stockage du navigateur est peut-être bloqué.");
+    } finally {
+      setEngaging(false);
+    }
+  }
 
   // Persistance IndexedDB (docs/13) : à chaque état stabilisé, on enregistre la conversation
   // Projet (création à la volée au 1er message). Jamais en démo, jamais un message en streaming.
@@ -970,18 +1048,28 @@ export default function VoicePage() {
       } else if (isCurrent() && raw.trim()) {
         // P0-3 : le flux s'est coupé APRÈS des deltas mais AVANT l'événement "done". Sans ce
         // repli, la bulle resterait figée en `streaming:true` pour toujours et le tour ne
-        // serait jamais persisté. On finalise depuis ce qu'on a déjà reçu, via la MÊME
-        // extraction que le serveur (parseReply) — couvre aussi la ligne MAQUETTE.
-        const parsed = parseReply(raw);
-        finalize({
-          reply: parsed.reply || raw.trim(),
-          mode: parsed.mode,
-          isNote: parsed.isNote,
-          questions: (parsed.questions as Question[] | null) ?? undefined,
-          spoken: parsed.spoken,
-          board: parsed.board,
-          maquetteSeed: parsed.maquetteSeed,
-        });
+        // serait jamais persisté. Le repli se branche sur `stageAtSend` (garde-fou reporté de
+        // l'incr. 2, docs/26 §incrément 3) — JAMAIS sur un contenu du flux : en stage "echange",
+        // ECHANGE_OPS ne produit AUCUN protocole MODE:/VOIX:/BOARD:, donc passer `raw` dans
+        // `parseReply` lui ferait déduire à tort `mode:"questions"` (son défaut faute de ligne
+        // MODE:) — on finalise directement le texte oral brut, à l'identique de ce que le serveur
+        // envoie sur l'événement "done" pour ce stage (cf. route.ts).
+        if (stageAtSend === "echange") {
+          finalize({ reply: raw.trim(), mode: "echange", isNote: false, questions: undefined, spoken: null, board: null });
+        } else {
+          // Hors stage "echange" : extraction via la MÊME logique que le serveur (parseReply) —
+          // couvre aussi la ligne MAQUETTE.
+          const parsed = parseReply(raw);
+          finalize({
+            reply: parsed.reply || raw.trim(),
+            mode: parsed.mode,
+            isNote: parsed.isNote,
+            questions: (parsed.questions as Question[] | null) ?? undefined,
+            spoken: parsed.spoken,
+            board: parsed.board,
+            maquetteSeed: parsed.maquetteSeed,
+          });
+        }
       }
     } catch (e) {
       if (!isCurrent() || (e instanceof Error && e.name === "AbortError")) return; // flux périmé/annulé : rien à afficher
@@ -1031,6 +1119,7 @@ export default function VoicePage() {
     maquetteAbortRef.current = null;
     stopAudio();
     resetRecognition();
+    setLoading(false); // P0-1 : le tour abandonné ne remettra plus loading=false (son finally est gardé par isCurrent)
     skipPersistRef.current = true;
     convIdRef.current = null;
     convCreatedAtRef.current = "";
@@ -1071,6 +1160,7 @@ export default function VoicePage() {
     maquetteAbortRef.current = null;
     stopAudio();
     resetRecognition();
+    setLoading(false); // P0-1 : idem newConversation — sinon le composer reste figé « Je réfléchis… » après ouverture
     skipPersistRef.current = true;
     convIdRef.current = conv.id;
     convCreatedAtRef.current = conv.createdAt;
@@ -1084,7 +1174,10 @@ export default function VoicePage() {
     const msgs = conv.messages as Msg[];
     setMessages(msgs);
     autoPlayedRef.current = msgs.length - 1;
-    const loadedBoard = (conv.board as Board) ?? null;
+    // Garde de cohérence (revue reportée incr. 2, docs/26 §incrément 3) : ouvrir depuis
+    // l'historique une conversation "echange" ouvre le rail échange PROPREMENT — jamais de
+    // demi-état, même si l'objet stocké contient un board incohérent. Cf. `boardForStage`.
+    const loadedBoard = boardForStage(conv.stage, (conv.board as Board) ?? null);
     setBoard(loadedBoard);
     // La maquette survit au refresh/à la réouverture : kind + seed voyagent gratis via le board
     // (IndexedDB, unknown) — on redérive juste la phase pour router les tours suivants.
@@ -1364,6 +1457,19 @@ export default function VoicePage() {
             </span>
           </div>
           <span className="header-spacer" />
+          {/* Visible UNIQUEMENT au stage "echange" (docs/26 §incrément 3) — jamais sur une
+              conversation déjà engagée (cadrage/maquette/prod). */}
+          {stage === "echange" && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => void engageToProject()}
+              disabled={engaging}
+              title="Transformer cet échange en projet (conserve tout l'historique, même fil)"
+            >
+              {engaging ? "Transformation…" : "Transformer en projet →"}
+            </button>
+          )}
           <button
             type="button"
             className="cbtn"
