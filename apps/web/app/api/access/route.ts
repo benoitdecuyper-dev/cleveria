@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { ACCESS_COOKIE_NAME, deriveAccessToken, isGateEnabled, verifyAccessCode } from "../../../lib/accessGate";
+import { enforceRateLimit } from "../../../lib/rateLimitPolicy";
 
 // Runtime Node.js (comme les autres routes de l'app) — la comparaison de code n'a besoin de
 // rien de spécifique à Node, mais on reste cohérent avec le reste des API routes.
@@ -12,6 +13,11 @@ export const runtime = "nodejs";
 //   - Render (prod) : Dashboard → service web → Environment → ajouter CLEVERIA_ACCESS_CODE.
 //   - Local : facultatif, seulement si Benoit veut tester le gate lui-même (apps/web/.env).
 export async function POST(req: NextRequest) {
+  // Anti-brute-force (finding sécu) : indépendant du gate lui-même, pour que même un gate mal
+  // configuré ou désactivé n'expose pas ce endpoint au martelage.
+  const limited = enforceRateLimit(req, "access");
+  if (limited) return limited;
+
   const configured = process.env.CLEVERIA_ACCESS_CODE;
 
   if (!isGateEnabled() || !configured) {

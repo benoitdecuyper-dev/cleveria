@@ -1,6 +1,7 @@
 import { createRun, type Plan } from "../../../lib/runStore";
 import { orchestrate } from "../../../lib/orchestrator";
 import { demoOrchestrate } from "../../../lib/demo";
+import { enforceRateLimit } from "../../../lib/rateLimitPolicy";
 
 /** Ne garde que les champs du plan utiles à l'exécution (ignore agentLabel/role ajoutés côté API). */
 function sanitizePlan(plan: unknown): Plan | undefined {
@@ -28,6 +29,11 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 800; // Render = serveur Node persistant ; on laisse le temps au travail profond.
 
 export async function POST(req: Request) {
+  // Protège les crédits Anthropic : un run mobilise toute l'équipe d'agents, c'est l'appel le
+  // plus cher — plafond horaire, pas minute. Indépendant du gate d'accès.
+  const limited = enforceRateLimit(req, "run");
+  if (limited) return limited;
+
   try {
     const body = (await req.json().catch(() => ({}))) as { brief?: string; demo?: boolean; plan?: unknown };
     const demo = body.demo === true;

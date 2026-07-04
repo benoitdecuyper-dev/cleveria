@@ -5,6 +5,7 @@ import { humanError } from "../../../lib/orchestrator";
 import { llmGenerate, localProvider } from "../../../lib/llm";
 import { parseReply } from "../../../lib/parseReply";
 import { readUrl } from "../../../lib/research";
+import { enforceDailyBriefMaquette, enforceRateLimit } from "../../../lib/rateLimitPolicy";
 
 // Le lecteur d'agents lit le système de fichiers → runtime Node (pas Edge).
 export const runtime = "nodejs";
@@ -214,6 +215,11 @@ type ContentBlocks = Exclude<Anthropic.MessageParam["content"], string>;
 // fonction pure, testée indépendamment (lib/parseReply.test.ts).
 
 export async function POST(req: Request) {
+  // Protège les crédits Anthropic : plafond par minute propre à l'endpoint + garde-fou
+  // journalier partagé avec /api/maquette. Indépendant du gate d'accès.
+  const limited = enforceRateLimit(req, "brief") ?? enforceDailyBriefMaquette(req);
+  if (limited) return limited;
+
   try {
     const form = await req.formData();
     const text = (form.get("text") as string | null)?.trim() ?? "";

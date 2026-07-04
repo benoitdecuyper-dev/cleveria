@@ -3,6 +3,7 @@ import { demoMaquetteHtml } from "../../../lib/demo";
 import { buildUserMessage, stripHtmlFence } from "../../../lib/maquette";
 import { humanError, resolveModel } from "../../../lib/orchestrator";
 import { llmGenerate, localProvider } from "../../../lib/llm";
+import { enforceDailyBriefMaquette, enforceRateLimit } from "../../../lib/rateLimitPolicy";
 
 // Lit le miroir d'agents + appelle Claude → runtime Node, jamais Edge.
 export const runtime = "nodejs";
@@ -16,6 +17,11 @@ export const runtime = "nodejs";
 type MaquetteBody = { seed?: string; previousHtml?: string; feedback?: string; demo?: boolean };
 
 export async function POST(req: Request) {
+  // Protège les crédits Anthropic : plafond par minute propre à l'endpoint + garde-fou
+  // journalier partagé avec /api/brief. Indépendant du gate d'accès.
+  const limited = enforceRateLimit(req, "maquette") ?? enforceDailyBriefMaquette(req);
+  if (limited) return limited;
+
   try {
     const body = (await req.json().catch(() => ({}))) as MaquetteBody;
     const seed = (body.seed ?? "").trim();

@@ -1,6 +1,7 @@
 import { planForBrief, agentLabel, agentRole, humanError } from "../../../lib/orchestrator";
 import { DEMO_PLAN } from "../../../lib/demo";
 import type { Plan } from "../../../lib/runStore";
+import { enforceRateLimit } from "../../../lib/rateLimitPolicy";
 
 // Lit le miroir d'agents + appelle Claude (planificateur) → runtime Node, jamais Edge.
 export const runtime = "nodejs";
@@ -40,6 +41,10 @@ function enrich(plan: Plan): { summary: string; steps: RichStep[] } {
  * haute, et n'appelle /api/run qu'après le GO de l'utilisateur (avec ce même plan).
  */
 export async function POST(req: Request) {
+  // Protège les crédits Anthropic (appel Claude planificateur). Indépendant du gate d'accès.
+  const limited = enforceRateLimit(req, "plan");
+  if (limited) return limited;
+
   try {
     const body = (await req.json().catch(() => ({}))) as { brief?: string; demo?: boolean };
     const demo = body.demo === true;
