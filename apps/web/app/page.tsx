@@ -1,24 +1,28 @@
 import Link from "next/link";
 
-// Accueil (CLV-51, docs/22 §1) — plus de choix de mode a priori : un hero unique, un seul
-// CTA, qui mène directement à la surface conversationnelle (`/echange`). La conversation est
-// l'état zéro : elle peut rester un simple échange, ou devenir un Projet via la passerelle
-// « Transformer en projet » déjà présente dans `/echange` (geste explicite, pas un 2e chooser
-// ici). Accès discret conservé vers les projets déjà engagés et la démo, pour ne pas enfermer
-// un utilisateur qui revient.
+// Accueil (docs/24 — positionnement d'entrée) : on mène par le SITE (le service qui se vend),
+// pas par l'assistant générique. Promesse = voir une maquette gratuite de son futur site avant
+// tout paiement ; le « bras droit » passe en second rideau (mécanisme, pas tête d'affiche). Le
+// CTA mène à `/voice`, la surface qui porte la capture d'URL + la génération de maquette.
+// (Le flux « collez votre URL → maquette instantanée » complet est CLV-33/34, pas encore construit.)
 export default function Home() {
   return (
     <div className="hero-solo">
-      <p className="eyebrow">Votre équipe, à la demande</p>
-      <h1>Dites-nous ce que vous voulez faire</h1>
+      <p className="eyebrow">Création &amp; refonte de site internet — pour indépendants, TPE et associations</p>
+      <h1>Votre site, avant de payer un centime.</h1>
       <p className="lead hero-solo-lead">
-        Une conversation avec votre bras droit suffit pour démarrer. Il vous écoute, cadre votre
-        besoin avec vous, puis mobilise une équipe d'agents pour le réaliser — quand vous êtes
-        prêt à passer à l'action.
+        Décrivez votre activité, ou donnez-nous l'adresse de votre site actuel : en quelques
+        minutes, vous voyez une vraie maquette de votre futur site — gratuitement. Vous ne validez
+        un devis que si le résultat vous convainc ; c'est alors notre équipe qui construit le site
+        pour de vrai.
       </p>
-      <Link href="/echange" className="btn btn-primary btn-lg hero-solo-cta">
-        Commencer une conversation →
+      <Link href="/voice" className="btn btn-primary btn-lg hero-solo-cta">
+        Voir la maquette de mon site — gratuit →
       </Link>
+      <p className="hero-solo-note">
+        Pas de formulaire à remplir : vous en discutez avec votre bras droit Cleveria, qui construit
+        la maquette avec vous, à votre rythme.
+      </p>
       <p className="muted hero-solo-links">
         <Link href="/voice?history=1">Retrouver mes projets</Link>
         <span aria-hidden> · </span>

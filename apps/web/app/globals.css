@@ -546,6 +546,8 @@ h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
 .hero-solo-lead { font-size: clamp(1rem, 1.7vw, 1.1rem); margin: 0 0 1.6rem; }
 .hero-solo-cta { justify-content: center; width: 100%; }
 @media (min-width: 480px) { .hero-solo-cta { width: auto; padding-left: 1.5rem; padding-right: 1.5rem; } }
+/* Second rideau : le « bras droit » en soutien, une fois la promesse du site comprise (docs/24). */
+.hero-solo-note { margin: 0.9rem auto 0; max-width: 30rem; font-size: 0.9rem; color: var(--muted); }
 .hero-solo-links { margin-top: 1.1rem; font-size: 0.9rem; }
 
 /* ── /echange — conversation vocale mains-libres (docs/12) ───────────────────── */

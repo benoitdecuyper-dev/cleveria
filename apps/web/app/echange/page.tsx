@@ -759,7 +759,7 @@ export default function EchangePage() {
                 sendTyped();
               }
             }}
-            placeholder="…ou écris ici"
+            placeholder="Écrivez votre message…"
           />
           <button type="button" className="cbtn send" onClick={sendTyped} disabled={!text.trim()} aria-label="Envoyer" title="Envoyer">
             <IcoSend />

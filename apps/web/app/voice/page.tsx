@@ -672,7 +672,7 @@ export default function VoicePage() {
     setError("");
     const feedback = rawText.trim();
     if (!feedback) {
-      setError("Décris la retouche à apporter (texte ou micro).");
+      setError("Décrivez la retouche à apporter (texte ou micro).");
       return;
     }
     // Cas limite : pas de graine (ne devrait pas arriver en phase maquette) ou 1ère génération
@@ -718,7 +718,7 @@ export default function VoicePage() {
     const extra = text.trim();
     const payload = [parts.join(" ; "), extra].filter(Boolean).join(" ; ");
     if (!payload) {
-      setError("Sélectionne au moins une réponse (ou écris).");
+      setError("Sélectionnez au moins une réponse (ou écrivez).");
       return;
     }
     setAnswers({});
@@ -743,7 +743,7 @@ export default function VoicePage() {
     const payload = (override ?? text).trim();
     const attached = files;
     if (!force && !payload && !demo && attached.length === 0 && !url.trim()) {
-      setError("Parle (🎤), écris, ou joins un fichier.");
+      setError("Parlez (🎤), écrivez, ou joignez un fichier.");
       return;
     }
 
@@ -1342,7 +1342,7 @@ export default function VoicePage() {
 
       {demo && !started && (
         <div className="banner info">
-          ▶️ <strong>Démo</strong> — scénario pré-écrit, sans IA. Envoie le brief, réponds, donne le GO.
+          ▶️ <strong>Démo</strong> — scénario pré-écrit, sans IA. Envoyez le brief, répondez, donnez le GO.
         </div>
       )}
 

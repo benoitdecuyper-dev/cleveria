@@ -5,8 +5,9 @@ import ThemeToggle from "./components/ThemeToggle";
 import "./globals.css";
 
 export const metadata = {
-  title: "Cleveria — votre agence d'agents IA",
-  description: "Confiez votre besoin à votre bras droit : une équipe d'agents IA le cadre et le réalise.",
+  title: "Cleveria — votre site web, avant de payer un centime",
+  description:
+    "Décrivez votre activité ou donnez l'adresse de votre site actuel : voyez une maquette gratuite de votre futur site. Vous ne validez un devis que si le résultat vous convainc.",
 };
 
 // Pose le thème sur <html> AVANT le paint (pas de flash blanc en mode nuit) : localStorage
