@@ -127,14 +127,49 @@ production + abonnement qui installe la récurrence.**
 | **Vitrine** | Site multi-sections crédible (À propos, Services, Tarifs, Preuve sociale, Contact — cf. CLV-43), création ou rebranding | **690 €** | sous le freelance bas |
 | **Sur-mesure** | Multi-pages, intégrations (RDV, formulaires, multi-langue) | **à partir de 1 490 €**, sur devis | freelance / bas agence |
 
-**B. Abonnement récurrent (optionnel, après livraison)**
+**B. Abonnement récurrent (optionnel, après livraison) — À COMPOSANTS SÉPARABLES**
 
-| Palier | Inclus | Prix HT | Quota (jamais illimité) |
+> **Règle produit (Benoit) : l'hébergement est un service LOURD ; si on n'a pas à héberger,
+> ça doit coûter moins cher.** Beaucoup de clients — surtout les cas *rebranding d'un site
+> existant* — ont déjà leur hébergement et leur domaine. On ne leur facture donc PAS
+> l'hébergement. Le récurrent se scinde en **un socle toujours présent** + **une option
+> hébergement désactivable.**
+
+**B.1 — D'où sortait le « 39 € » : décomposition ligne par ligne**
+
+L'ancien palier unique à 39 € regroupait, de fait, cinq postes de nature différente. Les
+séparer était nécessaire :
+
+| Poste couvert | Ce que ça fait | Coût direct estimé /mois | Repère marché |
 |---|---|---|---|
-| **Hébergement & tranquillité** | Hébergement + mise en ligne + sauvegarde + petites modifs | **19 €/mois** | **2 modifs mineures / mois**, 1 site |
-| **Site vivant + assistant** | Le précédent + assistant scopé au site (mémoire, CLV-49) + évolutions | **39 €/mois** | **20 itérations maquette / mois + 1 run d'évolution / mois**, overage facturé |
+| Assistant scopé + mémoire | Assistant qui connaît le site (CLV-49), mémoire distillée, itérations d'évolution | ≈ 1–3 € (API au quota) | builders IA 12–39 $/mois |
+| Maintenance / sécurité / sauvegarde | Monitoring uptime, correctifs, sauvegardes, mises en ligne | ≈ 0–2 € (surtout du temps) | maintenance basique **29–80 €/mois HT** ([WeComm](https://wecomm.fr/prix-maintenance-site-internet/), [ellebay](https://ellebay-digital.com/blog/cout-maintenance-site-web-2026)) |
+| Support | Canal de contact + réponses | provision ≈ 2 € | inclus dans les forfaits maintenance |
+| **Sous-total « site vivant » (hors hébergement)** | | **≈ 4–5 €** | |
+| Hébergement mutualisé | Serveur, TLS, bande passante | ≈ 2–9 € | o2switch **1,76→9 € HT**, OVH **3,29→7,19 € HT** ([o2switch](https://www.o2switch.fr/comparatif-des-offres-dhebergement-web/), [tool-advisor](https://tool-advisor.fr/blog/cout-hebergement-site-web/)) |
+| Nom de domaine | Enregistrement + renouvellement | ≈ 1 € (≈ 12 €/an, *à confirmer*) | — |
+| **Sous-total « hébergement + domaine »** | | **≈ 3–10 €**, central ~6 € | |
 
-Prix cohérents avec le marché de la maintenance (29–49 €/mois) et des builders IA (17–39 $).
+Le 39 € mélangeait un cœur à ~4–5 € de coût (l'assistant + la maintenance, la vraie douve)
+et un pass-through d'hébergement à ~6 € de coût. **Les deux n'ont ni le même coût, ni la même
+valeur, ni la même pertinence selon le client** → on dégroupe.
+
+**B.2 — Nouvelle structure (2 composants)**
+
+| Composant | Inclus | Prix HT/mois | Quota (jamais illimité) |
+|---|---|---|---|
+| **Socle « Site vivant + assistant »** *(toujours là)* | Assistant scopé + mémoire (CLV-49) + maintenance/sécu/sauvegarde + support + évolutions | **24 €/mois** | **20 itérations maquette / mois + 1 run d'évolution / mois**, overage facturé |
+| **Option « Hébergement + nom de domaine »** *(désactivable)* | Hébergement du site + domaine + mise en ligne + TLS | **+9 €/mois** | 1 site hébergé |
+
+**Les 2 prix résultants :**
+- **Client qui héberge déjà (ex. rebranding) : 24 €/mois HT** — socle seul.
+- **Client hébergé par Cleveria : 33 €/mois HT** — socle + option (24 + 9).
+
+On passe donc de **39 € indifférencié à 24 €/33 € selon le service réellement rendu** — moins
+cher pour qui n'a pas besoin d'hébergement, conforme à la règle Benoit. Le socle à 24 € reste
+**sous le marché de la maintenance basique** (29–80 €/mois HT), ce qui est cohérent : notre
+coût marginal est quasi nul et l'assistant ajoute une valeur que la maintenance classique n'a
+pas.
 
 ---
 
@@ -155,23 +190,34 @@ Même en doublant la provision de reprise (24 %, scénario pessimiste où beauco
 nécessitent un humain), la marge Vitrine reste **≈ 76 %**. **La production API n'est jamais le
 risque ; la reprise humaine l'est.**
 
-### 3.2 — Abonnement (récurrent)
+### 3.2 — Abonnement (récurrent) — par composant
 
-| Palier | Prix HT/mois | Coût API max au quota | Coût hébergement | Marge brute €/mois |
+| Cas | Prix HT/mois | Coûts directs /mois | Marge brute €/mois | Marge % |
 |---|---|---|---|---|
-| Hébergement & tranquillité | 19 € | ≈ 0,5 € (2 modifs) | ≈ 3 € | **≈ 15,5 €** |
-| Site vivant + assistant | 39 € | ≈ 20 × 0,11 € + 1 run ≈ 2,8 € | ≈ 3 € | **≈ 33 €** |
+| **Socle seul** (client héberge déjà) | 24 € | API au quota ≈ 2,8 € + support/maint. ≈ 2 € = **~5 €** | **≈ 19 €** | **79 %** |
+| **Option hébergement seule** | 9 € | hébergement ≈ 5 € + domaine ≈ 1 € = **~6 €** | **≈ 3 €** | **33 %** |
+| **Socle + hébergement** (tout compris) | 33 € | ≈ 11 € | **≈ 22 €** | **67 %** |
 
-Le quota est calibré pour que **même un abonné qui consomme tout son quota reste rentable** —
-c'est la traduction directe de la règle « faire payer le run à son coût » (doc 08).
+**Lecture.** Le **socle est le vrai centre de profit** (79 % de marge) — c'est la douve
+(assistant + mémoire + maintenance). **L'option hébergement est un quasi-pass-through**
+(33 % de marge, assumé) : on ne cherche pas à en faire une marge, juste à ne pas la subir. Un
+client qui héberge déjà paie **24 € et nous laisse notre meilleure marge** ; on ne perd donc
+rien à dégrouper, au contraire — on retire un service lourd et peu margé quand il est inutile.
+
+Le quota (20 itérations + 1 run/mois) est calibré pour que **même un abonné qui le consomme
+entièrement reste rentable** — traduction directe de « faire payer le run à son coût » (doc 08).
+Note : l'hébergement mutualisé peut porter **plusieurs sites** sur un même compte hébergeur
+(o2switch/OVH ne facturent pas au site) → à volume, le coût réel de l'option baisse sous 5 €,
+la marge de l'option remonte. *(à confirmer selon l'offre hébergeur retenue.)*
 
 ### 3.3 — Point mort
 
 - **Coûts fixes ≈ 50 €/mois** (ancre doc 08).
 - **En one-shot :** une seule vente **Vitrine** (marge ≈ 600 €) couvre **≈ 12 mois** de fixes.
   → **point mort < 1 site vendu par mois.** Le point mort n'est pas l'enjeu du modèle one-shot.
-- **En récurrent :** point mort ≈ 50 € / 33 € ≈ **~2 abonnés « 39 € »** (ou ~4 abonnés
-  « 19 € », cohérent avec le **point mort ≈ 4 clients** du doc 08 pour un abonnement ~29 €).
+- **En récurrent :** point mort ≈ 50 € de fixes / **19 €** de marge socle ≈ **~3 abonnés
+  socle** (cohérent avec le **point mort ≈ 4 clients** du doc 08). L'option hébergement, à
+  ~3 € de marge, ne contribue quasi pas au point mort — c'est voulu, elle n'est pas là pour ça.
 
 **Le vrai enjeu n'est donc pas le point mort (atteint vite) mais le CAC et le taux de
 conversion prospect gratuit → devis payé** — c'est là que se joue le résultat, pas dans le coût
@@ -219,11 +265,13 @@ Traduction opérationnelle de « jamais d'illimité » :
   d'évolution. La maquette pré-devis a déjà servi à décider.
 
 **Abonnement (le poste à risque de marge négative) :**
-- « 19 € » : **2 modifs mineures/mois**, **1 site**, **aucun run d'évolution** (les évolutions
-  lourdes basculent sur devis ou sur le palier 39 €).
-- « 39 € » : **20 itérations maquette/mois + 1 run d'évolution/mois inclus.** Excédent →
-  **overage facturé au coût majoré** (ex. run d'évolution supplémentaire ≈ 1,50 € HT, soit
-  ~3× le coût) **ou** blocage jusqu'au mois suivant. Jamais d'évolution illimitée.
+- **Socle « Site vivant » (24 €) :** **20 itérations maquette/mois + 1 run d'évolution/mois
+  inclus.** Excédent → **overage facturé au coût majoré** (ex. run d'évolution supplémentaire
+  ≈ 1,50 € HT, soit ~3× le coût) **ou** blocage jusqu'au mois suivant. Jamais d'évolution
+  illimitée.
+- **Option hébergement (+9 €) :** **1 site hébergé** par abonnement. Sites additionnels →
+  option supplémentaire, pas d'empilement gratuit. Désactivable à tout moment si le client
+  rapatrie son hébergement (et le prix retombe à 24 €).
 - **Règle d'or (doc 08) :** tout dépassement de quota **fait payer le run à son coût**. Un
   quota qui laisserait passer un usage à marge négative est un bug produit, pas une générosité.
 
@@ -232,9 +280,11 @@ Traduction opérationnelle de « jamais d'illimité » :
 ## 6. Conclusion : viable sous conditions
 
 **Viable sous conditions.** Le modèle est **structurellement à très forte marge brute**
-(> 85 % sur le one-shot, > 80 % sur l'abonnement) et **cash-positif dès le premier site vendu**
-(pas de capex, coût marginal de production ≈ quelques euros). Le point mort est atteint avec
-**< 1 vente/mois** (one-shot) ou **~2–4 abonnés** (récurrent, cohérent doc 08).
+(> 85 % sur le one-shot, ≈ 79 % sur le socle d'abonnement — l'option hébergement, quasi
+pass-through à ~33 %, ne dégrade pas le cœur puisqu'elle est séparée) et **cash-positif dès le
+premier site vendu** (pas de capex, coût marginal de production ≈ quelques euros). Le point
+mort est atteint avec **< 1 vente/mois** (one-shot) ou **~3 abonnés socle** (récurrent,
+cohérent doc 08).
 
 Les conditions — **rien d'financier, tout de l'opérationnel** :
 1. **Mesurer le taux de reprise humaine** sur les 10 premières productions (le seul poste qui
