@@ -19,7 +19,9 @@ import {
   renameConversation,
   saveConversation,
   type ConversationSummary,
+  type ProjectStage,
 } from "../../lib/history";
+import { stageForBrief, derivePersistStage } from "../../lib/briefStage";
 
 // ── Types (alignés sur /api/brief et /api/plan) ───────────────────────────────
 type Question = {
@@ -29,7 +31,10 @@ type Question = {
   options?: string[];
   allowFreeText?: boolean;
 };
-type Mode = "direct" | "questions" | "cadrage" | "maquette";
+// "echange" ajouté (docs/26 §incrément 2) : /api/brief renvoie `mode:"echange"` pour un tour au
+// stage non-engagé (ECHANGE_OPS) — jamais produit par le LLM lui-même (pas de ligne MODE: en
+// ECHANGE_OPS), juste posé par le serveur sur l'événement "done" (route.ts).
+type Mode = "direct" | "questions" | "cadrage" | "maquette" | "echange";
 type Msg = {
   role: "user" | "assistant";
   text: string;
@@ -195,6 +200,12 @@ export default function VoicePage() {
   const [convList, setConvList] = useState<ConversationSummary[]>([]);
   const [convId, setConvId] = useState<string | null>(null);
   const [histOpen, setHistOpen] = useState(false);
+  // Stage de la conversation courante (docs/23 §2.1, rail docs/26 §incrément 2). DÉFAUT
+  // "cadrage" : une NOUVELLE conversation démarre toujours engagée (maquette-first, le chemin qui
+  // vend) — comportement STRICTEMENT inchangé. Le stage "echange" n'est atteint qu'en ouvrant
+  // depuis l'historique une conversation qui l'a déjà (rail dormant : aucun point d'entrée ne
+  // crée encore de conversation "echange" sur /voice — posé pour les incréments 3 et 5).
+  const [stage, setStage] = useState<ProjectStage>("cadrage");
 
   const [launching, setLaunching] = useState(false);
   // Réponses sélectionnées au formulaire de questions (par id de question). On envoie la sélection,
@@ -410,6 +421,7 @@ export default function VoicePage() {
           titleCustomRef.current = conv.titleIsCustom;
           titleRef.current = conv.title;
           setConvId(conv.id);
+          setStage(conv.stage);
           const msgs = conv.messages as Msg[];
           setMessages(msgs);
           autoPlayedRef.current = msgs.length - 1; // ne pas relire l'historique à voix haute
@@ -464,9 +476,12 @@ export default function VoicePage() {
       try {
         await saveConversation({
           id,
-          // /voice est toujours une surface engagée (jamais l'état zéro "echange") : le stage
-          // fin (cadrage vs maquette) est dérivé du board, pas de la ligne MODE: du LLM.
-          stage: (board as { kind?: string } | null)?.kind === "maquette" ? "maquette" : "cadrage",
+          // Le stage écrit suit l'ÉTAT du composant, jamais une ligne MODE: du LLM (docs/23
+          // §2.2 règle 1). Par défaut (aucun point d'entrée ne pose encore "echange") une
+          // conversation /voice reste toujours engagée — le stage fin (cadrage vs maquette) est
+          // dérivé du board. Rail docs/26 §incrément 2 : si `stage` vaut "echange" (conversation
+          // non-engagée ouverte depuis l'historique), on l'écrit tel quel, `board` restant null.
+          stage: derivePersistStage(stage, board as { kind?: string } | null),
           title,
           titleIsCustom: titleCustomRef.current,
           messages: messages.map((m) => ({ ...m, streaming: undefined })),
@@ -481,7 +496,7 @@ export default function VoicePage() {
         setError("Impossible de sauvegarder cette conversation — le stockage du navigateur est peut-être bloqué.");
       }
     })();
-  }, [messages, board, demo, refreshList]);
+  }, [messages, board, demo, refreshList, stage]);
 
   // ── STT navigateur : la transcription s'écrit dans le champ, ÉDITABLE ─────────
   function startRec() {
@@ -728,8 +743,15 @@ export default function VoicePage() {
   // ── Un tour de conversation (texte uniquement : la voix a déjà été transcrite) ─
   async function send(opts: { force?: boolean; override?: string } = {}) {
     const { force = false, override } = opts;
+    // Stage figé pour TOUTE la durée de ce tour (docs/26 §incrément 2) : capté une fois ici,
+    // jamais relu depuis l'état React pendant le flux — un changement de conversation en vol
+    // annule déjà ce flux via `isCurrent()` avant qu'il ne touche l'état, donc ce figeage ne
+    // risque aucune incohérence, il documente juste l'intention.
+    const stageAtSend = stage;
     // Fast-path retouche (docs/18 §4/§7) : en phase maquette, tout texte du composer EST une
     // retouche → direct au maquettiste, jamais au bras droit. Cf. sendMaquetteFeedback ci-dessus.
+    // Hors périmètre du stage "echange" par construction : une conversation "echange" n'a jamais
+    // de board (donc jamais de phase "maquette", cf. openConversation/bootstrap).
     if (phase === "maquette") {
       await sendMaquetteFeedback(override ?? text);
       return;
@@ -770,10 +792,12 @@ export default function VoicePage() {
     setUrl(""); // capturée une seule fois, au 1er tour — jamais renvoyée aux tours suivants
     try {
       const fd = new FormData();
-      // `stage` généralise `mode` côté serveur (docs/23 §2.2 règle 1) : /voice est une surface
-      // déjà engagée (jamais "echange"), donc /api/brief garde son triage MODE:/BOARD: habituel
-      // (BRAS_DROIT_INSTRUCTIONS). Comportement identique à aujourd'hui (absence de mode=echange).
-      fd.append("stage", "cadrage");
+      // `stage` généralise `mode` côté serveur (docs/23 §2.2 règle 1). Par défaut (aucune
+      // conversation "echange" n'est encore atteignable sur /voice, rail dormant docs/26
+      // §incrément 2) on envoie toujours "cadrage" : /api/brief garde son triage MODE:/BOARD:
+      // habituel (BRAS_DROIT_INSTRUCTIONS) — comportement identique à aujourd'hui. Seule une
+      // conversation ouverte au stage "echange" envoie "echange" (bascule serveur ECHANGE_OPS).
+      fd.append("stage", stageForBrief(stageAtSend));
       fd.append("history", JSON.stringify(messages.map((m) => ({ role: m.role, content: m.text }))));
       fd.append("text", payload);
       for (const f of attached) fd.append("files", f);
@@ -893,36 +917,45 @@ export default function VoicePage() {
           }
           if (evt.t === "delta") {
             raw += evt.text ?? "";
-            if (!headerParsed) {
-              const nl = raw.indexOf("\n");
-              if (nl >= 0) {
-                const mm = /^MODE:\s*(direct|questions|cadrage|maquette)/i.exec(raw.slice(0, nl));
-                liveMode = (mm?.[1]?.toLowerCase() as Mode) ?? "questions";
-                headerParsed = true;
+            // Stage "echange" (docs/26 §incrément 2, rail dormant) : ECHANGE_OPS renvoie du
+            // texte oral BRUT, SANS ligne MODE:/VOIX:/BOARD: (cf. route.ts) — on l'affiche en
+            // live tel quel, sans tenter aucun parse board/questions/MODE. Le garde-fou stage se
+            // lit sur `stageAtSend` (état figé au début du tour), JAMAIS sur une ligne MODE: du
+            // LLM : cette branche ne dépend d'aucun contenu du flux.
+            if (stageAtSend === "echange") {
+              showLive(raw);
+            } else {
+              if (!headerParsed) {
+                const nl = raw.indexOf("\n");
+                if (nl >= 0) {
+                  const mm = /^MODE:\s*(direct|questions|cadrage|maquette)/i.exec(raw.slice(0, nl));
+                  liveMode = (mm?.[1]?.toLowerCase() as Mode) ?? "questions";
+                  headerParsed = true;
+                }
               }
-            }
-            // Voix en premier : la ligne VOIX arrive tout au début du flux. Pour les réponses
-            // LONGUES (board / questions), on la LIT dès qu'elle est complète, sans attendre la
-            // fin de l'écriture (sinon la voix ne démarre qu'après ~20 s de génération du board).
-            // Direct court : on laisse l'auto-lecture après coup (qui gère aussi la ré-écoute).
-            if (!spokeEarly && voiceOn && isCurrent()) {
-              const voixM = /^\s*VOIX\s*:\s*(.+)\n/im.exec(raw);
-              const longReply = liveMode === "questions" || /^\s*BOARD\s*:/im.test(raw) || /```json/.test(raw);
-              if (voixM && longReply) {
-                spokeEarly = true;
-                autoPlayedRef.current = optimistic.length; // pas de relecture en double après done
-                void speak(voixM[1].trim(), optimistic.length, true);
+              // Voix en premier : la ligne VOIX arrive tout au début du flux. Pour les réponses
+              // LONGUES (board / questions), on la LIT dès qu'elle est complète, sans attendre la
+              // fin de l'écriture (sinon la voix ne démarre qu'après ~20 s de génération du board).
+              // Direct court : on laisse l'auto-lecture après coup (qui gère aussi la ré-écoute).
+              if (!spokeEarly && voiceOn && isCurrent()) {
+                const voixM = /^\s*VOIX\s*:\s*(.+)\n/im.exec(raw);
+                const longReply = liveMode === "questions" || /^\s*BOARD\s*:/im.test(raw) || /```json/.test(raw);
+                if (voixM && longReply) {
+                  spokeEarly = true;
+                  autoPlayedRef.current = optimistic.length; // pas de relecture en double après done
+                  void speak(voixM[1].trim(), optimistic.length, true);
+                }
               }
-            }
-            // Affichage live hors mode "questions" (qui contient un bloc JSON à ne pas montrer brut).
-            if (headerParsed && liveMode !== "questions") {
-              const ps = parseStream(raw);
-              if (ps.board) {
-                // Le livrable se construit dans le board ; le chat ne montre que la voix.
-                if (isCurrent()) setBoard({ title: ps.boardTitle || "Brouillon", content: stripJson(ps.body) });
-                showLive(ps.spoken || "Je rédige le brouillon dans le board…");
-              } else {
-                showLive(stripJson(ps.body));
+              // Affichage live hors mode "questions" (qui contient un bloc JSON à ne pas montrer brut).
+              if (headerParsed && liveMode !== "questions") {
+                const ps = parseStream(raw);
+                if (ps.board) {
+                  // Le livrable se construit dans le board ; le chat ne montre que la voix.
+                  if (isCurrent()) setBoard({ title: ps.boardTitle || "Brouillon", content: stripJson(ps.body) });
+                  showLive(ps.spoken || "Je rédige le brouillon dans le board…");
+                } else {
+                  showLive(stripJson(ps.body));
+                }
               }
             }
           } else if (evt.t === "done") {
@@ -1004,6 +1037,10 @@ export default function VoicePage() {
     titleCustomRef.current = false;
     titleRef.current = "";
     setConvId(null);
+    // Défaut STRICTEMENT inchangé (docs/26 §incrément 2) : une nouvelle conversation démarre
+    // toujours engagée (cadrage/maquette-first) — le stage "echange" n'est jamais le point de
+    // départ d'une conversation neuve.
+    setStage("cadrage");
     setMessages([]);
     setBoard(null);
     setText("");
@@ -1040,6 +1077,10 @@ export default function VoicePage() {
     titleCustomRef.current = conv.titleIsCustom;
     titleRef.current = conv.title;
     setConvId(conv.id);
+    // Rail docs/26 §incrément 2 : le stage suit celui de LA CONVERSATION OUVERTE (jamais dérivé
+    // du contenu/LLM) — c'est le SEUL chemin par lequel /voice peut porter un stage "echange"
+    // aujourd'hui (aucun point d'entrée ne crée encore une telle conversation depuis /voice).
+    setStage(conv.stage);
     const msgs = conv.messages as Msg[];
     setMessages(msgs);
     autoPlayedRef.current = msgs.length - 1;
