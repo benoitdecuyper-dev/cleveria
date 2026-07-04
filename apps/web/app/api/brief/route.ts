@@ -224,9 +224,16 @@ export async function POST(req: Request) {
     // URL optionnelle en entrée (service site, docs/19 §1) : capture du contenu RÉEL d'un site
     // existant pour un rebranding — injectée plus bas dans le brief, jamais dans un écran séparé.
     const rawUrl = (form.get("url") as string | null)?.trim() ?? "";
-    // Mode d'UX explicite (docs/12) : "echange" = conversation vocale sans board ni triage.
-    // Absent → comportement historique (le modèle trie direct/questions/cadrage).
-    const echange = (form.get("mode") as string | null) === "echange";
+    // Garde-fou d'engagement (docs/23 §2.2 règle 1, CLV-52) : le choix ECHANGE_OPS vs le triage
+    // BRAS_DROIT_INSTRUCTIONS se lit sur le `stage` de L'OBJET transmis par le client, JAMAIS sur
+    // une ligne MODE: écrite par le LLM au tour précédent — le LLM n'a aucun levier sur
+    // l'engagement. `stage` généralise l'ancien `mode=echange` : seul `stage==="echange"` bascule
+    // en ECHANGE_OPS, tout le reste (cadrage/maquette/prod, y compris absent) reste le triage
+    // habituel. `mode` legacy reste lu en repli tant que tous les appelants n'envoient pas encore
+    // `stage` (aucune régression de comportement : echange→ECHANGE_OPS, cadrage→triage, inchangé).
+    const stage = (form.get("stage") as string | null) ?? undefined;
+    const legacyMode = (form.get("mode") as string | null) ?? undefined;
+    const echange = stage ? stage === "echange" : legacyMode === "echange";
     // Contexte utilisateur (profil, projets passés, style, préfs delivery). Vide tant que l'auth V2
     // n'est pas branchée ; un appelant peut déjà l'injecter.
     const userContext = (form.get("userContext") as string | null)?.trim() ?? "";

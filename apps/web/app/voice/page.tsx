@@ -464,7 +464,9 @@ export default function VoicePage() {
       try {
         await saveConversation({
           id,
-          mode: "voice",
+          // /voice est toujours une surface engagée (jamais l'état zéro "echange") : le stage
+          // fin (cadrage vs maquette) est dérivé du board, pas de la ligne MODE: du LLM.
+          stage: (board as { kind?: string } | null)?.kind === "maquette" ? "maquette" : "cadrage",
           title,
           titleIsCustom: titleCustomRef.current,
           messages: messages.map((m) => ({ ...m, streaming: undefined })),
@@ -472,7 +474,7 @@ export default function VoicePage() {
           createdAt: convCreatedAtRef.current || nowIso(),
           updatedAt: nowIso(),
           userId: null,
-          schemaVersion: 1,
+          schemaVersion: 2,
         });
         await refreshList();
       } catch {
@@ -768,6 +770,10 @@ export default function VoicePage() {
     setUrl(""); // capturée une seule fois, au 1er tour — jamais renvoyée aux tours suivants
     try {
       const fd = new FormData();
+      // `stage` généralise `mode` côté serveur (docs/23 §2.2 règle 1) : /voice est une surface
+      // déjà engagée (jamais "echange"), donc /api/brief garde son triage MODE:/BOARD: habituel
+      // (BRAS_DROIT_INSTRUCTIONS). Comportement identique à aujourd'hui (absence de mode=echange).
+      fd.append("stage", "cadrage");
       fd.append("history", JSON.stringify(messages.map((m) => ({ role: m.role, content: m.text }))));
       fd.append("text", payload);
       for (const f of attached) fd.append("files", f);

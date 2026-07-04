@@ -146,7 +146,7 @@ export default function EchangePage() {
     titleRef.current = title;
     const conv: StoredConversation = {
       id,
-      mode: "echange",
+      stage: "echange",
       title,
       titleIsCustom: titleCustomRef.current,
       messages: msgs,
@@ -154,7 +154,7 @@ export default function EchangePage() {
       createdAt: convCreatedAtRef.current || nowIso(),
       updatedAt: nowIso(),
       userId: null,
-      schemaVersion: 1,
+      schemaVersion: 2,
     };
     // P0-2 : saveConversation REMONTE l'échec (stockage bloqué/quota) — on ne l'avale pas, on
     // prévient via la bannière d'erreur existante. On continue à échanger (pas de blocage).
@@ -371,6 +371,10 @@ export default function EchangePage() {
 
       try {
         const fd = new FormData();
+        // `stage` généralise `mode` (docs/23 §2.2 règle 1) : le serveur choisit ses ops
+        // d'après l'état de l'objet, jamais d'après une ligne MODE: du LLM. `mode` reste
+        // envoyé en plus, legacy, tant que la transition n'est pas terminée partout.
+        fd.append("stage", "echange");
         fd.append("mode", "echange");
         fd.append("history", JSON.stringify(history));
         fd.append("text", clean);
@@ -580,7 +584,10 @@ export default function EchangePage() {
     try {
       await saveConversation({
         id,
-        mode: "voice",
+        // NB : la passerelle fork encore une nouvelle conversation ici (comportement actuel,
+        // inchangé — la promotion EN PLACE est CLV-53, hors périmètre CLV-52). Le nouvel objet
+        // nait directement engagé : stage "cadrage", pas "echange".
+        stage: "cadrage",
         title: autoTitle(slim.find((m) => m.role === "user")?.text ?? ""),
         titleIsCustom: false,
         messages: slim,
@@ -589,7 +596,7 @@ export default function EchangePage() {
         createdAt: now,
         updatedAt: now,
         userId: null,
-        schemaVersion: 1,
+        schemaVersion: 2,
       });
     } catch {
       // P0-2 : stockage indisponible → on NE navigue PAS vers /voice (qui repartirait vide,

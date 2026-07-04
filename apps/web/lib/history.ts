@@ -5,11 +5,40 @@
 // charger tout le contenu. Tout s'exécute côté navigateur (appelé depuis des composants client).
 import { get, set, del } from "idb-keyval";
 
+// Legacy (schemaVersion 1) : confondait surface d'UX et état d'engagement. Conservé en lecture
+// (compat) et encore accepté en écriture pendant la transition (CLV-52), mais n'est plus la
+// source de vérité — cf. `stage` ci-dessous (docs/23 §2.1).
 export type ConversationMode = "echange" | "voice";
+
+// Cycle de vie de l'objet (docs/22 CLV-46, docs/23 §2.1) — remplace `mode` comme discriminant de
+// vérité. "echange" = état zéro, pas de board, jetable. "cadrage"/"maquette"/"prod" = ENGAGÉ (un
+// board existe / un run a été lancé). La transition echange→engagé n'est JAMAIS dérivée d'une
+// ligne MODE: du LLM : elle passe uniquement par `engageProject()` (acte utilisateur explicite).
+export type ProjectStage = "echange" | "cadrage" | "maquette" | "prod";
 
 // messages/board restent au format de chaque page (on enveloppe, on ne réécrit pas) → unknown,
 // caste côté page au chargement. userId/schemaVersion posés pour le pont Supabase V2 (docs/13 §8).
 export type StoredConversation = {
+  id: string;
+  stage: ProjectStage;          // REMPLACE `mode` comme source de vérité (schemaVersion 2)
+  mode?: ConversationMode;      // legacy — plus écrit à dessein par le code neuf, encore lu/toléré
+  title: string;
+  titleIsCustom: boolean;
+  messages: unknown[];
+  board: unknown | null;
+  runId?: string | null;        // lien vers /run/[id] (posé par le GO prod — hors périmètre CLV-52)
+  engagedAt?: string | null;    // horodatage de l'acte echange→engagé, posé par engageProject()
+  sourceConversationId?: string;
+  createdAt: string;
+  updatedAt: string;
+  userId: string | null;
+  schemaVersion: 2;
+};
+
+export type ConversationSummary = Pick<StoredConversation, "id" | "stage" | "title" | "updatedAt">;
+
+// ── Forme legacy sur disque (schemaVersion 1) — décrit ce qu'on peut lire, jamais ce qu'on écrit.
+type StoredConversationV1 = {
   id: string;
   mode: ConversationMode;
   title: string;
@@ -22,8 +51,43 @@ export type StoredConversation = {
   userId: string | null;
   schemaVersion: 1;
 };
+type ConversationSummaryV1 = { id: string; mode: ConversationMode; title: string; updatedAt: string };
 
-export type ConversationSummary = Pick<StoredConversation, "id" | "mode" | "title" | "updatedAt">;
+/**
+ * Dérive un `stage` depuis un `mode` legacy + le contenu déjà présent (docs/23 §3.3) :
+ * `mode:"echange"` → `"echange"` ; `mode:"voice"` → engagé, affiné par le contenu
+ * (`runId` posé → `"prod"` ; maquette dans le board → `"maquette"` ; sinon `"cadrage"`, le cas
+ * par défaut d'un objet déjà engagé). Pure, ne modifie rien : le remap est appliqué à la LECTURE.
+ */
+export function deriveLegacyStage(mode: ConversationMode, board: unknown, runId?: string | null): ProjectStage {
+  if (mode === "echange") return "echange";
+  if (runId) return "prod";
+  const b = board as { kind?: string } | null;
+  if (b && b.kind === "maquette") return "maquette";
+  return "cadrage";
+}
+
+/**
+ * Remap paresseux `schemaVersion` 1→2 (docs/23 §2.1/§3.3) : additif, non destructif — un
+ * enregistrement v1 est traduit à la volée à chaque lecture, RIEN n'est réécrit sur disque tant
+ * que l'appelant ne resauvegarde pas explicitement (`saveConversation`). `mode` reste présent
+ * (legacy, toléré) pour ne perdre aucune donnée existante.
+ */
+export function normalizeConversation(raw: StoredConversation | StoredConversationV1): StoredConversation {
+  if (raw.schemaVersion === 2) return raw;
+  return {
+    ...raw,
+    stage: deriveLegacyStage(raw.mode, raw.board, undefined),
+    runId: null,
+    engagedAt: null,
+    schemaVersion: 2,
+  };
+}
+
+export function normalizeSummary(raw: ConversationSummary | ConversationSummaryV1): ConversationSummary {
+  if ("stage" in raw) return raw;
+  return { id: raw.id, stage: raw.mode === "echange" ? "echange" : "cadrage", title: raw.title, updatedAt: raw.updatedAt };
+}
 
 const INDEX_KEY = "cleveria:conv:index";
 const convKey = (id: string) => `cleveria:conv:${id}`;
@@ -39,8 +103,8 @@ let migrationRan = false;
 // ── Index ─────────────────────────────────────────────────────────────────────
 async function readIndex(): Promise<ConversationSummary[]> {
   try {
-    const idx = await get<ConversationSummary[]>(INDEX_KEY);
-    return Array.isArray(idx) ? idx : [];
+    const idx = await get<(ConversationSummary | ConversationSummaryV1)[]>(INDEX_KEY);
+    return Array.isArray(idx) ? idx.map(normalizeSummary) : [];
   } catch {
     return [];
   }
@@ -51,23 +115,31 @@ async function writeIndex(idx: ConversationSummary[]): Promise<void> {
 }
 
 function upsertSummary(idx: ConversationSummary[], conv: StoredConversation): ConversationSummary[] {
-  const summary: ConversationSummary = { id: conv.id, mode: conv.mode, title: conv.title, updatedAt: conv.updatedAt };
+  const summary: ConversationSummary = { id: conv.id, stage: conv.stage, title: conv.title, updatedAt: conv.updatedAt };
   const without = idx.filter((s) => s.id !== conv.id);
   return [summary, ...without];
 }
 
 // ── API publique ──────────────────────────────────────────────────────────────
-/** Résumés d'un mode, triés par activité récente (plus récent d'abord). */
+/**
+ * Résumés d'une des deux surfaces, triés par activité récente (plus récent d'abord).
+ * Le paramètre garde son nom historique (`ConversationMode`) — les deux sidebars filtrées ne
+ * fusionnent PAS ici (renversement de docs/13 §1 explicitement hors périmètre CLV-52, cf.
+ * CLV-54) — mais le filtre lui-même tourne désormais sur `stage`, plus sur `mode` :
+ * `"echange"` = stage zéro non engagé, `"voice"` = tout stage engagé (cadrage/maquette/prod).
+ */
 export async function listConversations(mode: ConversationMode): Promise<ConversationSummary[]> {
   const idx = await readIndex();
+  const engaged = mode === "voice";
   return idx
-    .filter((s) => s.mode === mode)
+    .filter((s) => (engaged ? s.stage !== "echange" : s.stage === "echange"))
     .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
 }
 
 export async function getConversation(id: string): Promise<StoredConversation | null> {
   try {
-    return (await get<StoredConversation>(convKey(id))) ?? null;
+    const raw = await get<StoredConversation | StoredConversationV1>(convKey(id));
+    return raw ? normalizeConversation(raw) : null;
   } catch {
     return null;
   }
@@ -93,6 +165,34 @@ export async function renameConversation(id: string, title: string): Promise<voi
   if (!conv) return;
   const updated: StoredConversation = { ...conv, title, titleIsCustom: true, updatedAt: nowIso() };
   await saveConversation(updated); // remonte déjà l'erreur (cf. saveConversation)
+}
+
+/**
+ * L'UNIQUE point qui matérialise « je fabrique » (docs/23 §2.2 règle 2) : fait passer une
+ * conversation `echange` à un stage engagé. Monotone — ne régresse JAMAIS un stage déjà engagé
+ * vers `echange` (un appel sur un objet `cadrage`/`maquette`/`prod` est un no-op silencieux,
+ * cf. docs/23 §2.1 « ne régresse jamais »). Doit être déclenché UNIQUEMENT par un acte
+ * utilisateur explicite (bouton « Transformer en projet », ou le GO qui implique un objet déjà
+ * engagé) — JAMAIS par une ligne `MODE:` du LLM ni par un effet de bord du parsing de flux.
+ * Remonte l'échec (P0-2) : pas de conversation trouvée → no-op ; sauvegarde bloquée → l'appelant
+ * est prévenu (comme saveConversation).
+ */
+export async function engageProject(
+  id: string,
+  toStage: Exclude<ProjectStage, "echange"> = "cadrage",
+): Promise<StoredConversation | null> {
+  const conv = await getConversation(id);
+  if (!conv) return null;
+  if (conv.stage !== "echange") return conv; // déjà engagé : pas de régression, pas de double-trace
+  const now = nowIso();
+  const updated: StoredConversation = {
+    ...conv,
+    stage: toStage,
+    engagedAt: now,
+    updatedAt: now,
+  };
+  await saveConversation(updated); // remonte déjà l'erreur (cf. saveConversation)
+  return updated;
 }
 
 export async function deleteConversation(id: string): Promise<void> {
@@ -189,9 +289,12 @@ export async function migrateLegacyVoice(): Promise<string | null> {
     const id = newId();
     const now = nowIso();
     try {
+      // Legacy migrée = un `mode:"voice"` de fait → produit directement du schemaVersion 2
+      // avec un stage dérivé (docs/23 §4 point 7) : pas la peine de la faire retomber dans le
+      // remap paresseux à chaque lecture suivante.
       await saveConversation({
         id,
-        mode: "voice",
+        stage: deriveLegacyStage("voice", board),
         title: autoTitle(firstUser?.text ?? ""),
         titleIsCustom: false,
         messages,
@@ -199,7 +302,7 @@ export async function migrateLegacyVoice(): Promise<string | null> {
         createdAt: now,
         updatedAt: now,
         userId: null,
-        schemaVersion: 1,
+        schemaVersion: 2,
       });
     } catch {
       // Échec de sauvegarde → flag NON posé, clé legacy conservée : on retentera à la
