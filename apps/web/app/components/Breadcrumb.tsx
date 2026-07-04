@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LABELS: Record<string, string> = {
-  "/echange": "Assistant",
+  "/echange": "Conversation",
   "/voice": "Projet",
   "/brief": "Brief",
   "/live": "Temps réel",

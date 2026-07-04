@@ -1,13 +1,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import SiteNav from "./components/SiteNav";
 import Breadcrumb from "./components/Breadcrumb";
 import ThemeToggle from "./components/ThemeToggle";
 import "./globals.css";
 
 export const metadata = {
-  title: "Cleveria — ton agence d'agents IA",
-  description: "Dépose un brief, une équipe d'agents IA le cadre et le réalise.",
+  title: "Cleveria — votre agence d'agents IA",
+  description: "Confiez votre besoin à votre bras droit : une équipe d'agents IA le cadre et le réalise.",
 };
 
 // Pose le thème sur <html> AVANT le paint (pas de flash blanc en mode nuit) : localStorage
@@ -31,7 +30,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <span className="wordmark">Clever<span className="wm-i">i</span>a</span> <small>agence d'agents IA</small>
             </Link>
             <span className="header-spacer" />
-            <SiteNav />
             <ThemeToggle />
           </div>
         </header>

@@ -395,8 +395,10 @@ export default function VoicePage() {
     if (params.get("demo") === "1") return; // démo : pas d'historique
     const cadrer = params.get("cadrer") === "1";
     const openId = params.get("conv");
+    const openHist = params.get("history") === "1"; // arrivée depuis « Retrouver mes projets »
     if (cadrer) autoCadreRef.current = true;
-    if (cadrer || openId) window.history.replaceState(null, "", "/voice");
+    if (openHist) setHistOpen(true);
+    if (cadrer || openId || openHist) window.history.replaceState(null, "", "/voice");
     void (async () => {
       await migrateLegacyVoice();
       if (openId) {
