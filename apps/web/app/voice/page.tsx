@@ -203,9 +203,9 @@ export default function VoicePage() {
   const [histOpen, setHistOpen] = useState(false);
   // Stage de la conversation courante (docs/23 §2.1, rail docs/26 §incrément 2). DÉFAUT
   // "cadrage" : une NOUVELLE conversation démarre toujours engagée (maquette-first, le chemin qui
-  // vend) — comportement STRICTEMENT inchangé. Le stage "echange" n'est atteint qu'en ouvrant
-  // depuis l'historique une conversation qui l'a déjà (rail dormant : aucun point d'entrée ne
-  // crée encore de conversation "echange" sur /voice — posé pour les incréments 3 et 5).
+  // vend) — comportement STRICTEMENT inchangé. Le stage "echange" est atteint soit en ouvrant
+  // depuis l'historique une conversation qui l'a déjà, soit via l'entrée `?echange=1` (bootstrap
+  // ci-dessous) que `/echange` utilise depuis son redirect (docs/26 §incrément 5).
   const [stage, setStage] = useState<ProjectStage>("cadrage");
   // Bouton « Transformer en projet » (docs/26 §incrément 3) : true pendant la promotion en place
   // (engageProject) — évite un double-clic pendant l'attente du verrou de stockage.
@@ -558,10 +558,11 @@ export default function VoicePage() {
         await saveConversation({
           id,
           // Le stage écrit suit l'ÉTAT du composant, jamais une ligne MODE: du LLM (docs/23
-          // §2.2 règle 1). Par défaut (aucun point d'entrée ne pose encore "echange") une
+          // §2.2 règle 1). Par défaut (nouvelle conversation, aucune entrée "echange") une
           // conversation /voice reste toujours engagée — le stage fin (cadrage vs maquette) est
           // dérivé du board. Rail docs/26 §incrément 2 : si `stage` vaut "echange" (conversation
-          // non-engagée ouverte depuis l'historique), on l'écrit tel quel, `board` restant null.
+          // non-engagée, ouverte depuis l'historique ou via `?echange=1`), on l'écrit tel quel,
+          // `board` restant null.
           stage: derivePersistStage(stage, board as { kind?: string } | null),
           title,
           titleIsCustom: titleCustomRef.current,
@@ -873,11 +874,11 @@ export default function VoicePage() {
     setUrl(""); // capturée une seule fois, au 1er tour — jamais renvoyée aux tours suivants
     try {
       const fd = new FormData();
-      // `stage` généralise `mode` côté serveur (docs/23 §2.2 règle 1). Par défaut (aucune
-      // conversation "echange" n'est encore atteignable sur /voice, rail dormant docs/26
-      // §incrément 2) on envoie toujours "cadrage" : /api/brief garde son triage MODE:/BOARD:
-      // habituel (BRAS_DROIT_INSTRUCTIONS) — comportement identique à aujourd'hui. Seule une
-      // conversation ouverte au stage "echange" envoie "echange" (bascule serveur ECHANGE_OPS).
+      // `stage` généralise `mode` côté serveur (docs/23 §2.2 règle 1). Par défaut (nouvelle
+      // conversation, jamais au stage "echange") on envoie toujours "cadrage" : /api/brief garde
+      // son triage MODE:/BOARD: habituel (BRAS_DROIT_INSTRUCTIONS) — comportement identique à
+      // avant la fusion. Seule une conversation au stage "echange" (ouverte depuis l'historique
+      // ou via `?echange=1` sur /voice) envoie "echange" (bascule serveur ECHANGE_OPS).
       fd.append("stage", stageForBrief(stageAtSend));
       fd.append("history", JSON.stringify(messages.map((m) => ({ role: m.role, content: m.text }))));
       fd.append("text", payload);
@@ -998,7 +999,7 @@ export default function VoicePage() {
           }
           if (evt.t === "delta") {
             raw += evt.text ?? "";
-            // Stage "echange" (docs/26 §incrément 2, rail dormant) : ECHANGE_OPS renvoie du
+            // Stage "echange" (docs/26 §incrément 2) : ECHANGE_OPS renvoie du
             // texte oral BRUT, SANS ligne MODE:/VOIX:/BOARD: (cf. route.ts) — on l'affiche en
             // live tel quel, sans tenter aucun parse board/questions/MODE. Le garde-fou stage se
             // lit sur `stageAtSend` (état figé au début du tour), JAMAIS sur une ligne MODE: du
@@ -1171,8 +1172,8 @@ export default function VoicePage() {
     titleRef.current = conv.title;
     setConvId(conv.id);
     // Rail docs/26 §incrément 2 : le stage suit celui de LA CONVERSATION OUVERTE (jamais dérivé
-    // du contenu/LLM) — c'est le SEUL chemin par lequel /voice peut porter un stage "echange"
-    // aujourd'hui (aucun point d'entrée ne crée encore une telle conversation depuis /voice).
+    // du contenu/LLM) — c'est l'un des deux chemins par lesquels /voice porte un stage "echange",
+    // l'autre étant l'entrée `?echange=1` du bootstrap (docs/26 §incrément 5).
     setStage(conv.stage);
     const msgs = conv.messages as Msg[];
     setMessages(msgs);

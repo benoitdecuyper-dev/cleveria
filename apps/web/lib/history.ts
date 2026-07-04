@@ -28,7 +28,6 @@ export type StoredConversation = {
   board: unknown | null;
   runId?: string | null;        // lien vers /run/[id] (posé par le GO prod — hors périmètre CLV-52)
   engagedAt?: string | null;    // horodatage de l'acte echange→engagé, posé par engageProject()
-  sourceConversationId?: string;
   createdAt: string;
   updatedAt: string;
   userId: string | null;
@@ -45,7 +44,6 @@ type StoredConversationV1 = {
   titleIsCustom: boolean;
   messages: unknown[];
   board: unknown | null;
-  sourceConversationId?: string;
   createdAt: string;
   updatedAt: string;
   userId: string | null;

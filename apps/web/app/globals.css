@@ -277,10 +277,9 @@ h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
 .sh-title { font-size: 2.1rem; letter-spacing: -0.03em; margin: 0; }
 .sh-sub { color: var(--muted); font-size: 1.08rem; margin: 0.35rem 0 1.9rem; max-width: 34rem; }
 
-/* Le bouton micro : geste vocal, toujours dispo. Réutilisé à 2 échelles — 96px en gros bouton
-   vedette (encore le cas sur /echange, cf. .echange-stage .sh-mic plus bas), et en icône
-   compacte (~42px) accolée au champ texte sur /voice (docs/25 §5 pt.1) : même dégradé, mêmes
-   états (rec), la variante compacte est scoping-only (.sh-write .sh-mic), aucune couleur en dur. */
+/* Le bouton micro : geste vocal, toujours dispo. La taille de base (96px) sert de fondation —
+   dégradé, formes, états (rec) — recouverte par la variante compacte (~42px) accolée au champ
+   texte sur /voice (docs/25 §5 pt.1, scoping-only via .sh-write .sh-mic), aucune couleur en dur. */
 .sh-mic {
   position: relative; width: 96px; height: 96px; border-radius: 50%;
   border: none; cursor: pointer; display: grid; place-items: center;
@@ -568,38 +567,6 @@ h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
 /* Second rideau : le « bras droit » en soutien, une fois la promesse du site comprise (docs/24). */
 .hero-solo-note { margin: 0.9rem auto 0; max-width: 30rem; font-size: 0.9rem; color: var(--muted); }
 .hero-solo-links { margin-top: 1.1rem; font-size: 0.9rem; }
-
-/* ── /echange — conversation vocale mains-libres (docs/12) ───────────────────── */
-.echange-stage {
-  display: flex; flex-direction: column; align-items: center; text-align: center;
-  gap: 0.4rem; padding: 1.6rem 1rem 1rem;
-}
-/* L'orbe central réutilise .sh-mic ; on colore selon la phase de la boucle. */
-.echange-stage .sh-mic[data-phase="thinking"] {
-  background: linear-gradient(135deg, var(--running), #b45309);
-  box-shadow: 0 12px 32px rgba(217,119,6,.4);
-  animation: micpulse-o 1.3s infinite;
-}
-.echange-stage .sh-mic[data-phase="speaking"] {
-  background: linear-gradient(135deg, var(--accent), #0284c7);
-  box-shadow: 0 12px 32px rgba(14,165,233,.42);
-}
-.echange-stage .sh-mic[data-phase="speaking"] .sh-rings span {
-  position: absolute; inset: 0; border-radius: 50%;
-  border: 2px solid rgba(14,165,233,.5);
-  animation: sh-ring 1.6s cubic-bezier(.4,0,.2,1) infinite;
-}
-.echange-stage .sh-mic[data-phase="speaking"] .sh-rings span:nth-child(2) { animation-delay: .5s; }
-.echange-stage .sh-mic[data-phase="speaking"] .sh-rings span:nth-child(3) { animation-delay: 1s; }
-@keyframes micpulse-o { 0% { box-shadow: 0 0 0 0 rgba(217,119,6,.4);} 70% { box-shadow: 0 0 0 12px rgba(217,119,6,0);} 100% { box-shadow: 0 0 0 0 rgba(217,119,6,0);} }
-.echange-hint { color: var(--muted); font-size: 0.98rem; margin: 1rem 0 0; min-height: 1.4em; max-width: 30rem; }
-.echange-stop { margin-top: 0.9rem; }
-.echange-stop svg { width: 15px; height: 15px; }
-.echange-thread { flex: 0 1 auto; max-height: 42vh; overflow-y: auto; max-width: 720px; width: 100%; margin: 0.4rem auto 0; }
-@media (prefers-reduced-motion: reduce) {
-  .echange-stage .sh-mic[data-phase="thinking"] { animation: none; }
-  .echange-stage .sh-mic[data-phase="speaking"] .sh-rings span { animation: none; }
-}
 
 /* ── Historique de conversations (docs/13) — tiroir overlay ──────────────────── */
 .hist-drawer {
