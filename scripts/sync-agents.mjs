@@ -37,12 +37,17 @@ const files = readdirSync(source).filter((f) => f.startsWith("factory-") && f.en
 const agents = files.map((file) => {
   const raw = readFileSync(join(source, file), "utf8");
   const { meta, body } = parseFrontmatter(raw);
+  // Le pied de page « Principes communs » (après la sentinelle `<!-- @cc-only -->`) est réservé à
+  // Claude Code, où l'agent peut LIRE ~/.claude/PRINCIPES-AGENTS.md. En one-shot Cleveria l'agent
+  // n'a pas d'outils → on le retire du miroir pour ne pas injecter de contexte mort
+  // (cf. docs/07-upgrade-agents.md §1 « zéro contexte mort »).
+  const prompt = body.split("<!-- @cc-only -->")[0].trim();
   return {
     name: meta.name ?? file.replace(/\.md$/, ""),
     description: meta.description ?? "",
     tools: meta.tools ? meta.tools.split(",").map((t) => t.trim()).filter(Boolean) : [],
     model: meta.model,
-    prompt: body,
+    prompt,
   };
 });
 
@@ -52,6 +57,28 @@ import type { FactoryAgent } from "./loadAgents";
 
 export const AGENTS: FactoryAgent[] = ${JSON.stringify(agents, null, 2)};
 `;
+
+// Mode --check (CI / pré-commit) : n'écrit rien, échoue si le miroir a dérivé de la source.
+// La synchro étant manuelle, ce garde-fou empêche un `.claude/agents` modifié sans `sync:agents`
+// de laisser le runtime servir un roster périmé (cf. audit roster 2026-07-10).
+if (process.argv.includes("--check")) {
+  let current = "";
+  try {
+    current = readFileSync(outFile, "utf8");
+  } catch {
+    console.error(`✗ Miroir absent (${outFile}). Lance \`npm run sync:agents\`.`);
+    process.exit(1);
+  }
+  if (current !== out) {
+    console.error(
+      `✗ Miroir désynchronisé (${agents.length} agents en source) : le miroir a dérivé de .claude/agents.\n` +
+        `  Lance \`npm run sync:agents\` puis commite ${outFile}.`,
+    );
+    process.exit(1);
+  }
+  console.log(`✓ Miroir à jour (${agents.length} agents).`);
+  process.exit(0);
+}
 
 writeFileSync(outFile, out, "utf8");
 console.log(`Synchronisé ${agents.length} agents → ${outFile}`);

@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "sync:agents": "node scripts/sync-agents.mjs",
+    "check:agents": "node scripts/sync-agents.mjs --check",
     "dev:voice": "npm run dev --workspace apps/voice-agent",
     "dev:web": "npm run dev --workspace apps/web",
     "build:web": "npm run build --workspace apps/web",

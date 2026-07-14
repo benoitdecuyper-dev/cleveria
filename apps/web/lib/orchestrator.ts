@@ -85,17 +85,26 @@ function findAgent(slug: string): FactoryAgent | undefined {
   return getAgents().find((a) => a.name === slug);
 }
 
-/** Le roster proposé au planificateur : les agents delivery, sauf le CDP (entrée/synthèse),
- * l'orchestrateur lui-même (il planifie, il n'est pas une étape de delivery), et le maquettiste
- * (appelé DIRECTEMENT par /api/maquette, hors orchestrate() — sinon le planificateur prod pourrait
- * doubler le travail de maquettage, cf. docs/18-maquette-archi.md §2). */
+/** Agents HORS périmètre « delivery » proposé au planificateur (classification déclarative,
+ * plutôt qu'une blocklist éparpillée) :
+ *  - factory-chef-de-projet : point d'entrée / synthèse, pas une étape de delivery
+ *  - factory-orchestrateur : il planifie, il n'est pas lui-même une étape
+ *  - factory-maquettiste : appelé DIRECTEMENT par /api/maquette, hors orchestrate() (sinon le
+ *    planificateur prod pourrait doubler le maquettage, cf. docs/18-maquette-archi.md §2)
+ *  - factory-manager : méta (amélioration continue de Cleveria), jamais planifié dans un DAG client
+ *  - factory-scrum-master : dormant tant qu'aucun board/Jira actif n'est branché
+ *  - factory-coach : point d'entrée d'entraînement (sparring/positionnement), il ne délivre pas */
+const NON_DELIVERY_AGENTS = new Set<string>([
+  "factory-chef-de-projet",
+  "factory-orchestrateur",
+  "factory-maquettiste",
+  "factory-manager",
+  "factory-scrum-master",
+  "factory-coach",
+]);
+
 function deliveryRoster(): FactoryAgent[] {
-  return getAgents().filter(
-    (a) =>
-      a.name !== "factory-chef-de-projet" &&
-      a.name !== "factory-orchestrateur" &&
-      a.name !== "factory-maquettiste",
-  );
+  return getAgents().filter((a) => !NON_DELIVERY_AGENTS.has(a.name));
 }
 
 function rosterText(): string {
