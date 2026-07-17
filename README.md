@@ -93,13 +93,10 @@ pour le message vocal). C'est le chemin fonctionnel de bout en bout du V0.
 ## Déployer (Render)
 
 L'app web tourne sur **Render** (vrai serveur Node ; pas de base de données en V0).
-Les agents sont lus depuis le miroir `packages/factory/src/agents.generated.ts`, **committé**.
-
-Avant de déployer, régénère le miroir si tu as touché tes agents :
-
-```bash
-npm run sync:agents
-```
+La source de vérité des agents est **`agents/*.md` à la racine du repo** (versionnés git ;
+`~/.claude/agents` est une jonction vers ce dossier, Claude Code lit donc les mêmes fichiers).
+Le module `packages/factory/src/agents.generated.ts` est régénéré automatiquement à chaque
+`build`/`dev:web` et **gitignoré** — aucune synchro manuelle, aucune dérive possible.
 
 Puis, côté Render (`render.yaml` fourni) :
 1. Pousser le repo sur GitHub.

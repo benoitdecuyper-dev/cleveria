@@ -1,10 +1,12 @@
-// Synchronise les définitions Claude Code (.claude/agents/*.md) dans le repo,
-// sous forme d'un module généré (bundle-safe, pas de lecture disque au runtime).
+// Génère le module d'agents bundle-safe (pas de lecture disque au runtime) depuis
+// la source de vérité unique : agents/*.md à la racine du repo (~/.claude/agents est
+// une jonction vers ce dossier — Claude Code lit les mêmes fichiers).
 //
 //   node scripts/sync-agents.mjs
 //   CLEVERIA_SOURCE_AGENTS="/chemin/vers/agents" node scripts/sync-agents.mjs
 //
-// À relancer quand tu améliores un agent dans Claude Code, pour propager à Cleveria.
+// Lancé automatiquement avant chaque build/dev (voir package.json) : le fichier
+// généré est gitignoré, il n'y a plus de sync manuelle ni de dérive possible.
 //
 // Volontairement AUTONOME : on ne ré-importe pas packages/factory (qui dépend du
 // miroir généré ici → bootstrap impossible si le miroir manque). Le parsing du
@@ -15,7 +17,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const source = process.env.CLEVERIA_SOURCE_AGENTS ?? resolve(repoRoot, "../.claude/agents");
+const source = process.env.CLEVERIA_SOURCE_AGENTS ?? resolve(repoRoot, "agents");
 const outFile = resolve(repoRoot, "packages/factory/src/agents.generated.ts");
 
 /** Parse minimal du frontmatter YAML simple (clé: valeur) en tête de fichier. */

@@ -1,6 +1,6 @@
-// Charge la Factory team depuis les définitions Claude Code existantes.
-// Source de vérité unique : `.claude/agents/*.md` (réutilisation, pas de copie).
-// Améliorer un agent dans Claude Code améliore donc Cleveria automatiquement.
+// Charge la Factory team depuis la source de vérité unique : `agents/*.md` à la
+// racine du repo (versionnés git ; `~/.claude/agents` est une jonction vers ce
+// dossier). Améliorer un agent dans Claude Code améliore donc Cleveria automatiquement.
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -36,11 +36,11 @@ function parseFrontmatter(raw: string): { meta: Record<string, string>; body: st
 
 /**
  * Lit tous les agents `factory-*.md` du dossier donné.
- * @param dir  défaut : $CLEVERIA_AGENTS_DIR ou ../.claude/agents (relatif à la racine du repo)
+ * @param dir  défaut : $CLEVERIA_AGENTS_DIR ou agents/ (relatif au CWD = racine du repo)
  */
 export function loadAgents(dir?: string): FactoryAgent[] {
   const agentsDir = resolve(
-    dir ?? process.env.CLEVERIA_AGENTS_DIR ?? "../.claude/agents",
+    dir ?? process.env.CLEVERIA_AGENTS_DIR ?? "agents",
   );
 
   const files = readdirSync(agentsDir).filter(

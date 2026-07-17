@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# Généré au build depuis agents/*.md (source de vérité) — jamais commité.
+packages/factory/src/agents.generated.ts
 .next/
 .env
 .env.local

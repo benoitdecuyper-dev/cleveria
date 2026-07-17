@@ -1,6 +1,7 @@
 # Déploiement Cleveria sur Render (render.com).
-# Render = vrai serveur Node : l'app lit le miroir d'agents (agents.generated.ts,
-# committé, généré par `npm run sync:agents`) au runtime. Pas de base de données.
+# Render = vrai serveur Node : les agents (agents/*.md, versionnés dans le repo)
+# sont bundlés au build (`build:web` régénère agents.generated.ts, gitignoré).
+# Pas de base de données.
 services:
   - type: web
     name: cleveria-web
