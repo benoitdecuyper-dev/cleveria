@@ -10,6 +10,7 @@
     "sync:agents": "node scripts/sync-agents.mjs",
     "principes:inline": "node scripts/inline-principes.mjs",
     "principes:check": "node scripts/inline-principes.mjs --check",
+    "evals:lint": "node scripts/check-graders.mjs",
     "evals": "node scripts/run-evals.mjs --log",
     "evals:noyau": "node scripts/run-evals.mjs --tag noyau --log",
     "evals:smoke": "node scripts/run-evals.mjs --model haiku",

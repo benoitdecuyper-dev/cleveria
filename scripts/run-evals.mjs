@@ -31,6 +31,16 @@ if (selection.length === 0) {
   process.exit(1);
 }
 
+// Pré-vol : un grader ayant laissé fuiter un nom réel après anonymisation ne peut
+// pas devenir vert honnêtement (cf. scripts/check-graders.mjs). La suite refuse de
+// tourner tant qu'un grader dérive — plutôt que d'accumuler des rouges trompeurs.
+const graderCheck = spawnSync(process.execPath, [resolve(repoRoot, "scripts/check-graders.mjs")], { encoding: "utf8" });
+process.stdout.write(graderCheck.stdout || "");
+if (graderCheck.status !== 0) {
+  process.stderr.write(graderCheck.stderr || "");
+  process.exit(graderCheck.status || 1);
+}
+
 const results = [];
 for (const s of selection) {
   const model = modelOverride ?? s.model;
