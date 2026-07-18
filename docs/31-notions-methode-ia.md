@@ -150,6 +150,15 @@ ce que le contrôle surveille, vérifie que ça devient rouge, restaure.
 appliqué à notre propre fichier de principes : supprime `PRINCIPES-AGENTS.md`, **rien ne devient
 rouge nulle part**. Selon nos propres termes, la factory n'avait pas de gates — elle avait des vœux.
 
+**Où vit le harnais, concrètement chez toi (ajout du 18/07, question de Benoit).** Ce n'est pas un
+concept, c'est du logiciel que tu peux ouvrir : (1) `~/.claude/settings.json` — les hooks
+(SessionStart : jonction, principes, budgets ; SubagentStop : gates TRIAGE et fiche d'intake) ;
+(2) `cleveria/scripts/*.mjs` — inline-principes, sync-agents, sweep-adjacent, run-evals,
+capture-rendu : les mécanismes qui échouent ; (3) la jonction `~/.claude/agents` →
+`cleveria/agents` — le canal de livraison des prompts ; (4) tes commandes `/bras-droit`,
+`/formateur`, `/retro`. Le modèle, lui, ne voit que du texte — tout ce qui précède est appliqué
+PAR le harnais, que le modèle le veuille ou non.
+
 **Références.** Doc Claude Code *Hooks* — https://code.claude.com/docs/en/hooks-guide ;
 `~/.claude/PRINCIPES-AGENTS.md:68-73` (notre propre énoncé du principe).
 
@@ -239,6 +248,15 @@ en compte » — et c'était absent de ta liste ET de ma première cartographie.
 **Application chez nous.** Les candidats naturels : la checklist d'intake UX, le protocole de
 passation, le sweep d'impact — chacun devient un module court à déclencheur, que le manager
 améliore isolément au lieu d'engraisser un prompt.
+
+**Où on a atterri (mise à jour 18/07, question de Benoit).** Aucun `SKILL.md` formel : un skill
+Claude Code est proposé au **fil principal**, or la factory vit en **sous-agents** qui ne voient
+pas le catalogue — un skill « intake UX » ne se déclencherait jamais chez l'agent UX. On a donc
+appliqué le *principe* (charger juste-à-temps) par les canaux qui atteignent réellement les
+agents : méthode CDP lue sur triage « projet », fiche d'intake portée par l'agent + gate hook,
+sweep convoqué par le plan sur tag. Les skills formels sont utilisés là où ils fonctionnent — le
+fil principal : `/bras-droit`, `/formateur`, et `/retro` (la rétro outillée du manager : évals →
+leçon→mécanisme → canary → budgets).
 
 **Références.** Anthropic, *Agent Skills* (oct. 2025) et doc Claude Code (section skills) —
 https://code.claude.com/docs/en/ ; écosystème communautaire (ex. obra/superpowers).
@@ -365,6 +383,42 @@ s'écrit dans le vide), les étapes 2-3 appliquent la distinction prompt/harnais
 installent les artefacts, les étapes 6-7 ferment la boucle de preuve et empêchent la rechute.
 
 ---
+
+# Schéma — le trajet d'une demande complexe (état au 18/07)
+
+Sens de lecture unique, une idée par nœud, décisions en losange ; les gates sont les endroits où
+le flux peut **revenir en arrière** — c'est leur pouvoir d'échec qui les rend réelles (fiche 6).
+
+```mermaid
+flowchart TD
+    B([Benoit : demande]) --> CDP[Bras droit — point d'entrée unique]
+    CDP --> T{TRIAGE<br/>rendu garanti par hook}
+    T -- léger --> SOLO[Le CDP traite seul, maintenant] --> FIN1([Livré])
+    T -- projet --> M[/Lit la méthode projet<br/>process/cdp-methode.md — juste-à-temps/]
+    M --> CAD[/CADRAGE.md — champs bloquants<br/>étiquetés réponse · mémoire · hypothèse/]
+    CAD --> H{Un champ bloquant<br/>encore en hypothèse ?}
+    H -- oui --> Q[Questions au décideur] --> CAD
+    H -- non : VERROUILLÉ --> PO[Product-owner : backlog<br/>+ modèle fonctionnel statué]
+    PO --> ORCH[Orchestrateur : plan DAG<br/>+ étape sweep si refonte-de-parcours]
+    ORCH --> CONTRA{Contradicteur :<br/>objections bloquantes ?}
+    CONTRA -- oui, corrections --> ORCH
+    CONTRA -- non --> GO([GO explicite de Benoit])
+    GO --> UX[UX : fiche d'intake — gate hook —<br/>puis maquette validée AVANT dev]
+    UX --> DEV[Dev : un seul exécutant<br/>si écriture couplée]
+    DEV --> SWEEP[/SWEEP-ticket statué,<br/>check vert — si refonte/]
+    SWEEP --> LT[Revue lead-tech]
+    LT --> RUX{Revue UX du rendu :<br/>CAPTURE réelle + checklist<br/>visuelle, verdict par item}
+    RUX -- FAIL localisé --> DEV
+    RUX -- PASS --> QA{Recette QA — rouge si fiche,<br/>cadrage ou sweep manquants}
+    QA -- FAIL --> DEV
+    QA -- PASS + rendu navigateur observé --> SYN[Synthèse possédée par le CDP]
+    SYN --> PF([Passe finale Benoit → Livré])
+```
+
+Autour du flux, la surveillance permanente (elle ne fait pas partie du trajet — elle le garde) :
+au démarrage de session, les checks *jonction agents*, *principes injectés*, *budgets de mots* ;
+à chaque rétro, la suite d'évals (`/retro`) rejoue les symptômes fondateurs — un scénario qui
+repasse rouge est une régression, traitée comme un bug.
 
 # Annexe — Lexique
 

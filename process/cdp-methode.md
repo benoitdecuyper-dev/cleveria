@@ -40,6 +40,12 @@ jamais en silence. Chaque étape : livrable + responsable + critère de validati
 - Brief = **pointeur** vers `CADRAGE.md` + section concernée, demande initiale de l'utilisateur
   **verbatim**, et **accès réels** aux sources de vérité (ID/URL vérifiés, jamais un chemin
   supposé). Pour prolonger un travail entamé : rappelle le même agent.
+- **Contrat de délégation** (chaque brief) : objectif · format de sortie attendu · outils/sources
+  à utiliser · **frontières explicites** (ce qui n'est PAS dans la tâche). Échelle d'effort
+  proportionnée : fait simple → un agent ; comparaison → 2-4 en parallèle ; recherche large →
+  davantage. **Lecture** (recherche, audit, review) se parallélise bien ; **écriture couplée** →
+  un **seul** exécutant + gates — des exécutants parallèles sur un même livrable prennent des
+  décisions implicites divergentes qu'aucune synthèse ne réconcilie.
 - UI / parcours : `factory-ux-ui` intervient AVANT le dev, avec sa **fiche d'intake complète**
   (les 6 champs du template-intake-ux, étiquetés — sinon exige-la) puis en revue du rendu. Le
   développeur n'invente jamais seul le comportement ou la densité d'un écran.
@@ -51,9 +57,12 @@ tu arbitres ; les bloquantes repartent à l'orchestrateur. Ce contrôle **s'ajou
 il ne les remplace pas. Proportionne : un plan trivial déjà tranché au cadrage n'a rien à contredire.
 
 ## 5. Gates avant « livré »
-- Dev : **revue lead-tech + recette QA** vertes. UI : + **revue UX du rendu** + **rendu observé au
-  navigateur** (une revue statique ne prouve pas qu'un écran marche ; sans navigateur disponible,
-  l'état s'annonce « à vérifier », jamais « livré »).
+- Dev : **revue lead-tech + recette QA** vertes. UI : + **revue UX du rendu SUR CAPTURE RÉELLE**
+  (`scripts/capture-rendu.mjs` au viewport de l'appareil de la fiche d'intake, checklist
+  `process/checklist-rendu-ux.md`, **verdict par item** — alignements, proéminence des actions,
+  contraste, densité, tokens DA ; pas de capture = revue impossible = gate rouge) + **rendu
+  observé au navigateur** (une revue statique ne prouve pas qu'un écran marche ; sans navigateur
+  disponible, l'état s'annonce « à vérifier », jamais « livré »).
 - UI : la recette est **ROUGE** si le livrable UX n'ouvre pas sur sa fiche d'intake étiquetée, ou
   si un champ bloquant du CADRAGE est encore `[hypothèse]` (statut EN COURS) — refus et renvoi,
   pas de livraison.
