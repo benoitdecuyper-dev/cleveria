@@ -18,6 +18,7 @@
 | 7 | **Tokens DA** | Couleurs et typos de l'écran ∈ palette actée du projet ; zéro teinte héritée d'ailleurs |
 | 8 | **États non nominaux** | Vide, erreur, chargement : capturés ou explicitement N/A(hors périmètre du ticket) |
 | 9 | **Viewport cible** | La capture est au format de l'appareil prioritaire ; rien de coupé/chevauché |
+| 10 | **Contenu rendu conforme** | Vocabulaire client (zéro jargon interne — ex. sigles techniques non traduits) ; aucune formulation **interdite du projet** (allégations, promesses non tranchées — liste au CADRAGE) ; aucune redondance visuelle (marque doublée logo + texte) ; aucun contenu de test |
 
 **Format du verdict** (en tête du livrable de revue) : tableau des 9 items + captures référencées
 + liste des FAIL avec localisation précise (« bouton Valider, ~24px de haut, sous la ligne de
