@@ -93,7 +93,8 @@ function findAgent(slug: string): FactoryAgent | undefined {
  *    planificateur prod pourrait doubler le maquettage, cf. docs/18-maquette-archi.md §2)
  *  - factory-manager : méta (amélioration continue de Cleveria), jamais planifié dans un DAG client
  *  - factory-scrum-master : dormant tant qu'aucun board/Jira actif n'est branché
- *  - factory-coach : point d'entrée d'entraînement (sparring/positionnement), il ne délivre pas */
+ *  - factory-coach : point d'entrée d'entraînement (sparring/positionnement), il ne délivre pas
+ *  - factory-formateur : point d'entrée de formation (leçons/QCM/certification), il forme, il ne délivre pas */
 const NON_DELIVERY_AGENTS = new Set<string>([
   "factory-chef-de-projet",
   "factory-orchestrateur",
@@ -101,6 +102,7 @@ const NON_DELIVERY_AGENTS = new Set<string>([
   "factory-manager",
   "factory-scrum-master",
   "factory-coach",
+  "factory-formateur",
 ]);
 
 function deliveryRoster(): FactoryAgent[] {
