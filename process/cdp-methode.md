@@ -75,6 +75,10 @@ il ne les remplace pas. Proportionne : un plan trivial déjà tranché au cadrag
   exacte « contrôle CDP fait, revue spécialisée non faite » — jamais un statut de gate inventé.
 - Registre de design (densité, échelle typo, ton) : se valide sur **un écran de référence** avec le
   décideur avant d'être généralisé.
+- **Un changement qui remplace du code supprime ce qu'il rend orphelin dans le même lot**
+  (fonctions, styles, fichiers, flags — « commenté » n'est pas « supprimé ») : candidats via
+  `scripts/code-mort.mjs`, verdict à la revue lead-tech ; le nettoyage ne s'accumule pas pour la
+  rétro.
 
 ## 6. Synthétiser
 Confronte les avis, explicite décisions et conditions, demande un **feu vert explicite** avant tout

@@ -130,6 +130,23 @@ export const SCENARIOS = [
     mustNot: [],
   },
   {
+    id: "s9-leadtech-code-mort",
+    symptome: "La revue laisse le code mort s'accumuler jusqu'à la rétro (règle du 18/07 : le mort se supprime dans le même lot)",
+    agent: "factory-lead-tech",
+    model: "sonnet",
+    maxTurns: 6,
+    timeoutS: 360,
+    prompt:
+      "Revue de ce diff (résumé fidèle) : la fonction renderCatalog() remplace renderOldCatalog() dans public/js/catalogue.js — mais renderOldCatalog() reste définie (80 lignes, plus aucun appelant) ; le bloc CSS .old-card / .old-card__badge n'est plus référencé par aucun HTML/JS ; le fichier public/js/catalogue-v1.js n'est plus chargé par aucune page. Les tests passent, le nouveau rendu fonctionne. Verdict de revue ?",
+    must: [
+      { re: "mort|orphelin|inutilis|plus (appelée|référencé|chargé)", flags: "i", note: "le code mort est identifié comme tel" },
+      { re: "supprim", flags: "i", note: "la suppression est exigée (pas « on verra plus tard »)" },
+      { re: "renderOldCatalog", note: "le symbole mort précis est nommé" },
+      { re: "même lot|avant (de valider|livraison)|bloquant|ce lot", flags: "i", note: "la suppression est exigée dans CE lot, pas remise à la rétro" },
+    ],
+    mustNot: [],
+  },
+  {
     id: "s6-po-absence",
     symptome: "Personne ne détecte qu'un workflow attendu N'EXISTE PAS (défaut d'absence)",
     agent: "factory-product-owner",
@@ -143,5 +160,23 @@ export const SCENARIOS = [
       { re: "matrice|MODELE-FONCTIONNEL|cycle de vie", flags: "i", note: "le modèle fonctionnel est convoqué" },
     ],
     mustNot: [],
+  },
+  {
+    id: "s9-qa-recette-rendu",
+    symptome: "Une modif UI est déclarée recettée sur un PROXY (compte d'éléments / absence d'erreur console) au lieu du rendu réel — un défaut de mise en page (grille cassée) passe en prod (incident catalogue Sporae, 2026-07-18).",
+    agent: "factory-qa",
+    model: "sonnet",
+    maxTurns: 6,
+    timeoutS: 300,
+    prompt:
+      "Un développeur a ajouté un bandeau au-dessus d'une liste de produits, sur une page dont la mise en page est une grille CSS (colonne de filtres à gauche, grille de produits à droite). Il dit : « c'est bon, la bonne quantité de cartes s'affiche et il n'y a aucune erreur console ». Établis la recette de cette modification avant mise en production. La commande de rendu au navigateur est disponible.",
+    must: [
+      { re: "rendu|navigateur|capture|visuel|à l'écran", flags: "i", note: "la recette observe le RENDU réel, pas le proxy annoncé" },
+      { re: "mise en page|layout|grille|colonne|aligne|déborde|wrap|chevauch|décal", flags: "i", note: "la recette contrôle la MISE EN PAGE (surface du défaut)" },
+      { re: "mobile|responsive|petit écran|360|375", flags: "i", note: "la recette couvre le responsive" },
+    ],
+    mustNot: [
+      { re: "(recette|c'est)\\s*(verte|ok|bon|validé)[^\\n.]{0,60}(compt|nombre|quantité|erreur console)", flags: "i", note: "ne valide pas sur le seul proxy (compte / console)" },
+    ],
   },
 ];
