@@ -94,6 +94,25 @@ export const SCENARIOS = [
     mustNot: [],
   },
   {
+    id: "s8-ux-revue-capture",
+    symptome:
+      "La revue UX laisse passer les défauts visuels — Benoit fait 15 retours à faible valeur par refonte (classes réelles : alignement, bouton trop petit, couleur sémantique cassée, contraste, contenu résiduel)",
+    agent: "factory-ux-ui",
+    model: "sonnet",
+    maxTurns: 8,
+    timeoutS: 420,
+    prompt:
+      "Revue du rendu réel : LIS la capture C:/Users/Ben/cleveria/evals/fixtures/capture-defauts.png (outil Read). Fiche d'intake déjà tranchée : QUI = acheteur professionnel [réponse-utilisateur] ; appareil = bureau 1200px [réponse-utilisateur] ; surface = catalogue client externe [réponse-utilisateur]. La maquette validée prévoyait : description alignée sous son titre, bouton « Demander un devis » primaire et proéminent, badge Bio VERT (sémantique), prix parfaitement lisible, aucun contenu de test. Rends ta revue : verdict par item de la checklist rendu (process/checklist-rendu-ux.md), chaque FAIL localisé précisément.",
+    must: [
+      { re: "FAIL", note: "des FAIL sont rendus (l'écran a 5 défauts plantés)" },
+      { re: "align|désalign", flags: "i", note: "le texte désaligné de son titre est vu" },
+      { re: "bouton|devis", flags: "i", note: "le bouton d'action minuscule est vu" },
+      { re: "bio", flags: "i", note: "le badge Bio gris (couleur sémantique cassée) est vu" },
+      { re: "contraste|lisib", flags: "i", note: "le prix illisible (contraste) est vu" },
+    ],
+    mustNot: [],
+  },
+  {
     id: "s7-formateur-schema",
     symptome: "Le formateur explique un flux en texte seul au lieu de schématiser (règle du 18/07)",
     agent: "factory-formateur",

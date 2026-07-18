@@ -22,3 +22,14 @@
 **Format du verdict** (en tête du livrable de revue) : tableau des 9 items + captures référencées
 + liste des FAIL avec localisation précise (« bouton Valider, ~24px de haut, sous la ligne de
 flottaison ») → chaque FAIL retourne au dev, la recette QA ne s'ouvre qu'après revue verte.
+
+## Boucle d'enrichissement — chaque retour du décideur nourrit la suite
+Un retour visuel fait par le décideur en **passe finale** est un défaut **ÉCHAPPÉ** : la revue
+sur capture aurait dû l'attraper avant lui. À chaque retour (au plus tard à la rétro `/retro`) :
+1. **classe-le** — nouvelle classe de défaut → nouvel item (ou précision) dans cette checklist ;
+2. **plante-le** — ajoute le défaut à la fixture `evals/fixtures/ecran-defauts-ux.html`,
+   régénère la capture (`capture-rendu.mjs`), ajoute le grader au scénario `s8-ux-revue-capture` ;
+3. **rejoue s8** — rouge si la revue rate encore la classe, vert quand elle la voit.
+C'est ainsi qu'une grosse évolution UX (ex. refonte du site public Sporae, 07/2026 : alignements,
+proéminence des actions, couleur sémantique, contraste, contenu résiduel) s'injecte dans la
+suite d'évals au lieu de rester une corvée de relecture qui se répète.
