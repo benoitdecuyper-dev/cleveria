@@ -28,8 +28,8 @@ Cette boucle s'applique aussi à toi-même. Si le défaut concerne ta façon d'a
 5. **Décider patch / non-patch** : si la règle proposée serait trop spécifique, orienterait abusivement les prochains travaux, ou corrigerait un cas isolé, **ne modifie pas l'agent**. Journalise seulement le constat et la raison du non-patch.
 6. **Proposer le patch si nécessaire** : résume à l'utilisateur le changement prévu, les fichiers touchés, et le risque de bord. Applique après accord, sauf consigne d'agir directement.
 7. **Appliquer petit** : modifie le minimum durable. Fusionne ou remplace une règle existante quand c'est possible ; n'empile pas.
-8. **Re-tester** : rejoue mentalement ou réellement 2-3 briefs canoniques impactés. Vérifie que le patch corrige le défaut sans casser le cas courant ni biaiser le comportement général.
-9. **Journaliser** : rends une note courte — date, agent, problème, cause racine, décision patch/non-patch, changement éventuel, test de non-régression, prochaine amélioration candidate.
+8. **Re-tester — le canary de règle** : une règle gravée ou modifiée n'est déclarée « gravée » qu'après un **rouge→vert prouvé** sur la suite d'évals comportementales (`~/cleveria/evals/scenarios.mjs`, lancée par `npm run evals`). Si le défaut corrigé n'a pas encore de scénario, **ajoutes-en un** (brief qui viole la règle + graders code) : rouge avant le patch, vert après — sans canary vert, tu as écrit un vœu, pas une règle. La **suite complète se rejoue à chaque rétro** ; un scénario qui repasse rouge est une régression comportementale, à traiter comme un bug.
+9. **Journaliser** : rends une note courte — date, agent, problème, cause racine, décision patch/non-patch, changement éventuel, résultat du canary (scénario, rouge→vert), prochaine amélioration candidate.
 10. **Boucler** : propose la priorité suivante, mais ne lance pas une refonte large sans feu vert.
 
 Sortie attendue à chaque boucle : `Constat`, `Cause racine`, `Décision patch/non-patch`, `Vérification`, `Prochaine priorité`.
@@ -56,7 +56,7 @@ La qualité se perd dans les interstices — surveille et durcis :
 - **Sur/sous-mobilisation** : l'orchestrateur sort-il l'usine pour une vis, ou bâcle-t-il un vrai projet ?
 
 ## Méthode d'intégration dans les agents
-- Cible le bon agent ; inscris la leçon **au bon endroit** (méthode/règles/checklist), **brève et impérative**. N'alourdis pas : reformule ou fusionne plutôt que d'empiler ; **supprime une règle obsolète**.
+- Cible le bon agent ; **d'abord le mécanisme** (hook, champ de template, skill, scénario d'éval avec canary) — la prose de prompt est l'exception réservée au pur jugement. Si prose il y a : **au bon endroit** (méthode/règles/checklist), **brève et impérative**, et **dans le budget de mots** (`~/cleveria/process/budgets-agents.json`, `principes:check` rouge au-delà — tu peux baisser un budget, jamais laisser passer un dépassement). N'alourdis pas : reformule ou fusionne plutôt que d'empiler ; **supprime une règle obsolète**.
 - Ne dénature pas le rôle de l'agent : tu ajustes des réflexes, tu ne réécris pas sa mission.
 - Tiens un **journal des améliorations** (date, agent, problème, règle ajoutée) — dans ta réponse et, si pertinent, en mémoire.
 
@@ -217,5 +217,13 @@ Le **général** vit ici ; l'**application concrète** propre à un rôle reste 
 - **Graver / ne pas graver.** Corrige ce qui combine **fréquence × impact**. Un aléa d'infra, une
   déviation justifiée, une valeur locale → **non gravé** (journalisé, pas gravé). Chaque règle
   gravée nomme le pire-livrable qu'elle évite.
+- **Une leçon sort en mécanisme ; la prose est l'exception.** Le premier réflexe pour graver une
+  leçon : un **mécanisme qui échoue** — hook, champ de template/artefact typé, skill à
+  déclencheur, scénario d'éval avec canary (rouge→vert prouvé, `npm run evals`). La prose de
+  prompt est réservée au **pur jugement** qu'aucun mécanisme ne porte, et elle vit dans le
+  **budget de mots** de l'agent (`cleveria/process/budgets-agents.json`, contrôlé par
+  `principes:check`) : chaque règle ajoutée dilue toutes les autres, donc un dépassement est
+  **rouge**, jamais un détail. Le manager peut baisser un budget ; le dépasser se paie en
+  dégraissage ou en mécanisation.
 
 <!-- principes:end -->

@@ -1,0 +1,93 @@
+// Runner de la suite d'évals comportementales (étape 6 du parcours, fiche 12).
+//
+//   node scripts/run-evals.mjs                    # suite complète, modèles réels
+//   node scripts/run-evals.mjs --only s3-ux-intake
+//   node scripts/run-evals.mjs --model haiku      # smoke-run économique (tous les scénarios)
+//   node scripts/run-evals.mjs --log              # ajoute le résultat à evals/journal.jsonl
+//
+// Chaque scénario lance l'agent RÉEL en headless (`claude -p --agent … --max-turns …`) puis
+// note sa réponse avec des graders code (regex). Verdict PASS/FAIL par grader et par scénario ;
+// exit 1 si un scénario échoue — la suite est un garde-fou, pas un rapport.
+// Usage rétro (canary de règle, factory-manager) : une règle n'est « gravée » qu'après
+// rouge→vert sur son scénario ; la suite complète se rejoue à chaque rétro.
+
+import { spawnSync } from "node:child_process";
+import { appendFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { SCENARIOS } from "../evals/scenarios.mjs";
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const args = process.argv.slice(2);
+const only = args.includes("--only") ? args[args.indexOf("--only") + 1] : null;
+const modelOverride = args.includes("--model") ? args[args.indexOf("--model") + 1] : null;
+const doLog = args.includes("--log");
+
+const selection = SCENARIOS.filter((s) => !only || s.id === only);
+if (selection.length === 0) {
+  console.error(`✗ Aucun scénario ne correspond à « ${only} ». Ids : ${SCENARIOS.map((s) => s.id).join(", ")}`);
+  process.exit(1);
+}
+
+const results = [];
+for (const s of selection) {
+  const model = modelOverride ?? s.model;
+  process.stdout.write(`\n■ ${s.id} — ${s.symptome}\n  agent=${s.agent} model=${model} maxTurns=${s.maxTurns}\n`);
+  const t0 = Date.now();
+  // MODE SOUS-AGENT (v2) : le premier run headless utilisait `--agent` (agent en fil principal)
+  // — or les hooks SubagentStop (gate TRIAGE, gate fiche d'intake) n'y tirent pas : la suite
+  // sous-testait la vraie pile. Désormais un fil principal haiku (relais mécanique bon marché)
+  // SPAWNE le vrai sous-agent — même chemin que l'usage réel de la factory — et recopie sa
+  // réponse verbatim pour les graders. Le modèle du sous-agent vient de son frontmatter.
+  // Le prompt passe par STDIN, jamais en argument : avec `shell: true` (nécessaire pour
+  // résoudre le shim claude.cmd sous Windows), Node ne quote pas les args — un prompt avec
+  // espaces serait tronqué au premier mot (bug attrapé au premier run de la suite).
+  const wrapper =
+    `Lance le sous-agent « ${s.agent} » via l'outil Agent avec EXACTEMENT ce brief, sans le reformuler :\n` +
+    `---\n${s.prompt}\n---\n` +
+    `Quand il a terminé, recopie sa réponse finale INTÉGRALEMENT, mot pour mot, sans résumé ni commentaire.`;
+  const run = spawnSync(
+    "claude",
+    ["-p", "--model", modelOverride ?? "haiku", "--max-turns", String(s.maxTurns)],
+    { encoding: "utf8", input: wrapper, timeout: s.timeoutS * 1000, cwd: process.env.HOME ?? repoRoot, shell: true },
+  );
+  const out = (run.stdout ?? "") + (run.stderr ?? "");
+  const secs = Math.round((Date.now() - t0) / 1000);
+  // Un exit ≠ 0 avec sortie non vide (ex. plafond max-turns atteint) se NOTE quand même :
+  // le plafond est notre borne de coût, pas un critère de comportement. Sortie vide = erreur.
+  if (run.error || (run.status !== 0 && out.trim().length === 0)) {
+    console.log(`  ✗ ERREUR d'exécution (${secs}s) : ${run.error?.message ?? `exit ${run.status}, sortie vide`}`);
+    results.push({ id: s.id, pass: false, erreur: true, secs });
+    continue;
+  }
+  if (run.status !== 0) console.log(`  ⚠ run coupé (exit ${run.status}) — notation sur la sortie partielle`);
+  let pass = true;
+  const graders = [];
+  for (const g of s.must) {
+    const ok = new RegExp(g.re, g.flags ?? "").test(out);
+    graders.push({ type: "must", note: g.note, ok });
+    if (!ok) pass = false;
+    console.log(`  ${ok ? "✓" : "✗"} attendu : ${g.note}`);
+  }
+  for (const g of s.mustNot) {
+    const ok = !new RegExp(g.re, g.flags ?? "").test(out);
+    graders.push({ type: "mustNot", note: g.note, ok });
+    if (!ok) pass = false;
+    console.log(`  ${ok ? "✓" : "✗"} interdit : ${g.note}`);
+  }
+  console.log(`  → ${pass ? "PASS" : "FAIL"} (${secs}s, ${out.length} car.)`);
+  if (!pass) console.log(`  extrait : ${out.slice(0, 400).replace(/\n/g, " ")}`);
+  results.push({ id: s.id, pass, graders, secs });
+}
+
+const failed = results.filter((r) => !r.pass);
+console.log(`\n═══ Bilan : ${results.length - failed.length}/${results.length} scénarios PASS ═══`);
+if (doLog) {
+  const line = JSON.stringify({ date: new Date().toISOString(), model: modelOverride ?? "réels", results });
+  appendFileSync(resolve(repoRoot, "evals/journal.jsonl"), line + "\n", "utf8");
+  console.log("Résultat consigné dans evals/journal.jsonl");
+}
+if (failed.length > 0) {
+  console.error(`✗ Scénarios en échec : ${failed.map((f) => f.id).join(", ")}`);
+  process.exit(1);
+}

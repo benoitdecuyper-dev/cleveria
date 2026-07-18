@@ -10,6 +10,8 @@
     "sync:agents": "node scripts/sync-agents.mjs",
     "principes:inline": "node scripts/inline-principes.mjs",
     "principes:check": "node scripts/inline-principes.mjs --check",
+    "evals": "node scripts/run-evals.mjs --log",
+    "evals:smoke": "node scripts/run-evals.mjs --model haiku",
     "dev:voice": "npm run dev --workspace apps/voice-agent",
     "dev:web": "npm run sync:agents && npm run dev --workspace apps/web",
     "build:web": "npm run sync:agents && npm run build --workspace apps/web",

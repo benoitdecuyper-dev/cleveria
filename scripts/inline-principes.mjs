@@ -72,8 +72,20 @@ function buildBlock(isManager, eol) {
   return lines.join(eol === "\r\n" ? "\r\n" : "\n");
 }
 
+// Budgets de mots par agent (process/budgets-agents.json) — le cliquet anti-accrétion de
+// l'étape 7 : chaque règle ajoutée dilue toutes les autres (accuracy^n), donc le corps d'un
+// agent ne peut pas dépasser son budget ; le manager peut BAISSER un budget, jamais le
+// dépassement n'est toléré en silence. Contrôlé en --check (SessionStart + pré-commit).
+let budgets = null;
+try {
+  budgets = JSON.parse(readFileSync(resolve(repoRoot, "process/budgets-agents.json"), "utf8"));
+} catch {
+  budgets = null; // repo sans budgets (contexte partiel) : contrôle sauté, signalé en --check
+}
+
 const files = readdirSync(agentsDir).filter((f) => f.startsWith("factory-") && f.endsWith(".md"));
 const drifted = [];
+const horsBudget = [];
 let written = 0;
 
 for (const file of files) {
@@ -89,6 +101,12 @@ for (const file of files) {
     console.error(`✗ ${file} : sentinelle « ${SENTINEL} » absente — fichier laissé intact, corrige-le d'abord.`);
     process.exit(1);
   }
+  if (CHECK && budgets) {
+    const bodyTxt = raw.slice(0, at).replace(/^---[\s\S]*?\n---\s*\n/, "").trim();
+    const bodyWords = bodyTxt ? bodyTxt.split(/\s+/).length : 0;
+    if (!(file in budgets)) horsBudget.push(`${file} : nouvel agent sans budget — ajoute-le à process/budgets-agents.json`);
+    else if (bodyWords > budgets[file]) horsBudget.push(`${file} : ${bodyWords} mots > budget ${budgets[file]} — dégraisse ou passe la leçon en mécanisme (hook/template/skill/éval)`);
+  }
   const eol = raw.includes("\r\n") ? "\r\n" : "\n";
   const expected = raw.slice(0, at) + buildBlock(file === "factory-manager.md", eol);
   if (rawDisk === expected) continue;
@@ -101,6 +119,11 @@ for (const file of files) {
 }
 
 if (CHECK) {
+  if (budgets === null) console.warn("⚠ process/budgets-agents.json introuvable — contrôle des budgets de mots sauté.");
+  if (horsBudget.length > 0) {
+    console.error(`✗ Budget de mots dépassé (accrétion = dilution de toutes les règles) :\n` + horsBudget.map((l) => `    ${l}`).join("\n"));
+    process.exit(1);
+  }
   if (drifted.length > 0) {
     console.error(
       `✗ ${drifted.length}/${files.length} agents ont un bloc principes qui a dérivé de la source :\n` +

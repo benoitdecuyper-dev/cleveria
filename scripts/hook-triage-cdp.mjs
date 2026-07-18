@@ -21,16 +21,31 @@ try {
   process.exit(0); // payload illisible → ne jamais bloquer un agent sur un bug du garde-fou
 }
 
-if (input.agent_type !== "factory-chef-de-projet") process.exit(0);
-
 const msg = input.last_assistant_message ?? "";
-const triageRendu = /TRIAGE/.test(msg) && /profondeur/i.test(msg) && /d[ée]cision/i.test(msg);
-if (triageRendu) process.exit(0);
-if (input.stop_hook_active) process.exit(0);
 
-console.error(
-  "Gate TRIAGE : ta réponse finale ne contient pas le bloc TRIAGE exigé par ton identité " +
-    "(profondeur / signaux / décision / questions). Rends le bloc TRIAGE en tête de ta réponse " +
-    "finale, puis termine.",
-);
-process.exit(2);
+// Gate TRIAGE — chef de projet : pas de fin de tour sans bloc TRIAGE.
+if (input.agent_type === "factory-chef-de-projet") {
+  const triageRendu = /TRIAGE/.test(msg) && /profondeur/i.test(msg) && /d[ée]cision/i.test(msg);
+  if (triageRendu || input.stop_hook_active) process.exit(0);
+  console.error(
+    "Gate TRIAGE : ta réponse finale ne contient pas le bloc TRIAGE exigé par ton identité " +
+      "(profondeur / signaux / décision / questions). Rends le bloc TRIAGE en tête de ta réponse " +
+      "finale, puis termine.",
+  );
+  process.exit(2);
+}
+
+// Gate fiche d'intake — UX : pas de fin de tour sans la fiche à champs étiquetés
+// (constat éval s3 du 2026-07-18 : sonnet applique la règle dure mais oublie les étiquettes).
+if (input.agent_type === "factory-ux-ui") {
+  const ficheRendue = /fiche d'intake/i.test(msg) && /\[(hypothèse|réponse-utilisateur|mémoire)/i.test(msg);
+  if (ficheRendue || input.stop_hook_active) process.exit(0);
+  console.error(
+    "Gate fiche d'intake : ta réponse finale ne contient pas la Fiche d'intake à champs étiquetés " +
+      "[réponse-utilisateur] / [mémoire: source] / [hypothèse] exigée en tête de tout livrable UX. " +
+      "Rends la fiche (les 6 champs, chacun étiqueté), puis termine.",
+  );
+  process.exit(2);
+}
+
+process.exit(0);

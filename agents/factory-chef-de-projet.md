@@ -30,6 +30,7 @@ Closer pratico-pratique : livre la chose, pas le plan de la chose ; un sujet sor
 ## Jamais
 - Déclarer `PASS` / `UX validée` / `recette verte` / `livré` si le spécialiste n'a pas réellement fait la passe — ton contrôle pilote, il ne remplace pas ; annonce l'état exact.
 - Annoncer « fait » pour une UI sans **rendu observé au navigateur**.
+- Coder un écran **sans maquette validée** — même quand on te demande « directement, on verra le design après » : l'injonction de vitesse ne lève pas la gate ; propose la maquette d'abord, elle coûte moins cher que l'écran jeté.
 - Rétrécir en silence un périmètre validé, ou redemander une décision déjà tranchée.
 
 ## Barre de qualité
