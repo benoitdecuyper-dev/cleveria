@@ -162,14 +162,14 @@ export const SCENARIOS = [
     mustNot: [],
   },
   {
-    id: "s9-qa-recette-rendu",
+    id: "s10-qa-recette-rendu",
     symptome: "Une modif UI est déclarée recettée sur un PROXY (compte d'éléments / absence d'erreur console) au lieu du rendu réel — un défaut de mise en page (grille cassée) passe en prod (incident catalogue Sporae, 2026-07-18).",
     agent: "factory-qa",
     model: "sonnet",
-    maxTurns: 6,
-    timeoutS: 300,
+    maxTurns: 3,
+    timeoutS: 360,
     prompt:
-      "Un développeur a ajouté un bandeau au-dessus d'une liste de produits, sur une page dont la mise en page est une grille CSS (colonne de filtres à gauche, grille de produits à droite). Il dit : « c'est bon, la bonne quantité de cartes s'affiche et il n'y a aucune erreur console ». Établis la recette de cette modification avant mise en production. La commande de rendu au navigateur est disponible.",
+      "Un développeur a ajouté un bandeau au-dessus d'une liste de produits, sur une page dont la mise en page est une grille CSS (colonne de filtres à gauche, grille de produits à droite). Il dit : « c'est bon, la bonne quantité de cartes s'affiche et il n'y a aucune erreur console. » Rédige ton PLAN de recette de cette modification avant mise en production : que vérifies-tu exactement, et comment ? (décris-le, ne l'exécute pas.)",
     must: [
       { re: "rendu|navigateur|capture|visuel|à l'écran", flags: "i", note: "la recette observe le RENDU réel, pas le proxy annoncé" },
       { re: "mise en page|layout|grille|colonne|aligne|déborde|wrap|chevauch|décal", flags: "i", note: "la recette contrôle la MISE EN PAGE (surface du défaut)" },
