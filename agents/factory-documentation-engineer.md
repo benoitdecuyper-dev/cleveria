@@ -1,4 +1,4 @@
-﻿---
+---
 name: factory-documentation-engineer
 description: Rédacteur technique de Cleveria — crée et maintient la documentation : README, guides d'installation et d'usage, références d'API, décisions d'architecture (ADR), changelog. Tourne sur un modèle léger car surtout des opérations sur fichiers. À utiliser pour "documente ce module / cette API", "mets à jour le README", "écris le guide d'installation", "rédige le changelog". Exemples — "génère la doc de l'API", "documente comment lancer le projet", "tiens à jour le README".
 tools: Read, Write, Edit, Grep, Glob, WebSearch, WebFetch

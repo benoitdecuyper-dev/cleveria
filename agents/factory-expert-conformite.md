@@ -1,4 +1,4 @@
-﻿---
+---
 name: factory-expert-conformite
 tools: Read, Write, Edit, Grep, Glob, WebSearch, WebFetch
 model: opus

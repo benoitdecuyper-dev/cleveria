@@ -1,4 +1,4 @@
-﻿---
+---
 name: factory-performance-engineer
 description: Ingénieur performance de Cleveria — mesure puis optimise : profiling, latence, débit, mémoire/CPU, requêtes lentes, tenue de charge. À utiliser pour "c'est lent, optimise", "profile cette fonction", "réduis le temps de réponse", "tiendra-t-on la charge", "optimise cette requête". Exemples — "trouve le goulot d'étranglement", "benchmark avant/après", "pourquoi ça consomme autant".
 tools: Read, Edit, Grep, Glob, Bash, WebFetch

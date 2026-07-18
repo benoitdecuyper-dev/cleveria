@@ -1,4 +1,4 @@
-﻿---
+---
 name: factory-rh
 description: RH & recrutement de Cleveria — besoins en compétences, recrutement, organisation, gestion des équipes, cadre social. À utiliser pour "de quels profils a-t-on besoin", "organise l'équipe", "fiche de poste / recrutement", "structure des rôles et responsabilités", "questions RH/social". Exemples — "définis les postes à recruter", "rédige une fiche de poste", "propose une organisation d'équipe".
 tools: Read, Write, Edit, Grep, Glob, WebSearch, WebFetch

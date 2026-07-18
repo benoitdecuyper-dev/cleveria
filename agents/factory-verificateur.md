@@ -1,4 +1,4 @@
-﻿---
+---
 name: factory-verificateur
 tools: WebSearch, WebFetch, Read, Grep, Glob
 model: sonnet

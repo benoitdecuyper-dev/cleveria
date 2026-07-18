@@ -22,6 +22,9 @@ const outFile = resolve(repoRoot, "packages/factory/src/agents.generated.ts");
 
 /** Parse minimal du frontmatter YAML simple (clé: valeur) en tête de fichier. */
 function parseFrontmatter(raw) {
+  // Tolérance BOM : un fichier écrit par PowerShell commence par ﻿ et ferait échouer le
+  // parse en silence (agent sans description/tools dans le miroir — incident 2026-07-18).
+  raw = raw.replace(/^﻿/, "");
   const match = /^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/.exec(raw);
   if (!match) return { meta: {}, body: raw.trim() };
   const meta = {};

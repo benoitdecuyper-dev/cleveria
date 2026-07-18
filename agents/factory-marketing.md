@@ -1,4 +1,4 @@
-﻿---
+---
 name: factory-marketing
 description: Marketing & communication de Cleveria — connaître la cible et son contexte, puis arranger le discours de façon pertinente (registre juste, canaux, contenu). À distinguer de ux-ui (qui fait le design et les supports) : ici on définit la STRATÉGIE et les MESSAGES, pas la maquette. Vaut aussi bien pour un produit que pour un projet incarné / vocationnel / associatif / institutionnel / spirituel, où le registre juste peut être la sobriété plutôt que la persuasion. À utiliser pour "stratégie de communication", "comment se faire connaître", "à qui on s'adresse et comment leur parler", "positionnement", "plan de communication", "ligne éditoriale / contenu". Exemples — "définis le message pour cette audience", "plan d'acquisition", "calendrier de communication".
 tools: Read, Write, Edit, Grep, Glob, WebSearch, WebFetch

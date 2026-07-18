@@ -78,7 +78,12 @@ let written = 0;
 
 for (const file of files) {
   const path = join(agentsDir, file);
-  const raw = readFileSync(path, "utf8");
+  const rawDisk = readFileSync(path, "utf8");
+  // Un BOM UTF-8 (écriture PowerShell) rend le frontmatter illisible pour le chargeur d'agents
+  // Claude Code ET pour sync-agents (incident du 2026-07-18 : 15 agents hors registre + miroir
+  // runtime cassé). On le retire à la lecture → un fichier à BOM compte comme dérive, la
+  // régénération l'écrit propre.
+  const raw = rawDisk.replace(/^﻿/, "");
   const at = raw.indexOf(SENTINEL);
   if (at === -1) {
     console.error(`✗ ${file} : sentinelle « ${SENTINEL} » absente — fichier laissé intact, corrige-le d'abord.`);
@@ -86,7 +91,7 @@ for (const file of files) {
   }
   const eol = raw.includes("\r\n") ? "\r\n" : "\n";
   const expected = raw.slice(0, at) + buildBlock(file === "factory-manager.md", eol);
-  if (raw === expected) continue;
+  if (rawDisk === expected) continue;
   if (CHECK) {
     drifted.push(file);
   } else {

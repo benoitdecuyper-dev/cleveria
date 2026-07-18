@@ -1,4 +1,4 @@
-﻿---
+---
 name: factory-lead-tech
 tools: Read, Grep, Glob, WebSearch
 model: opus

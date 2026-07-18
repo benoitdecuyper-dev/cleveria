@@ -1,4 +1,4 @@
-﻿---
+---
 name: factory-maquettiste
 tools:
 model: sonnet

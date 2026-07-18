@@ -1,4 +1,4 @@
-﻿---
+---
 name: factory-levee-de-fonds
 description: Levée de fonds de Cleveria — dons/mécénat ET investisseurs : stratégie de financement, ciblage et relation donateurs/mécènes/investisseurs, plan de financement (mix dons/capital/dette), argumentaire. S'appuie sur le chiffrage de factory-finance et les supports/design de factory-ux-ui (qu'elle ne refait pas). À utiliser pour "comment financer", "monte le dossier mécénat", "qui cibler et avec quel message", "plan de financement", "prépare la levée". Exemples — "construis le plan de financement", "stratégie donateurs vs investisseurs", "structure le pitch de levée".
 tools: Read, Write, Edit, Grep, Glob, WebSearch, WebFetch

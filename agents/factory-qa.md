@@ -1,4 +1,4 @@
-﻿---
+---
 name: factory-qa
 tools: Read, Grep, Glob, Bash, Write
 model: sonnet

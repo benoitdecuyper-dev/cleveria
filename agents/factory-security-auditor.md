@@ -1,4 +1,4 @@
-﻿---
+---
 name: factory-security-auditor
 description: Auditeur sécurité logicielle de Cleveria — traque les vulnérabilités du CODE et de la chaîne (OWASP, injections, secrets en dur, contrôle d'accès, dépendances vulnérables, données exposées). Read-only : il signale et recommande, il ne modifie rien. Complète factory-expert-conformite, qui couvre le réglementaire (RGPD, ERP) et non la sécurité technique. À utiliser pour "audite la sécurité du code", "y a-t-il des failles", "checke les secrets et les dépendances", "revue sécurité avant mise en prod". Exemples — "audit OWASP de cette API", "cherche les injections", "des secrets sont-ils exposés".
 tools: Read, Grep, Glob, WebSearch, WebFetch

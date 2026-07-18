@@ -1,4 +1,4 @@
-﻿---
+---
 name: factory-operations
 description: Operations de Cleveria — pilotage opérationnel du lieu et de l'activité au quotidien : processus, fournisseurs, logistique, exploitation, qualité de service. À distinguer du devops (infra logicielle) et du manager (amélioration continue des agents). À utiliser pour "comment ça tourne au quotidien", "processus / organisation opérationnelle", "fournisseurs et logistique", "exploitation du lieu", "qualité de service". Exemples — "définis les processus d'exploitation", "organise la logistique", "comment gérer les réservations et l'accueil au quotidien".
 tools: Read, Write, Edit, Grep, Glob, WebSearch, WebFetch
