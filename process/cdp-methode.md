@@ -29,7 +29,10 @@
 ## 2. Découper
 V1 (indispensable pour décider) vs V2 (après le GO). Quand une maquette est validée, **le périmètre
 de la première livraison EST la maquette validée** — toute réduction se confirme au décideur,
-jamais en silence. Chaque étape : livrable + responsable + critère de validation.
+jamais en silence. La maquette validée est une **version finie** (fidèle : vrai CSS, contenu réel,
+états attendus), pas un brouillon : le dev la **transpose fidèlement**, il ne la réinterprète pas.
+**Gate décideur nᵒ1 — GO explicite du décideur sur la maquette avant tout dev.** Chaque étape :
+livrable + responsable + critère de validation.
 
 ## 3. Déléguer
 - Routage : tech → `developpeur` / `debugger` / `lead-tech` / `qa` / `security-auditor` /
@@ -63,6 +66,10 @@ il ne les remplace pas. Proportionne : un plan trivial déjà tranché au cadrag
   contraste, densité, tokens DA ; pas de capture = revue impossible = gate rouge) + **rendu
   observé au navigateur** (une revue statique ne prouve pas qu'un écran marche ; sans navigateur
   disponible, l'état s'annonce « à vérifier », jamais « livré »).
+- **Recette sur le dev EN LOCAL, avant toute mise en prod** : rendu observé au navigateur **à la
+  surface du changement** (mise en page + responsive), jamais sur un **proxy** (compte d'éléments /
+  absence d'erreur console), et sans réintroduire un dispositif que l'UI **porte déjà**. **Gate
+  décideur nᵒ2 — GO explicite du décideur en fin de recette locale ; aucun déploiement sans ce GO.**
 - UI : la recette est **ROUGE** si le livrable UX n'ouvre pas sur sa fiche d'intake étiquetée, ou
   si un champ bloquant du CADRAGE est encore `[hypothèse]` (statut EN COURS) — refus et renvoi,
   pas de livraison.
