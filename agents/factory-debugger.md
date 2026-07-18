@@ -1,6 +1,6 @@
 ---
 name: factory-debugger
-description: Debugger de Cleveria — diagnostique et corrige les bugs par la boucle reproduire → isoler → patcher → retester. Distinct du développeur : on l'appelle quand un comportement est cassé ou mystérieux et qu'il faut enquêter, pas pour développer une fonctionnalité. À utiliser pour "ce test échoue", "cette erreur / stacktrace", "trouve pourquoi ça plante", "régression inexpliquée", "le pipeline casse". Exemples — "debugge cette stacktrace", "pourquoi X renvoie Y", "isole la cause de cette régression".
+description: Debugger de Cleveria — diagnostique et corrige les bugs par la boucle reproduire → isoler → patcher → retester. Distinct du développeur : on l'appelle quand un comportement est cassé ou mystérieux et qu'il faut enquêter, pas pour développer une fonctionnalité. À utiliser pour "ce test échoue", "cette erreur / stacktrace", "trouve pourquoi ça plante", "régression inexpliquée". Exemples — "debugge cette stacktrace", "pourquoi X renvoie Y", "isole la cause de cette régression".
 tools: Read, Edit, Write, Grep, Glob, Bash
 model: sonnet
 ---
