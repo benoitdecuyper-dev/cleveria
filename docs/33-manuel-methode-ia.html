@@ -1,0 +1,858 @@
+<!-- Source du manuel « Notions de méthode IA » publié en artifact privé :
+     https://claude.ai/code/artifact/6e6cf8ff-3997-4765-af25-f0c3034ec1a9
+     Pour mettre à jour : éditer CE fichier puis le republier via le tool Artifact en passant
+     cette URL en paramètre `url` (depuis n'importe quelle session — URL aussi en mémoire
+     auto, fiche cleveria-audit-methode-factory). Source texte canonique : docs/31 (markdown).
+     Rendu : wrappé par claude.ai (doctype/head/body ajoutés) ; mermaid natif ; thème clair/sombre. -->
+<title>Notions de méthode IA — le manuel</title>
+<style>
+  :root {
+    --bg: #F6F7F9;
+    --surface: #FFFFFF;
+    --ink: #1C2530;
+    --muted: #5A6675;
+    --accent: #2A55B8;
+    --accent-soft: #E8EEFA;
+    --line: #DDE2E9;
+    --vert: #1F8A5C;
+    --vert-bg: #E9F5EF;
+    --rouge: #B5443E;
+    --rouge-bg: #FAEFEE;
+    --mono-bg: #EEF1F5;
+    --serif: "Charter", "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
+    --sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: "Cascadia Mono", Consolas, "SF Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131820;
+      --surface: #1A2029;
+      --ink: #E7EAEF;
+      --muted: #97A2B0;
+      --accent: #7AA2F2;
+      --accent-soft: #1E2A42;
+      --line: #2A323E;
+      --vert: #4CC38A;
+      --vert-bg: #17271F;
+      --rouge: #E08078;
+      --rouge-bg: #2C1E1C;
+      --mono-bg: #212938;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #131820;
+    --surface: #1A2029;
+    --ink: #E7EAEF;
+    --muted: #97A2B0;
+    --accent: #7AA2F2;
+    --accent-soft: #1E2A42;
+    --line: #2A323E;
+    --vert: #4CC38A;
+    --vert-bg: #17271F;
+    --rouge: #E08078;
+    --rouge-bg: #2C1E1C;
+    --mono-bg: #212938;
+  }
+  :root[data-theme="light"] {
+    --bg: #F6F7F9;
+    --surface: #FFFFFF;
+    --ink: #1C2530;
+    --muted: #5A6675;
+    --accent: #2A55B8;
+    --accent-soft: #E8EEFA;
+    --line: #DDE2E9;
+    --vert: #1F8A5C;
+    --vert-bg: #E9F5EF;
+    --rouge: #B5443E;
+    --rouge-bg: #FAEFEE;
+    --mono-bg: #EEF1F5;
+  }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.65;
+    margin: 0;
+  }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.82em;
+    background: var(--mono-bg);
+    padding: 0.12em 0.4em;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr);
+    gap: 56px;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 36px 96px;
+  }
+  /* ---------- masthead ---------- */
+  .masthead {
+    grid-column: 1 / -1;
+    padding: 64px 0 40px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 40px;
+  }
+  .eyebrow {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-size: clamp(32px, 4.5vw, 46px);
+    font-weight: 700;
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    margin: 0 0 18px;
+    text-wrap: balance;
+    max-width: 22ch;
+  }
+  .standfirst {
+    font-size: 19px;
+    line-height: 1.6;
+    color: var(--muted);
+    max-width: 62ch;
+    margin: 0 0 28px;
+  }
+  .standfirst strong { color: var(--ink); }
+  .gabarit {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-family: var(--sans);
+    font-size: 13px;
+  }
+  .gabarit span {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    padding: 5px 12px;
+    border-radius: 999px;
+    color: var(--muted);
+  }
+  .gabarit span b { color: var(--ink); font-weight: 600; }
+  .gabarit .g-mordu { border-color: color-mix(in srgb, var(--rouge) 40%, var(--line)); }
+  /* ---------- sidebar ---------- */
+  .toc {
+    position: sticky;
+    top: 28px;
+    align-self: start;
+    font-family: var(--sans);
+    font-size: 13.5px;
+    max-height: calc(100vh - 56px);
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .toc h2 {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 22px 0 8px;
+  }
+  .toc h2:first-child { margin-top: 0; }
+  .toc ol { list-style: none; margin: 0; padding: 0; }
+  .toc a {
+    display: flex;
+    gap: 9px;
+    align-items: baseline;
+    padding: 4px 8px 4px 6px;
+    color: var(--muted);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    border-radius: 0 4px 4px 0;
+    line-height: 1.35;
+  }
+  .toc a:hover { color: var(--ink); background: var(--surface); }
+  .toc a.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-soft); }
+  .toc .n {
+    font-variant-numeric: tabular-nums;
+    font-size: 11.5px;
+    color: var(--muted);
+    min-width: 15px;
+    text-align: right;
+  }
+  .toc a.active .n { color: var(--accent); }
+  .toc .parcours-link { font-weight: 600; color: var(--ink); }
+  /* ---------- fiches ---------- */
+  main { min-width: 0; }
+  .intro-note {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 26px;
+    max-width: 74ch;
+    margin: 0 0 48px;
+  }
+  .intro-note p { margin: 0 0 10px; max-width: 68ch; }
+  .intro-note p:last-child { margin-bottom: 0; }
+  .part-title {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 64px 0 8px;
+  }
+  .part-title::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .fiche {
+    padding: 36px 0 8px;
+    scroll-margin-top: 20px;
+  }
+  .fiche-head {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+  .fiche-num {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    border: 1.5px solid var(--accent);
+    border-radius: 6px;
+    padding: 3px 8px;
+    flex: none;
+  }
+  .fiche h3 {
+    font-size: 25px;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .idee {
+    font-size: 20px;
+    line-height: 1.55;
+    font-style: italic;
+    max-width: 62ch;
+    margin: 0 0 20px;
+    padding-left: 18px;
+    border-left: 3px solid var(--accent);
+  }
+  .idee em { font-style: normal; }
+  .fiche-body { max-width: 70ch; }
+  .fiche-body p { margin: 0 0 16px; }
+  .mordu {
+    background: var(--rouge-bg);
+    border: 1px solid color-mix(in srgb, var(--rouge) 28%, transparent);
+    border-radius: 10px;
+    padding: 18px 22px;
+    max-width: 70ch;
+    margin: 22px 0;
+  }
+  .mordu-label {
+    font-family: var(--sans);
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--rouge);
+    display: block;
+    margin-bottom: 8px;
+  }
+  .mordu p { margin: 0 0 10px; }
+  .mordu p:last-child { margin-bottom: 0; }
+  .apply {
+    background: var(--vert-bg);
+    border: 1px solid color-mix(in srgb, var(--vert) 30%, transparent);
+    border-radius: 10px;
+    padding: 18px 22px;
+    max-width: 70ch;
+    margin: 22px 0;
+  }
+  .apply .mordu-label { color: var(--vert); }
+  .apply p { margin: 0 0 10px; }
+  .apply p:last-child { margin-bottom: 0; }
+  .refs {
+    font-family: var(--sans);
+    font-size: 13.5px;
+    color: var(--muted);
+    border-top: 1px solid var(--line);
+    max-width: 70ch;
+    margin-top: 24px;
+    padding-top: 12px;
+    line-height: 1.7;
+  }
+  .refs b {
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    font-size: 11px;
+    color: var(--muted);
+    margin-right: 6px;
+  }
+  /* ---------- parcours ---------- */
+  .parcours { scroll-margin-top: 20px; padding-top: 48px; }
+  .parcours h2 {
+    font-size: 30px;
+    margin: 8px 0 16px;
+    letter-spacing: -0.01em;
+  }
+  .regle-jeu {
+    background: var(--vert-bg);
+    border: 1px solid color-mix(in srgb, var(--vert) 30%, transparent);
+    border-radius: 10px;
+    padding: 18px 22px;
+    max-width: 74ch;
+    margin: 0 0 28px;
+  }
+  .regle-jeu p { margin: 0; }
+  .regle-jeu .mordu-label { color: var(--vert); }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 760px;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  th {
+    font-family: var(--sans);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 14px 18px 10px;
+    border-bottom: 2px solid var(--line);
+  }
+  td {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  td.step-n {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  td .fiche-ref {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 5px;
+    padding: 2px 7px;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  td .fiche-ref:hover { text-decoration: underline; }
+  .preuve { color: var(--muted); }
+  .preuve b { color: var(--vert); font-family: var(--sans); font-size: 13px; }
+  .colophon {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--muted);
+    border-top: 1px solid var(--line);
+    margin-top: 56px;
+    padding-top: 18px;
+    max-width: 74ch;
+  }
+  /* ---------- responsive ---------- */
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; gap: 0; padding: 0 20px 64px; }
+    .toc { position: static; max-height: none; border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; background: var(--surface); margin-bottom: 8px; }
+    .masthead { padding-top: 40px; }
+  }
+</style>
+
+<div class="layout">
+  <header class="masthead">
+    <p class="eyebrow">Cleveria · Formation méthode IA · 18 juillet 2026</p>
+    <h1>Les notions derrière la refonte de la factory</h1>
+    <p class="standfirst">Quatorze fiches pour comprendre <strong>pourquoi des règles bien écrites ne sont pas suivies</strong> — et le parcours de correction en sept étapes, une à la fois. Chaque fiche relie la théorie à l'endroit précis où notre factory s'est fait mordre. Les références ont été ouvertes et recoupées pendant l'audit du 18/07.</p>
+    <div class="gabarit" aria-label="Gabarit de chaque fiche">
+      <span><b>L'idée</b> en une phrase</span>
+      <span>L'explication</span>
+      <span class="g-mordu"><b>Où ça nous a mordus</b> — l'exemple dans nos fichiers</span>
+      <span><b>Références</b> vérifiées</span>
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="Sommaire">
+    <h2>Pourquoi la prose échoue</h2>
+    <ol>
+      <li><a href="#fiche-1"><span class="n">1</span>La fenêtre de contexte</a></li>
+      <li><a href="#fiche-2"><span class="n">2</span>Prompt vs context engineering</a></li>
+      <li><a href="#fiche-3"><span class="n">3</span>Context rot</a></li>
+      <li><a href="#fiche-4"><span class="n">4</span>Lost in the Middle</a></li>
+      <li><a href="#fiche-5"><span class="n">5</span>La loi du nombre de règles</a></li>
+    </ol>
+    <h2>Du prompt au harnais</h2>
+    <ol>
+      <li><a href="#fiche-6"><span class="n">6</span>Probabiliste vs déterministe</a></li>
+      <li><a href="#fiche-7"><span class="n">7</span>Les hooks Claude Code</a></li>
+      <li><a href="#fiche-8"><span class="n">8</span>Artefacts typés</a></li>
+    </ol>
+    <h2>Les organisations</h2>
+    <ol>
+      <li><a href="#fiche-9"><span class="n">9</span>Spec-driven development</a></li>
+      <li><a href="#fiche-10"><span class="n">10</span>Agent Skills</a></li>
+      <li><a href="#fiche-11"><span class="n">11</span>Multi-agent : aide ou nuisance</a></li>
+    </ol>
+    <h2>La boucle de preuve</h2>
+    <ol>
+      <li><a href="#fiche-12"><span class="n">12</span>Evals</a></li>
+      <li><a href="#fiche-13"><span class="n">13</span>Mesurer sans se mentir</a></li>
+      <li><a href="#fiche-14"><span class="n">14</span>La méta-boucle du manager</a></li>
+    </ol>
+    <h2>Application</h2>
+    <ol>
+      <li><a href="#parcours" class="parcours-link"><span class="n">→</span>Le parcours en 7 étapes</a></li>
+      <li><a href="#schema" class="parcours-link"><span class="n">⧉</span>Schéma : le trajet d'une demande</a></li>
+      <li><a href="#lexique"><span class="n">A</span>Lexique du jargon</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="intro-note">
+      <p><strong>Pourquoi ce document.</strong> L'audit du 18 juillet 2026 (4 diagnostics sur les fichiers de la factory + 5 recherches à sources vérifiées) a montré que les problèmes de la factory ont des causes structurelles précises. Plutôt qu'une refonte en bloc, on corrige étape par étape — et ce manuel donne, pour chaque étape, les notions à comprendre avant d'agir.</p>
+      <p><strong>Comment le lire.</strong> Dans l'ordre, de préférence : les fiches 1 à 5 expliquent la maladie, les fiches 6 à 8 le remède principal, les suivantes élargissent. Le sommaire suit ta lecture. Source markdown : <code>cleveria/docs/31-notions-methode-ia.md</code>.</p>
+    </div>
+    <p class="part-title">Partie 1 — Pourquoi la prose échoue</p>
+
+    <section class="fiche" id="fiche-1">
+      <div class="fiche-head"><span class="fiche-num">01</span><h3>La fenêtre de contexte : le modèle ne sait que ce qu'on lui montre</h3></div>
+      <p class="idee">Un modèle de langage ne « sait », au moment où il répond, que ce qui est physiquement présent dans sa fenêtre de contexte — et <em><strong>pointer un fichier n'est pas le charger</strong></em>.</p>
+      <div class="fiche-body">
+        <p>Le contexte d'un agent, c'est : son prompt système (le <code>.md</code> de l'agent), la conversation, et ce qu'il a explicitement lu avec ses outils. Rien d'autre. Une phrase comme « référence : <code>~/.claude/PRINCIPES-AGENTS.md</code> » ne met <strong>rien</strong> dans le contexte : elle donne à l'agent la <em>possibilité</em> d'aller lire, jamais l'<em>obligation</em> — et un agent lancé sur une tâche ne dépense pas son premier tour à lire de la doctrine.</p>
+      </div>
+      <div class="mordu">
+        <span class="mordu-label">Où ça nous a mordus</span>
+        <p>C'est LA trouvaille de l'audit. Le pied de page des 26 agents pointe <code>PRINCIPES-AGENTS.md</code> sans forcer sa lecture, et le petit résumé qu'il contient est un digest manuel <strong>gelé à 9 principes sur 19</strong>. Toutes les leçons gravées par le manager les 15 et 17/07 n'ont jamais atteint le contexte d'un seul agent. « Le manager améliore en continu et rien ne change » : c'était littéralement ça.</p>
+      </div>
+      <p class="refs"><b>Références</b> Anthropic, <a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents">Effective context engineering for AI agents</a> (29/09/2025) · Doc Claude Code, <a href="https://code.claude.com/docs/en/best-practices">Best practices</a> (« CLAUDE.md is a special file that Claude reads at the start of every conversation » — seul le contenu injecté est garanti).</p>
+    </section>
+
+    <section class="fiche" id="fiche-2">
+      <div class="fiche-head"><span class="fiche-num">02</span><h3>Prompt engineering vs context engineering</h3></div>
+      <p class="idee">Bien rédiger un prompt est un acte ponctuel ; le context engineering est la <em><strong>curation continue</strong></em> de ce qui entre dans la fenêtre, refaite à chaque appel.</p>
+      <div class="fiche-body">
+        <p>La vidéo que tu as vue s'arrête au pilier « soigner la rédaction ». Les sources définissent autre chose : choisir dynamiquement, à chaque moment, le bon sous-ensemble d'informations (fichiers, mémoire, résultats d'outils) — « <em>the curation phase happens each time we decide what to pass to the model</em> » (Anthropic). LangChain formule la hiérarchie : « <em>prompt engineering is a subset of context engineering</em> ».</p>
+        <p><strong>L'image à retenir : le curateur de musée.</strong> Il dispose de réserves immenses et d'une salle minuscule ; son métier est de <strong>choisir</strong> les quelques œuvres qui servent l'exposition en cours, pas d'accrocher le plus de tableaux possible. La salle = la fenêtre de contexte (limitée, et qui se dégrade quand on la remplit — fiche 3). Les réserves = tout ce qu'on <em>pourrait</em> donner au modèle (fichiers agents, historique, principes, mémoire, docs). Et « continue » signifie que ce choix est <strong>refait à chaque appel</strong>, parce que la bonne sélection change avec la tâche : la checklist UX est précieuse au moment de dessiner un écran, et du bruit pendant un debug de base de données. Concrètement : un skill qui ne charge la checklist qu'au moment où la tâche la déclenche (fiche 10), un sous-agent qui lit 26 fichiers et ne fait entrer que sa synthèse, un <code>/clear</code> entre deux tâches — c'est de la curation. Un prompt permanent de 2 800 mots où tout est exposé tout le temps — c'est l'absence de curation.</p>
+      </div>
+      <div class="mordu">
+        <span class="mordu-label">Où ça nous a mordus</span>
+        <p>Nos règles sont <strong>bien rédigées</strong> — l'audit l'a confirmé — mais mal <em>livrées</em> : le problème n'était pas la qualité d'écriture, c'était ce qui atteint réellement le contexte au bon moment. Optimiser encore la rédaction n'aurait rien corrigé.</p>
+      </div>
+      <p class="refs"><b>Références</b> Anthropic (fiche 1) · LangChain, <a href="https://www.langchain.com/blog/the-rise-of-context-engineering">The rise of context engineering</a> (23/06/2025).</p>
+    </section>
+
+    <section class="fiche" id="fiche-3">
+      <div class="fiche-head"><span class="fiche-num">03</span><h3>Context rot : le contexte se dégrade en grossissant</h3></div>
+      <p class="idee">Plus la fenêtre se remplit, moins le modèle exploite fiablement ce qu'elle contient — <em><strong>même quand tout y est</strong></em>.</p>
+      <div class="fiche-body">
+        <p>Le mécanisme : l'attention du modèle est un budget fini réparti sur n² relations entre tokens. Le rapport Chroma (18 modèles testés, dont GPT-4.1, Claude 4, Gemini 2.5) le mesure : « <em>their performance grows increasingly unreliable as input length grows</em> ». Ajouter du texte, même pertinent, a un coût pour tout le reste.</p>
+      </div>
+      <div class="mordu">
+        <span class="mordu-label">Où ça nous a mordus</span>
+        <p>Chaque rétro ajoutait de la prose aux prompts « pour être sûr ». Chaque ajout rendait tous les précédents un peu moins lus. L'amélioration continue <strong>fabriquait</strong> la dégradation (fiche 14).</p>
+      </div>
+      <p class="refs"><b>Références</b> Anthropic (fiche 1, section « context rot ») · Chroma Research, <a href="https://research.trychroma.com/context-rot">Context Rot</a> (14/07/2025).</p>
+    </section>
+
+    <section class="fiche" id="fiche-4">
+      <div class="fiche-head"><span class="fiche-num">04</span><h3>Lost in the Middle : la position d'une règle compte</h3></div>
+      <p class="idee">L'information placée au début ou à la fin du contexte est bien exploitée ; celle du <em><strong>milieu</strong></em> est largement perdue — une courbe en U mesurée expérimentalement.</p>
+      <div class="mordu">
+        <span class="mordu-label">Où ça nous a mordus</span>
+        <p>Dans <code>factory-chef-de-projet.md</code>, l'état d'esprit « closer — tue le sujet dès qu'il arrive » ouvre le prompt (position forte), tandis que « Ne remplace pas les spécialistes par le CDP » arrive ligne 65, au ~20<sup>e</sup> paragraphe (position faible), après 40 lignes qui installent le réflexe inverse. À force d'impératifs égaux, c'est la position qui tranche — et elle tranchait contre nous.</p>
+      </div>
+      <p class="refs"><b>Références</b> Liu et al., <a href="https://arxiv.org/abs/2307.03172">Lost in the Middle</a> · Doc Anthropic, <a href="https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/long-context-tips">Long context tips</a> (instructions critiques au début ET rappelées à la fin).</p>
+    </section>
+
+    <section class="fiche" id="fiche-5">
+      <div class="fiche-head"><span class="fiche-num">05</span><h3>La loi du nombre de règles : accuracy<sup>n</sup> et l'omission silencieuse</h3></div>
+      <p class="idee">Le respect global d'un prompt ≈ (respect d'une règle)<sup>n</sup> : <em><strong>chaque règle ajoutée dégrade toutes les autres</strong></em> — et sous charge, une règle n'est pas déformée, elle est ignorée sans bruit.</p>
+      <div class="fiche-body">
+        <p>Trois résultats convergents : la décroissance exponentielle avec le nombre d'instructions (« Curse of Instructions », ICLR 2025) ; ~68 % de suivi seulement à forte densité, même sur les meilleurs modèles, avec des erreurs qui deviennent des <em>omissions</em> pures (IFScale) ; et une dégradation du raisonnement dès que l'entrée s'allonge, même avec du remplissage non pertinent (Levy et al., ACL 2024).</p>
+      </div>
+      <div class="mordu">
+        <span class="mordu-label">Où ça nous a mordus</span>
+        <p>Le prompt du CDP fait <strong>2 822 mots</strong> là où notre propre cadrage (<code>docs/07-upgrade-agents.md</code>) fixe la cible « lean » à ~250-340 mots. La ligne « Cadrer » fait à elle seule 325 mots et empile 8 règles. Côté UX, « demande pour qui est l'outil » est noyé dans un bullet de ~500 mots. Aucune de ces règles n'était mauvaise : elles étaient <strong>trop nombreuses pour survivre ensemble</strong>.</p>
+      </div>
+      <p class="refs"><b>Références</b> <a href="https://openreview.net/forum?id=R6q67CDBCH">Curse of Instructions / ManyIFEval</a> (ICLR 2025) · <a href="https://arxiv.org/abs/2507.11538">IFScale</a> · Levy et al., <a href="https://arxiv.org/abs/2402.14848">Same Task, More Tokens</a>.</p>
+    </section>
+
+    <p class="part-title">Partie 2 — Du prompt au harnais</p>
+
+    <section class="fiche" id="fiche-6">
+      <div class="fiche-head"><span class="fiche-num">06</span><h3>Prompt vs harnais : le probabiliste et le déterministe</h3></div>
+      <p class="idee">Une consigne dans un prompt est suivie <em>souvent</em> ; un contrôle dans le <em><strong>harnais</strong></em> — le logiciel autour du modèle : hooks, permissions, schémas, scripts — est appliqué <em>toujours</em>.</p>
+      <div class="fiche-body">
+        <p>C'est la distinction la plus importante de tout ce manuel. Un prompt est une influence statistique ; le harnais est du code. La doc officielle des hooks le dit : « <em>deterministic control… ensuring certain actions always happen rather than relying on the LLM to choose to run them</em> ». Notre propre doctrine l'avait déjà formulé (<code>PRINCIPES-AGENTS.md:68</code>) : « <strong>un garde-fou est un mécanisme qui échoue, pas une phrase qui prévient</strong> » — avec son test d'existence : casse ce que le contrôle surveille, vérifie que ça devient rouge, restaure.</p>
+      </div>
+      <div class="mordu">
+        <span class="mordu-label">Où ça nous a mordus</span>
+        <p>La factory a TOUT mis dans les prompts et RIEN dans le harnais : <strong>22 971 mots de règles écrites, zéro règle mécanisée</strong>. Les hooks <code>Stop</code>, <code>PostToolUse</code>, <code>UserPromptSubmit</code> de <code>settings.json</code> sont des tableaux vides. Test d'existence appliqué à notre propre fichier de principes : supprime <code>PRINCIPES-AGENTS.md</code>, rien ne devient rouge nulle part. Selon nos propres termes, la factory n'avait pas de gates — elle avait des vœux.</p>
+      </div>
+      <div class="apply">
+        <span class="mordu-label">Où vit le harnais, concrètement chez toi (18/07)</span>
+        <p>Ce n'est pas un concept, c'est du logiciel que tu peux ouvrir : <strong>(1)</strong> <code>~/.claude/settings.json</code> — les hooks (SessionStart : jonction, principes, budgets ; SubagentStop : gates TRIAGE et fiche d'intake) ; <strong>(2)</strong> <code>cleveria/scripts/*.mjs</code> — inline-principes, sync-agents, sweep-adjacent, run-evals, capture-rendu : les mécanismes qui échouent ; <strong>(3)</strong> la jonction <code>~/.claude/agents</code> → <code>cleveria/agents</code> — le canal de livraison des prompts ; <strong>(4)</strong> tes commandes <code>/bras-droit</code>, <code>/formateur</code>, <code>/retro</code>. Le modèle, lui, ne voit que du texte — tout ce qui précède est appliqué PAR le harnais, que le modèle le veuille ou non.</p>
+      </div>
+      <p class="refs"><b>Références</b> Doc Claude Code, <a href="https://code.claude.com/docs/en/hooks-guide">Hooks</a> · <code>~/.claude/PRINCIPES-AGENTS.md:68-73</code> (notre propre énoncé du principe).</p>
+    </section>
+
+    <section class="fiche" id="fiche-7">
+      <div class="fiche-head"><span class="fiche-num">07</span><h3>Les hooks Claude Code : à quoi ça ressemble concrètement</h3></div>
+      <p class="idee">Un hook est un petit script que le harnais exécute à un moment précis du cycle de travail, et qui peut <em><strong>bloquer l'action</strong></em> (exit code 2).</p>
+      <div class="fiche-body">
+        <p>Les moments utiles pour nous : <code>PreToolUse</code> (avant qu'un outil s'exécute — peut interdire un Write sur certains chemins), <code>PostToolUse</code> (après — peut vérifier ce qui vient d'être écrit), <code>Stop</code> (quand l'agent veut terminer son tour — peut refuser la clôture si un livrable est incomplet), <code>UserPromptSubmit</code> (à chaque message — peut injecter un rappel ciblé), <code>SessionStart</code> (au démarrage — le seul que nous utilisions, pour vérifier la jonction agents).</p>
+      </div>
+      <div class="apply">
+        <span class="mordu-label">Ce que ça permettra chez nous</span>
+        <p>Refuser la fin de tour d'un agent factory si son livrable n'a pas de bloc <code>## Passation</code> · interdire au CDP d'écrire du code projet (production = déléguer) tout en l'autorisant sur <code>CADRAGE.md</code> / <code>PLAN.md</code> · bloquer le dev d'une feature UI tant que l'artefact maquette validée n'existe pas.</p>
+      </div>
+      <p class="refs"><b>Références</b> <a href="https://code.claude.com/docs/en/hooks-guide">code.claude.com/docs/en/hooks-guide</a>.</p>
+    </section>
+
+    <section class="fiche" id="fiche-8">
+      <div class="fiche-head"><span class="fiche-num">08</span><h3>Artefacts typés : le formulaire bat la prose</h3></div>
+      <p class="idee">On oublie une nuance noyée dans un paragraphe ; on n'oublie <em><strong>jamais un champ vide dans un formulaire</strong></em> — et un champ vide peut rendre l'étape suivante impossible.</p>
+      <div class="fiche-body">
+        <p>Deux niveaux. <strong>(a)</strong> Les <em>sorties structurées</em> au sens strict : quand on force un modèle à répondre dans un schéma, l'adhérence passe de &lt;40 % (consigne en prose) à 100 % (contrainte de décodage) — chiffres OpenAI sur leurs modèles. <strong>(b)</strong> Les <em>artefacts à champs typés</em> : un <code>CADRAGE.md</code> avec des champs obligatoires (pour qui / device / échelle / hors-périmètre), chaque champ étiqueté <code>[réponse-utilisateur]</code>, <code>[mémoire: source]</code> ou <code>[hypothèse]</code>. La règle « pose des questions » devient vérifiable : un champ critique marqué <code>[hypothèse]</code> est <strong>visible et bloquant</strong>, au lieu d'une vertu qu'on espère.</p>
+      </div>
+      <div class="mordu">
+        <span class="mordu-label">Où ça nous a mordus</span>
+        <p>Le cadrage du CDP est un paragraphe de 325 mots : personne — ni toi, ni la QA, ni le Contradicteur — ne peut vérifier qu'il a été fait. L'intake UX (pour qui ? quel appareil ? quelles références marché ?) existe en prose et n'a jamais produit un artefact qu'on aurait pu exiger.</p>
+      </div>
+      <p class="refs"><b>Références</b> OpenAI, <a href="https://openai.com/index/introducing-structured-outputs-in-the-api/">Introducing Structured Outputs</a> · Notation EARS de Kiro (« WHEN… THE SYSTEM SHALL… ») — <a href="https://kiro.dev/docs/specs/">kiro.dev/docs/specs</a>.</p>
+    </section>
+    <p class="part-title">Partie 3 — Les organisations de travail</p>
+
+    <section class="fiche" id="fiche-9">
+      <div class="fiche-head"><span class="fiche-num">09</span><h3>Spec-driven development : la spec comme source de vérité</h3></div>
+      <p class="idee">Au lieu de dialoguer jusqu'à ce que « ça ait l'air bon » (vibe coding), on investit l'intelligence en amont dans une <em><strong>spécification persistée et versionnée</strong></em> — puis l'exécution devient quasi mécanique : « le code sert la spec ».</p>
+      <div class="fiche-body">
+        <p>Le cycle canonique (GitHub Spec Kit) : Specify → Plan → Tasks → Implement, avec des étapes de contrôle dédiées (<code>/clarify</code> pour lever les zones floues, <code>/analyze</code> pour vérifier la cohérence entre artefacts). Amazon Kiro impose trois fichiers par feature : <code>requirements.md</code>, <code>design.md</code>, <code>tasks.md</code>. Limites documentées : sur-spécification (la spec devient du pseudo-code), « spec rot » (la spec dérive du code), effet waterfall — et Spec Kit est optimisé pour du neuf, moins pour l'existant.</p>
+      </div>
+      <div class="apply">
+        <span class="mordu-label">Où ça nous concerne</span>
+        <p>Notre chaîne <code>CADRAGE.md</code> → plan orchestrateur → tickets est déjà une ébauche de spec-driven — c'est une force. Ce qui manque : les champs typés (fiche 8), les checkpoints de clarification, et le caractère <strong>bloquant</strong> (aujourd'hui on peut sauter le cadrage sans que rien n'échoue).</p>
+      </div>
+      <p class="refs"><b>Références</b> <a href="https://github.blog/ai-and-ml/generative-ai/spec-driven-development-with-ai-get-started-with-a-new-open-source-toolkit/">GitHub Blog</a> (02/09/2025) · <a href="https://github.com/github/spec-kit">github/spec-kit</a> · <a href="https://kiro.dev/docs/specs/">kiro.dev/docs/specs</a> · Limites : Birgitta Böckeler (martinfowler.com), issue spec-kit #1191.</p>
+    </section>
+
+    <section class="fiche" id="fiche-10">
+      <div class="fiche-head"><span class="fiche-num">10</span><h3>Agent Skills : la connaissance juste-à-temps</h3></div>
+      <p class="idee">Ranger le savoir procédural en <em><strong>modules chargés seulement quand la tâche les déclenche</strong></em>, au lieu de tout empiler dans un prompt permanent.</p>
+      <div class="fiche-body">
+        <p>Un skill est un dossier (<code>SKILL.md</code> + ressources) avec un déclencheur décrit dans son en-tête : le harnais ne charge le contenu que quand la tâche correspond. Conséquence directe sur les fiches 3-5 : une règle chargée <em>au moment où elle s'applique</em> échappe à la dilution (elle n'occupe pas la fenêtre en permanence) et à la loi accuracy<sup>n</sup> (elle n'est pas en concurrence avec 40 autres). C'est la réponse d'Anthropic au problème exact de notre symptôme « les règles ne sont pas prises en compte » — et c'était absent de ta liste ET de ma première cartographie.</p>
+      </div>
+      <div class="apply">
+        <span class="mordu-label">Application chez nous</span>
+        <p>Les candidats naturels : la checklist d'intake UX, le protocole de passation, le sweep d'impact — chacun devient un module court à déclencheur, que le manager améliore isolément au lieu d'engraisser un prompt.</p>
+        <p><strong>Où on a atterri (18/07, question de Benoit).</strong> Aucun <code>SKILL.md</code> formel : un skill est proposé au <strong>fil principal</strong>, or la factory vit en <strong>sous-agents</strong> qui ne voient pas le catalogue — un skill « intake UX » ne se déclencherait jamais chez l'agent UX. On a donc appliqué le <em>principe</em> (charger juste-à-temps) par les canaux qui atteignent les agents : méthode CDP lue sur triage « projet », fiche d'intake portée par l'agent + gate hook, sweep convoqué par le plan. Les skills formels servent là où ils fonctionnent — le fil principal : <code>/bras-droit</code>, <code>/formateur</code>, <code>/retro</code> (la rétro outillée du manager).</p>
+      </div>
+      <p class="refs"><b>Références</b> Anthropic, Agent Skills (oct. 2025) et <a href="https://code.claude.com/docs/en/">doc Claude Code</a> (section skills) · écosystème communautaire (ex. obra/superpowers).</p>
+    </section>
+
+    <section class="fiche" id="fiche-11">
+      <div class="fiche-head"><span class="fiche-num">11</span><h3>Multi-agent : quand ça aide, quand ça nuit</h3></div>
+      <p class="idee">La <em><strong>lecture</strong></em> se parallélise très bien (recherche, audit, review) ; l'<em><strong>écriture couplée</strong></em> exige un contexte partagé — et les personas métiers sont la variable la <em>moins</em> corrélée au succès.</p>
+      <div class="fiche-body">
+        <p>Trois faits à retenir. <strong>(a)</strong> Anthropic mesure +90,2 % sur ses tâches de <em>recherche</em> avec un orchestrateur + subagents parallèles… pour ~15× le coût en tokens, et classe explicitement le <em>coding</em> comme mauvais candidat au multi-agent. <strong>(b)</strong> Cognition (Devin) démontre l'inverse pour l'écriture : des subagents parallèles prennent des décisions implicites divergentes qu'ils ne se voient pas prendre (l'exemple Flappy Bird), et le multi-tour fragmenté coûte −39 % (Laban et al.). <strong>(c)</strong> Les agences simulées académiques (ChatDev, MetaGPT — l'équivalent de notre factory) affichent <strong>41 à 87 % d'échec</strong> en conditions réelles (étude MAST, 1 600 traces annotées).</p>
+      </div>
+      <div class="mordu">
+        <span class="mordu-label">Où ça nous concerne — et ça recadre le diagnostic</span>
+        <p>« Le bras droit fait le travail lui-même » n'est pas toujours un bug : pour une tâche d'écriture couplée, c'est parfois le comportement <em>optimal</em>. Le vrai bug, c'est qu'il le fait <strong>sans cadrage en amont ni gates en aval</strong>. Ce n'est pas un hasard si dev, QA et analyse marché fonctionnent bien chez nous : ce sont les rôles dont la sortie est <strong>vérifiable</strong> (tests, critères, sources). Le critère de triage à graver : lecture → paralléliser ; écriture → un exécutant + gates.</p>
+      </div>
+      <p class="refs"><b>Références</b> Anthropic, <a href="https://www.anthropic.com/engineering/built-multi-agent-research-system">How we built our multi-agent research system</a> · Cognition, <a href="https://cognition.com/blog/dont-build-multi-agents">Don't Build Multi-Agents</a> · LangChain, <a href="https://www.langchain.com/blog/how-and-when-to-build-multi-agent-systems">How and when to build multi-agent systems</a> · MAST, <a href="https://arxiv.org/abs/2503.13657">Why Do Multi-Agent LLM Systems Fail?</a></p>
+    </section>
+
+    <p class="part-title">Partie 4 — La boucle de preuve</p>
+
+    <section class="fiche" id="fiche-12">
+      <div class="fiche-head"><span class="fiche-num">12</span><h3>Evals : transformer les échecs en tests rejouables</h3></div>
+      <p class="idee">Chaque vrai échec devient un scénario qu'on <em><strong>rejoue</strong></em> pour prouver qu'une correction corrige — et qu'elle ne re-casse pas plus tard.</p>
+      <div class="fiche-body">
+        <p>La recommandation de démarrage (Anthropic) : 20-50 tâches tirées de <em>vrais</em> échecs, pas de scénarios inventés. Trois façons de noter : un script (rapide, objectif), un LLM juge (souple mais biaisé — biais de position, de verbosité, d'auto-préférence : ne jamais faire juger un livrable par le modèle qui l'a produit, calibrer sur un échantillon noté à la main), un humain (référence, mais ne passe pas à l'échelle).</p>
+      </div>
+      <div class="apply">
+        <span class="mordu-label">Application chez nous</span>
+        <p>Tes 6 symptômes sont nos 6 premiers cas d'éval : brief ambigu → le CDP pose-t-il la question de cadrage ? demande UX sans destinataire → l'agent demande-t-il pour qui ? refonte de parcours → le sweep détecte-t-il le bouton orphelin ? Et le <strong>canary de règle</strong> pour le manager : une règle n'est déclarée « gravée » que quand son scénario de violation passe de rouge à vert. Sans ça, on optimise des textes dont l'effet n'est jamais mesuré — c'est exactement ce qui nous est arrivé.</p>
+      </div>
+      <p class="refs"><b>Références</b> Anthropic, <a href="https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents">Demystifying evals for AI agents</a> (01/2026) · OpenAI, <a href="https://platform.openai.com/docs/guides/evaluation-best-practices">Evaluation best practices</a> · Zheng et al., <a href="https://arxiv.org/abs/2306.05685">biais des juges LLM</a> · Contrepoint : Hamel Husain, <a href="https://hamel.dev/blog/posts/evals-faq/">Evals FAQ</a> (« Write evaluators for errors you discover, not errors you imagine »).</p>
+    </section>
+
+    <section class="fiche" id="fiche-13">
+      <div class="fiche-head"><span class="fiche-num">13</span><h3>Mesurer sans se raconter d'histoires</h3></div>
+      <p class="idee">La perception ment : dans l'étude METR, des développeurs experts se sont <em>sentis</em> accélérés de 20 % par l'IA alors qu'ils étaient <em><strong>mesurés ralentis de 19 %</strong></em> — 39 points d'écart entre ressenti et réalité.</p>
+      <div class="fiche-body">
+        <p>Les principes de mesure honnête, tous issus de cadres établis : toujours apparier une métrique de vitesse avec une métrique de qualité (principe DORA — la vitesse sans stabilité, c'est de la dette) ; jamais de métriques d'activité seules (lignes de code, commits — le cadre SPACE les proscrit, et l'IA les gonfle mécaniquement : GitClear mesure l'explosion du copié-collé et du churn dans le code assisté). Nos 6 métriques par lot, si un jour on veut mesurer : taux de reprise, défauts échappés, passes de correction avant « Livré », temps de cycle médian, % d'effort sur du neuf vs correctif, écart estimation/réel. (Note : METR a nuancé l'ampleur dans sa mise à jour de février 2026 ; l'écart perception/mesure, lui, tient.)</p>
+      </div>
+      <p class="refs"><b>Références</b> <a href="https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/">METR</a> (07/2025) · <a href="https://dora.dev/guides/dora-metrics-four-keys/">DORA</a> · <a href="https://queue.acm.org/detail.cfm?id=3454124">SPACE</a> · <a href="https://www.gitclear.com/ai_assistant_code_quality_2025_research">GitClear</a>.</p>
+    </section>
+
+    <section class="fiche" id="fiche-14">
+      <div class="fiche-head"><span class="fiche-num">14</span><h3>La méta-boucle : pourquoi la factory a régressé en s'améliorant</h3></div>
+      <p class="idee">Si chaque leçon de rétro devient de la prose dans un prompt, l'amélioration continue <em><strong>fabrique</strong></em> la dilution : plus le manager travaille, moins chaque règle est suivie (fiches 3 et 5 combinées).</p>
+      <div class="fiche-body">
+        <p>C'est le diagnostic le plus contre-intuitif de l'audit. Le prompt du CDP est devenu « le journal des accidents passés » — en contradiction avec notre propre règle d'écriture (« ne grave jamais un incident isolé »). Et la règle anti-duplication du manager (tout va dans <code>PRINCIPES-AGENTS.md</code>, rien dans les prompts) était juste dans l'intention, mais sans canal de livraison (fiche 1) elle a produit exactement la copie divergente qu'elle voulait éviter : le digest gelé.</p>
+      </div>
+      <div class="apply">
+        <span class="mordu-label">Le remède est un changement de contrat, pas une règle de plus</span>
+        <p>Toute leçon de rétro sort en <em>mécanisme</em> — un hook (fiche 7), un champ d'artefact (fiche 8), un skill (fiche 10), un cas d'éval (fiche 12) — et la prose devient l'exception réservée au pur jugement. Complété par deux gardes : un plafond de mots par fichier agent vérifié en CI, et le canary de règle.</p>
+      </div>
+      <p class="refs"><b>Références</b> Synthèse de l'audit du 18/07 — les mécanismes cités renvoient aux fiches 7, 8, 10 et 12.</p>
+    </section>
+
+    <section class="parcours" id="parcours">
+      <p class="part-title">Application</p>
+      <h2>Le parcours de correction — sept étapes, une à la fois</h2>
+      <div class="regle-jeu">
+        <span class="mordu-label">Règle du jeu</span>
+        <p>Une étape = une ou deux notions appliquées + un résultat observable + <strong>ta validation avant de passer à la suivante</strong>. On ne touche à rien d'autre pendant l'étape. Chaque étape se clôt par : ce que tu dois avoir compris (les fiches), ce qui a changé dans les fichiers, et comment le vérifier toi-même.</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Étape</th><th>Ce qu'on corrige</th><th>Fiches</th><th>Preuve observable de réussite</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="step-n">✓ 1</td>
+              <td><strong>Livrer les principes aux agents</strong> — fait le 18/07 : <code>inline-principes.mjs</code> injecte la Partie 1 dans les 26 agents à la compilation, <code>--check</code> + hook SessionStart surveillent la dérive</td>
+              <td><a class="fiche-ref" href="#fiche-1">1</a> <a class="fiche-ref" href="#fiche-2">2</a></td>
+              <td class="preuve"><b>Jouée</b> : leçon-test apparue dans les 26 <code>.md</code> ; <code>--check</code> rouge sur dérive, puis vert</td>
+            </tr>
+            <tr>
+              <td class="step-n">✓ 2</td>
+              <td><strong>Dégraisser le CDP</strong> — fait le 18/07 : identité 2 822 → 424 mots, méthode relogée dans <code>process/cdp-methode.md</code> (lue à la demande en Claude Code, inlinée au build pour le runtime one-shot)</td>
+              <td><a class="fiche-ref" href="#fiche-3">3</a> <a class="fiche-ref" href="#fiche-4">4</a> <a class="fiche-ref" href="#fiche-5">5</a></td>
+              <td class="preuve"><b>Jouée</b> : A/B même brief, comportement égal ou meilleur ; le TRIAGE restait probabiliste → étape 3</td>
+            </tr>
+            <tr>
+              <td class="step-n">✓ 3</td>
+              <td><strong>Premier hook bloquant</strong> — fait le 18/07 : gate TRIAGE du CDP sur <code>SubagentStop</code> (<code>hook-triage-cdp.mjs</code>, exit 2 + anti-boucle). La maquette-avant-dev reste candidate pour un hook ultérieur</td>
+              <td><a class="fiche-ref" href="#fiche-6">6</a> <a class="fiche-ref" href="#fiche-7">7</a></td>
+              <td class="preuve"><b>Jouée</b> : violation forcée bloquée (trace vérifiée), omission spontanée rattrapée, réponse conforme passée en silence</td>
+            </tr>
+            <tr>
+              <td class="step-n">✓ 4</td>
+              <td><strong>Artefacts typés</strong> — fait le 18/07 : <code>template-cadrage.md</code> + <code>template-intake-ux.md</code> (champs à provenance <code>[réponse-utilisateur]</code>/<code>[mémoire]</code>/<code>[hypothèse]</code>, règles dures), câblés dans <code>cdp-methode</code> et <code>factory-ux-ui</code> ; critique adversariale passée, 4 bloquants corrigés</td>
+              <td><a class="fiche-ref" href="#fiche-8">8</a> <a class="fiche-ref" href="#fiche-9">9</a></td>
+              <td class="preuve"><b>Jouée</b> : brief ambigu CDP → questions sans production (juge : conforme) ; brief UX → fiche d'intake + 5 questions au lieu d'un design. <b>Bonus</b> : la sonde a révélé l'incident BOM (15 agents hors registre + miroir prod cassé depuis le 17/07) — réparé et immunisé</td>
+            </tr>
+            <tr>
+              <td class="step-n">✓ 5</td>
+              <td><strong>Sweep adjacent + matrice de complétude</strong> — fait le 18/07 : <code>sweep-adjacent.mjs</code> (inventaire mécanique, verdict par ligne, <code>--check</code>, anti-écrasement) + matrice entités × cycle de vie (PO) ; câblé PO/orchestrateur/QA/Contradicteur ; recette <code>factory-qa</code> PASS 6/6 + 1 constat hors critères corrigé</td>
+              <td><a class="fiche-ref" href="#fiche-8">8</a></td>
+              <td class="preuve"><b>Jouée</b> : rejeu sur Sporae@<code>eb3fca3</code> (la refonte fautive) → <code>btn-new-contact</code> détecté (<code>prospects.html:61</code>), check <b>rouge</b> tant que non statué</td>
+            </tr>
+            <tr>
+              <td class="step-n">✓ 6</td>
+              <td><strong>Les symptômes fondateurs en évals rejouables</strong> — fait le 18/07 : <code>evals/scenarios.mjs</code> (7 scénarios, graders code) + <code>run-evals.mjs</code> (harnais sous-agent : les hooks tirent) + <code>npm run evals</code> ; canary de règle au runbook du manager</td>
+              <td><a class="fiche-ref" href="#fiche-12">12</a></td>
+              <td class="preuve"><b>Jouée</b> : suite <b>7/7 verte</b> — après avoir attrapé 3 vrais défauts (CDP cédant à « code-moi directement », étiquettes d'intake omises, contournement de grader), chacun devenu mécanisme</td>
+            </tr>
+            <tr>
+              <td class="step-n">✓ 7</td>
+              <td><strong>Contrat de délégation + « leçon → mécanisme »</strong> — fait le 18/07 : frontières + échelle d'effort + lecture-parallélise/écriture-mono-exécutant ; cliquet de <b>budgets de mots</b> (<code>budgets-agents.json</code>, <code>principes:check</code> rouge au-delà) ; skill <code>/retro</code></td>
+              <td><a class="fiche-ref" href="#fiche-10">10</a> <a class="fiche-ref" href="#fiche-11">11</a> <a class="fiche-ref" href="#fiche-14">14</a></td>
+              <td class="preuve"><b>Jouée</b> : le cliquet a attrapé <b>son propre auteur</b> le jour même (formateur 457 &gt; 450 refusé → dégraissé) ; canary s7 rouge→vert dans la journée</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="fiche-body" style="margin-top: 24px;">
+        <p>L'ordre n'est pas arbitraire : l'étape 1 répare le <strong>canal de livraison</strong> (sinon tout le reste s'écrit dans le vide), les étapes 2-3 appliquent la distinction prompt/harnais, les étapes 4-5 installent les artefacts, les étapes 6-7 ferment la boucle de preuve et empêchent la rechute.</p>
+      </div>
+    </section>
+
+    <section class="parcours" id="schema">
+      <p class="part-title">Schéma</p>
+      <h2>Le trajet d'une demande complexe (état au 18/07, étapes 1-7 posées)</h2>
+      <p class="fiche-body" style="color: var(--muted); margin-top: 0;">Sens de lecture unique (haut → bas), une idée par nœud, les décisions en losange. Les gates sont les endroits où le flux peut <b>revenir en arrière</b> — c'est leur pouvoir d'échec qui les rend réelles (fiche 6).</p>
+      <div class="table-wrap" style="padding: 12px;">
+<pre class="mermaid">
+flowchart TD
+    B([Benoit : demande]) --> CDP[Bras droit — point d'entrée unique]
+    CDP --> T{TRIAGE<br/>rendu garanti par hook}
+    T -- léger --> SOLO[Le CDP traite seul, maintenant] --> FIN1([Livré])
+    T -- projet --> M[/Lit la méthode projet<br/>process/cdp-methode.md — juste-à-temps/]
+    M --> CAD[/CADRAGE.md — champs bloquants<br/>étiquetés réponse · mémoire · hypothèse/]
+    CAD --> H{Un champ bloquant<br/>encore en hypothèse ?}
+    H -- oui --> Q[Questions au décideur] --> CAD
+    H -- non : VERROUILLÉ --> PO[Product-owner : backlog<br/>+ modèle fonctionnel statué]
+    PO --> ORCH[Orchestrateur : plan DAG<br/>+ étape sweep si refonte-de-parcours]
+    ORCH --> CONTRA{Contradicteur :<br/>objections bloquantes ?}
+    CONTRA -- oui, corrections --> ORCH
+    CONTRA -- non --> GO([GO explicite de Benoit])
+    GO --> UX[UX : fiche d'intake — gate hook —<br/>puis maquette validée AVANT dev]
+    UX --> DEV[Dev : un seul exécutant<br/>si écriture couplée]
+    DEV --> SWEEP[/SWEEP-ticket statué,<br/>check vert — si refonte/]
+    SWEEP --> LT[Revue lead-tech]
+    LT --> RUX{Revue UX du rendu :<br/>CAPTURE réelle + checklist<br/>visuelle, verdict par item}
+    RUX -- FAIL localisé --> DEV
+    RUX -- PASS --> QA{Recette QA — rouge si fiche,<br/>cadrage ou sweep manquants}
+    QA -- FAIL --> DEV
+    QA -- PASS + rendu navigateur observé --> SYN[Synthèse possédée par le CDP]
+    SYN --> PF([Passe finale Benoit → Livré])
+</pre>
+      </div>
+      <p class="fiche-body" style="margin-top: 18px;"><strong>Et autour du flux, la surveillance permanente</strong> (invisible sur le schéma parce qu'elle ne fait pas partie du trajet — elle le garde) : à chaque démarrage de session, les checks <em>jonction agents</em>, <em>principes injectés</em> et <em>budgets de mots</em> ; à chaque rétro, la suite d'évals (<code>/retro</code>) qui rejoue les 6 symptômes fondateurs — un scénario qui repasse rouge est une régression, traitée comme un bug.</p>
+    </section>
+
+    <section class="lexique" id="lexique">
+      <p class="part-title">Annexe</p>
+      <h2>Lexique du jargon</h2>
+      <p class="fiche-body" style="color: var(--muted); margin-top: 0;">Les mots utilisés dans ce manuel et dans les travaux de la factory, en une ou deux phrases. Ajouté au fil de tes questions.</p>
+      <dl>
+        <dt>Sweep <span class="lit">« coup de balai »</span></dt>
+        <dd>Balayage systématique d'une zone entière pour n'oublier aucun élément — par opposition à « regarder là où on pense qu'il y a un problème ». Chez nous : l'inventaire mécanique (script <code>grep</code>) des points d'entrée qui pointent vers un parcours refondu — boutons, liens, menus — avec verdict obligatoire par ligne (<code>GARDER</code> / <code>ADAPTER</code> / <code>SUPPRIMER</code> / <code>HORS-PÉRIMÈTRE</code>). C'est ce qui aurait attrapé le bouton « ajout contact » de Sporae. La QA couvre la <em>profondeur</em> du parcours modifié ; le sweep couvre sa <em>largeur</em>.</dd>
+        <dt>Gate <span class="lit">« porte »</span></dt>
+        <dd>Point de contrôle qui doit être franchi pour continuer (revue, recette, validation de maquette). Une gate qui ne peut pas bloquer n'est pas une gate (fiche 6).</dd>
+        <dt>Harnais <span class="lit">harness</span></dt>
+        <dd>Le logiciel autour du modèle : outils, permissions, hooks, scripts. Ce qui y est câblé s'applique <em>toujours</em> ; ce qui est dans le prompt s'applique <em>souvent</em> (fiche 6).</dd>
+        <dt>Hook <span class="lit">« crochet »</span></dt>
+        <dd>Script que le harnais exécute automatiquement à un moment précis du cycle de travail, et qui peut bloquer l'action (fiche 7).</dd>
+        <dt>Intake <span class="lit">« accueil »</span></dt>
+        <dd>Le questionnaire d'entrée avant de produire : pour qui, quel problème, quel appareil, quelles références. L'intake UX est l'exemple type (fiche 8).</dd>
+        <dt>DAG <span class="lit">directed acyclic graph</span></dt>
+        <dd>Graphe orienté sans cycle : la forme du plan de travail de l'orchestrateur — des étapes reliées par des dépendances, sans boucle. « L'étape QA dépend de l'étape dev » = une flèche du DAG.</dd>
+        <dt>Frontmatter</dt>
+        <dd>L'en-tête d'un fichier <code>.md</code> entre deux lignes <code>---</code> : les métadonnées (nom, outils, description) que le harnais lit pour router et outiller l'agent.</dd>
+        <dt>Eval</dt>
+        <dd>Scénario de test rejouable qui note le comportement d'un agent, pour prouver qu'une correction corrige et ne régresse pas (fiche 12).</dd>
+        <dt>Canary <span class="lit">« canari »</span></dt>
+        <dd>Comme le canari dans la mine : un signal d'alerte précoce. Chez nous, le scénario qui prouve qu'une règle gravée change réellement le comportement — sans canari vert, la règle n'est pas déclarée « gravée » (fiche 12).</dd>
+        <dt>Churn</dt>
+        <dd>Code réécrit peu de temps après avoir été livré ; mesure le travail à refaire, donc la fausse vitesse (fiche 13).</dd>
+        <dt>Persona</dt>
+        <dd>Personnage-métier donné à un agent (PM, dev, QA…). Fiche 11 : c'est la variable la moins corrélée au succès des systèmes multi-agents.</dd>
+        <dt>Greenfield / brownfield <span class="lit">« terrain vierge / friche »</span></dt>
+        <dd>Projet neuf, sans existant / projet qui doit composer avec un existant. L'effet de l'IA varie fortement entre les deux (fiche 13).</dd>
+      </dl>
+      <p class="colophon">Créé le 18 juillet 2026 à la demande de Benoit — formation étape par étape plutôt que refonte en bloc. Sources ouvertes et recoupées lors de l'audit du même jour. Source markdown : <code>cleveria/docs/31-notions-methode-ia.md</code>. Ce manuel s'enrichit au fil du parcours — fiche 2 (curation continue) et lexique ajoutés le 18/07 suite aux premières questions.</p>
+    </section>
+    <style>
+      .lexique { scroll-margin-top: 20px; padding-top: 48px; }
+      .lexique h2 { font-size: 30px; margin: 8px 0 12px; letter-spacing: -0.01em; }
+      .lexique dl { margin: 24px 0 0; max-width: 74ch; }
+      .lexique dt {
+        font-family: var(--sans);
+        font-size: 15px;
+        font-weight: 700;
+        margin-top: 20px;
+        color: var(--ink);
+      }
+      .lexique dt .lit {
+        font-weight: 400;
+        font-style: italic;
+        color: var(--muted);
+        font-size: 13px;
+        margin-left: 6px;
+      }
+      .lexique dd { margin: 4px 0 0; max-width: 70ch; }
+      .gl { border-bottom: 1px dotted var(--accent); cursor: help; position: relative; }
+      .gl:hover::after, .gl:focus::after {
+        content: attr(data-tip);
+        position: absolute; left: 0; bottom: calc(100% + 8px);
+        background: var(--ink); color: var(--bg);
+        font-family: var(--sans); font-size: 13px; font-style: normal; font-weight: 400;
+        line-height: 1.5; padding: 8px 12px; border-radius: 8px;
+        width: max-content; max-width: 300px; z-index: 50;
+        box-shadow: 0 4px 14px rgba(0,0,0,.25); pointer-events: none;
+      }
+    </style>
+    <script>
+      (function () {
+        // Infobulles pédagogiques : chaque terme technique porte sa définition au survol.
+        var G = [
+          ["harnais", "Le logiciel autour du modèle (hooks, scripts, permissions) : ce qui y est câblé s'applique toujours — fiche 6."],
+          ["hooks?", "Script exécuté automatiquement à un moment précis du cycle de travail ; peut bloquer l'action (exit 2) — fiche 7."],
+          ["gates?", "Point de contrôle qui peut renvoyer le flux en arrière — sans pouvoir de blocage, ce n'est pas une gate."],
+          ["sweeps?", "Balayage mécanique (script) des points d'entrée adjacents d'une zone refondue, verdict obligatoire par ligne."],
+          ["intake", "Questionnaire d'entrée avant de produire : qui, appareil, surface, problème, références marché."],
+          ["canar(?:y|ies)", "Preuve rouge→vert qu'une règle change réellement le comportement — sans elle, la règle est un vœu."],
+          ["évals?|evals?", "Scénario de test rejouable qui note le comportement d'un agent (anti-régression comportementale)."],
+          ["churn", "Code réécrit peu après livraison : mesure le travail à refaire, donc la fausse vitesse."],
+          ["personas?", "Personnage-métier donné à un agent (PM, dev, QA…) — la variable la moins corrélée au succès (fiche 11)."],
+          ["frontmatter", "En-tête d'un fichier .md entre deux --- : les métadonnées (nom, outils, modèle) lues par le harnais."],
+          ["curation", "Choisir à chaque appel ce qui entre dans la fenêtre de contexte — et en sortir ce qui ne sert plus (fiche 2)."],
+          ["sous-agents?", "Agent lancé dans une fenêtre de contexte séparée ; il ne rapporte qu'un résumé au fil principal."],
+          ["tokens?", "Unité de découpage du texte pour le modèle (~¾ de mot) : la monnaie de la fenêtre de contexte."],
+          ["greenfield", "Projet neuf, sans existant à respecter."],
+          ["brownfield", "Projet qui doit composer avec un existant."],
+          ["triage", "Le premier geste du bras droit : léger (il traite seul) ou projet (méthode + équipe) — rendu visible, garanti par hook."]
+        ];
+        var re = new RegExp("(?<![\\p{L}\\-])(" + G.map(function (g) { return g[0]; }).join("|") + ")(?![\\p{L}\\-])", "giu");
+        var tips = G.map(function (g) { return { re: new RegExp("^(?:" + g[0] + ")$", "iu"), tip: g[1] }; });
+        var SKIP = { PRE: 1, CODE: 1, A: 1, SCRIPT: 1, STYLE: 1, H1: 1, H2: 1, H3: 1 };
+        var main = document.querySelector("main");
+        if (!main) return;
+        var walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT, {
+          acceptNode: function (n) {
+            for (var p = n.parentNode; p && p !== main; p = p.parentNode) {
+              if (SKIP[p.nodeName] || (p.classList && (p.classList.contains("gl") || p.classList.contains("lexique")))) return NodeFilter.FILTER_REJECT;
+            }
+            return re.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+          },
+        });
+        var nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        nodes.forEach(function (node) {
+          var frag = document.createDocumentFragment();
+          var last = 0, txt = node.nodeValue, m;
+          re.lastIndex = 0;
+          while ((m = re.exec(txt)) !== null) {
+            frag.appendChild(document.createTextNode(txt.slice(last, m.index)));
+            var span = document.createElement("span");
+            span.className = "gl";
+            span.textContent = m[1];
+            for (var i = 0; i < tips.length; i++) if (tips[i].re.test(m[1])) { span.setAttribute("data-tip", tips[i].tip); break; }
+            frag.appendChild(span);
+            last = m.index + m[0].length;
+          }
+          frag.appendChild(document.createTextNode(txt.slice(last)));
+          node.parentNode.replaceChild(frag, node);
+        });
+      })();
+    </script>
+    <script>
+      (function () {
+        var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+        var byId = {};
+        links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+        var current = null;
+        var observer = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) {
+            if (e.isIntersecting) {
+              if (current) current.classList.remove('active');
+              current = byId[e.target.id];
+              if (current) current.classList.add('active');
+            }
+          });
+        }, { rootMargin: '-15% 0px -70% 0px' });
+        document.querySelectorAll('.fiche, .parcours, .lexique').forEach(function (s) { observer.observe(s); });
+      })();
+    </script>
+  </main>
+</div>
