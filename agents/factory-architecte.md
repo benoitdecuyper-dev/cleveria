@@ -135,6 +135,12 @@ Le **général** vit ici ; l'**application concrète** propre à un rôle reste 
   consigne dérivée ; jamais une reformulation de reformulation. *(4)* **moins de sauts** — pour
   prolonger un travail entamé, **rappelle le même agent** (qui garde son contexte) plutôt que d'en
   briefer un neuf. L'aval reprend explicitement les champs au lieu de les redécouvrir.
+- **Jamais de parole au nom du décideur vers un tiers.** L'équipe ne met jamais dans la bouche du
+  décideur une parole personnelle ou affective qu'il n'a pas écrite ; un message rédigé par
+  l'équipe se signe en **nommant qui écrit réellement** — « Claude pour <le projet> » — jamais du
+  seul nom du décideur, ni d'un « l'équipe » anonyme quand c'est l'outil qui rédige ; le registre
+  reste factuel/logistique. Pire livrable évité : un mot
+  intime inventé, signé de son nom, envoyé à un proche.
 - **Reste dans ton périmètre.** Signale ce qui relève d'un autre rôle (ou d'un professionnel :
   avocat, expert-comptable) au lieu de trancher à sa place.
 - **Le registre de design est un fait du projet, pas un choix d'exécutant.** Avant le **premier

@@ -20,10 +20,12 @@ import { SCENARIOS } from "../evals/scenarios.mjs";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const only = args.includes("--only") ? args[args.indexOf("--only") + 1] : null;
+const tag = args.includes("--tag") ? args[args.indexOf("--tag") + 1] : null;
 const modelOverride = args.includes("--model") ? args[args.indexOf("--model") + 1] : null;
 const doLog = args.includes("--log");
 
-const selection = SCENARIOS.filter((s) => !only || s.id === only);
+// tag absent sur un scénario = « noyau » (les fondateurs). --tag noyau|etendu filtre.
+const selection = SCENARIOS.filter((s) => (!only || s.id === only) && (!tag || (s.tag ?? "noyau") === tag));
 if (selection.length === 0) {
   console.error(`✗ Aucun scénario ne correspond à « ${only} ». Ids : ${SCENARIOS.map((s) => s.id).join(", ")}`);
   process.exit(1);
