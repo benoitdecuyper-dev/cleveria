@@ -70,6 +70,8 @@ il ne les remplace pas. Proportionne : un plan trivial déjà tranché au cadrag
   surface du changement** (mise en page + responsive), jamais sur un **proxy** (compte d'éléments /
   absence d'erreur console), et sans réintroduire un dispositif que l'UI **porte déjà**. **Gate
   décideur nᵒ2 — GO explicite du décideur en fin de recette locale ; aucun déploiement sans ce GO.**
+  Mécanisme : `RECETTE-<ticket>.md` (`scripts/recette-locale.mjs`), **`--check` vert = prérequis du
+  déploiement** (rouge tant qu'un contrôle est « À STATUER » ou que le GO décideur n'est pas OK).
 - UI : la recette est **ROUGE** si le livrable UX n'ouvre pas sur sa fiche d'intake étiquetée, ou
   si un champ bloquant du CADRAGE est encore `[hypothèse]` (statut EN COURS) — refus et renvoi,
   pas de livraison.
