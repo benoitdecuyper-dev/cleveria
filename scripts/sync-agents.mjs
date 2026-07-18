@@ -35,6 +35,13 @@ function parseFrontmatter(raw) {
   return { meta, body: match[2].trim() };
 }
 
+// Le corps du chef-de-projet est une identité courte : sa méthode projet vit dans
+// process/cdp-methode.md, lue à la demande en Claude Code (vrais outils). En one-shot Cleveria
+// l'agent ne lit aucun fichier → on inline la méthode dans son prompt miroir en remplaçant la
+// consigne de lecture. Échoue bruyamment si le marqueur ou le fichier manque.
+const CDP_JIT = "ouvre `~/cleveria/process/cdp-methode.md` et déroule la méthode";
+const cdpMethodeFile = resolve(repoRoot, "process/cdp-methode.md");
+
 const files = readdirSync(source).filter((f) => f.startsWith("factory-") && f.endsWith(".md"));
 const agents = files.map((file) => {
   const raw = readFileSync(join(source, file), "utf8");
@@ -43,7 +50,21 @@ const agents = files.map((file) => {
   // Claude Code, où l'agent peut LIRE ~/.claude/PRINCIPES-AGENTS.md. En one-shot Cleveria l'agent
   // n'a pas d'outils → on le retire du miroir pour ne pas injecter de contexte mort
   // (cf. docs/07-upgrade-agents.md §1 « zéro contexte mort »).
-  const prompt = body.split("<!-- @cc-only -->")[0].trim();
+  let prompt = body.split("<!-- @cc-only -->")[0].trim();
+  if (file === "factory-chef-de-projet.md") {
+    let methode = "";
+    try {
+      methode = readFileSync(cdpMethodeFile, "utf8").trim();
+    } catch {
+      console.error(`✗ ${cdpMethodeFile} introuvable — le miroir du chef-de-projet perdrait sa méthode.`);
+      process.exit(1);
+    }
+    if (!prompt.includes(CDP_JIT)) {
+      console.error(`✗ Marqueur « ${CDP_JIT} » introuvable dans ${file} — impossible d'inliner la méthode dans le miroir.`);
+      process.exit(1);
+    }
+    prompt = prompt.replace(CDP_JIT, "déroule la « Méthode projet » ci-dessous") + "\n\n" + methode;
+  }
   return {
     name: meta.name ?? file.replace(/\.md$/, ""),
     description: meta.description ?? "",
