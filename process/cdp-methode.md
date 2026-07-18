@@ -5,17 +5,26 @@
 
 ## 1. Cadrer (avant toute production)
 - Reformule en une phrase : à qui ça sert, l'objectif, ce qui n'est **pas** dans le périmètre.
-- Invariants à verrouiller — une réponse doit pouvoir **changer le design** : qui s'en sert et son
-  **niveau d'expertise** · **appareil** (bureau / terrain / mobile — jamais présumé) · **unité
+- **Champs bloquants à verrouiller** — chacun porte une étiquette de provenance
+  `[réponse-utilisateur]` / `[mémoire: <source>]` / `[hypothèse]` : qui s'en sert et son
+  **niveau d'expertise** · **appareil** (bureau / terrain / mobile — jamais présumé) · **surface**
+  (outil opérationnel interne / interface client-prospect externe) · **unité
   optimisée et vrai mécanisme** (ex. plafond glissant ≠ facture variable) · **échelle** (mono vs
-  partagé — si partagé, la vue agrégée est V1) · **mode d'interaction attendu**. Fais trancher tôt
-  les invariants de positionnement (identité, public, moteur économique).
+  partagé — si partagé, la vue agrégée est V1) · **mode d'interaction attendu** ·
+  **hors-périmètre**. **Règle dure : un champ bloquant étiqueté `[hypothèse]` interdit de lancer
+  la production — les questions partent au décideur d'abord.** Une réponse doit pouvoir **changer
+  le design**. Fais trancher tôt les invariants de positionnement (identité, public, moteur
+  économique).
 - Feature qui **modélise un domaine** (barème, populations, cycle de vie, chiffrage) : le modèle se
   verrouille AVANT le code, via **maquette fidèle itérée avec le décideur** (vrai CSS, vraie
   donnée), valeurs relues dans l'analyse / le contrat existants — jamais inventées.
 - Nom ou marque proposé → vérifie les collisions/homonymies tout de suite.
-- **Persiste le cadrage** dans `<projet>/CADRAGE.md` : c'est le contrat que l'orchestrateur et
-  l'aval relisent, et l'archive qui évite de re-cadrer à la session suivante.
+- **Persiste le cadrage** (Claude Code : `<projet>/CADRAGE.md` d'après le template
+  `~/cleveria/process/template-cadrage.md` ; one-shot sans outils : bloc CADRAGE aux mêmes sections
+  en tête du livrable) — en-une-phrase · tableau des champs bloquants étiquetés · modèle de
+  domaine · V1/V2 · questions & décisions · passation, avec statut EN COURS / VERROUILLÉ. C'est le
+  contrat que l'orchestrateur et l'aval relisent, et l'archive qui évite de re-cadrer à la session
+  suivante.
 
 ## 2. Découper
 V1 (indispensable pour décider) vs V2 (après le GO). Quand une maquette est validée, **le périmètre
@@ -31,9 +40,9 @@ jamais en silence. Chaque étape : livrable + responsable + critère de validati
 - Brief = **pointeur** vers `CADRAGE.md` + section concernée, demande initiale de l'utilisateur
   **verbatim**, et **accès réels** aux sources de vérité (ID/URL vérifiés, jamais un chemin
   supposé). Pour prolonger un travail entamé : rappelle le même agent.
-- UI / parcours : `factory-ux-ui` intervient AVANT le dev (profil utilisateur exigé : qui,
-  expertise, appareil, références marché — sinon exige-le) puis en revue du rendu. Le développeur
-  n'invente jamais seul le comportement ou la densité d'un écran.
+- UI / parcours : `factory-ux-ui` intervient AVANT le dev, avec sa **fiche d'intake complète**
+  (les 6 champs du template-intake-ux, étiquetés — sinon exige-la) puis en revue du rendu. Le
+  développeur n'invente jamais seul le comportement ou la densité d'un écran.
 
 ## 4. Contradicteur (contrôle amont)
 Avant le GO d'exécution d'un plan multi-étapes : saisis `factory-coach` en mode Contradicteur. Il
@@ -43,7 +52,11 @@ il ne les remplace pas. Proportionne : un plan trivial déjà tranché au cadrag
 
 ## 5. Gates avant « livré »
 - Dev : **revue lead-tech + recette QA** vertes. UI : + **revue UX du rendu** + **rendu observé au
-  navigateur** (une revue statique ne prouve pas qu'un écran marche).
+  navigateur** (une revue statique ne prouve pas qu'un écran marche ; sans navigateur disponible,
+  l'état s'annonce « à vérifier », jamais « livré »).
+- UI : la recette est **ROUGE** si le livrable UX n'ouvre pas sur sa fiche d'intake étiquetée, ou
+  si un champ bloquant du CADRAGE est encore `[hypothèse]` (statut EN COURS) — refus et renvoi,
+  pas de livraison.
 - Business engageant : `finance` (BP/chiffrage) · `expert-conformite` (droit/fiscal/réglementaire) ·
   `direction` (stratégie/modèle) · `verificateur` (faits/chiffres destinés à publication) ·
   `levee-de-fonds` (financement).
