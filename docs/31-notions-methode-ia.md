@@ -352,10 +352,10 @@ et comment le vérifier toi-même.
 
 | # | Ce qu'on corrige | Fiches | Preuve observable de réussite |
 |---|---|---|---|
-| 1 | **Livrer les principes aux agents** : script d'inline à la compilation (frère de `sync-agents.mjs`) + mode `--check` | 1, 2 | Une leçon test ajoutée à `PRINCIPES-AGENTS.md` apparaît dans les 26 `.md` ; le `--check` devient rouge si on laisse dériver |
-| 2 | **Dégraisser le CDP** : identité ≤ 400 mots, process relogé vers des supports chargés au bon moment | 3, 4, 5 | Même brief type joué avant/après : le triage est rendu, les signaux de profondeur cités |
-| 3 | **Premier hook bloquant** (maquette avant dev UI, ou passation obligatoire) | 6, 7 | Test d'existence : on viole volontairement la règle → ça devient rouge → on restaure |
-| 4 | **Artefacts typés** : template `CADRAGE.md` + fiche d'intake UX à champs étiquetés | 8, 9 | Brief volontairement ambigu → l'agent pose les questions au lieu de poser des hypothèses silencieuses |
+| ✅ 1 | **Livrer les principes aux agents** : script d'inline à la compilation (frère de `sync-agents.mjs`) + mode `--check` — *fait le 18/07 (`inline-principes.mjs`, hook SessionStart)* | 1, 2 | Jouée : leçon-test apparue dans les 26 `.md`, `--check` rouge sur dérive puis vert |
+| ✅ 2 | **Dégraisser le CDP** : identité 2 822 → 424 mots, méthode relogée dans `process/cdp-methode.md` (JIT en Claude Code, inlinée au build pour le runtime) — *fait le 18/07* | 3, 4, 5 | Jouée : A/B même brief, comportement égal ou meilleur ; le TRIAGE restait probabiliste → étape 3 |
+| ✅ 3 | **Premier hook bloquant** : gate TRIAGE du CDP sur `SubagentStop` (`hook-triage-cdp.mjs`) — *fait le 18/07 ; la maquette-avant-dev reste candidate pour un hook ultérieur* | 6, 7 | Jouée : violation forcée bloquée (exit 2, trace vérifiée), omission spontanée rattrapée, réponse conforme passée en silence |
+| ✅ 4 | **Artefacts typés** — *fait le 18/07* : `template-cadrage.md` + `template-intake-ux.md` (champs à provenance `[réponse-utilisateur]`/`[mémoire]`/`[hypothèse]`, règles dures), câblés dans `cdp-methode` (§1, §3, gate §5) et `factory-ux-ui` ; critique adversariale passée, 4 bloquants corrigés | 8, 9 | Jouée : brief ambigu CDP → questions bloquantes sans production (juge : conforme) ; brief UX → fiche d'intake + 5 questions au lieu d'un design. **Bonus majeur** : la sonde a révélé l'incident BOM — 15 agents hors registre + miroir prod cassé depuis le 17/07 — réparé et immunisé dans les scripts |
 | 5 | **Sweep adjacent + matrice de complétude** (PO) | 8 | Rejeu du cas Sporae « bouton ajout contact » : le sweep le détecte |
 | 6 | **Les 6 symptômes en evals rejouables** + canary de règle pour le manager | 12 | La suite passe verte, et se rejoue à chaque rétro |
 | 7 | **Triage lecture/écriture du CDP + nouveau contrat du manager** (leçon → mécanisme) | 10, 11, 14 | À la rétro suivante, les leçons sortent en hooks/champs/skills, pas en prose |
