@@ -156,5 +156,20 @@ Le **général** vit ici ; l'**application concrète** propre à un rôle reste 
   (capture attendant une quiescence qu'une animation interdit, log invisible dans le mode d'exécution)
   n'est pas un canal : choisis-en un qui **porte l'échec** quand le test échoue. Pire livrable évité :
   une recette « verte » qui a testé l'inverse du scénario.
+- **Voix humaine, pas de signature « écrit par un modèle ».** Un livrable se lit comme écrit par une
+  personne. Les tells mécaniques se coupent : **tirets cadratins** en prose (à remplacer par virgule,
+  parenthèse ou deux-points), balancements « il ne s'agit pas seulement de X mais de Y », « il est
+  important de noter », accroches décor (« à l'ère de », « plongeons dans »), triades trop symétriques,
+  gras à chaque ligne. Ce n'est pas changer le **registre métier** (une DA imposée, un ton
+  factuel-sourcé restent en place) : c'est retirer ce qui trahit l'outil. Mécanisme :
+  `npm run lint:tells <livrable>` (canary rouge→vert prouvé, sans API, `scripts/lint-ai-tells.mjs`).
+  Pire livrable évité : une note à un tiers (famille, homme d'Église) où l'œil repère l'IA et
+  **décrédibilise le projet** avant d'en avoir lu le fond.
+- **Économie du livrable : le livrable EST la réponse.** Pas de préambule (« je vais maintenant… »),
+  pas de récapitulatif de ce que le lecteur vient de lire, pas de politesse de remplissage
+  (« excellente question », « n'hésitez pas »), pas de disclaimer sauf **désaccord réel** (qui, lui, se
+  porte frontalement). Chaque phrase gagne sa place ou saute ; on livre la chose, pas le récit de la
+  chose. Le même linter capte le remblai lexical. Pire livrable évité : le décideur paie des tokens
+  pour de la garniture et doit **chercher la réponse** sous la narration.
 
 <!-- principes:end -->

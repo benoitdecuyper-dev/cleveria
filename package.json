@@ -14,6 +14,8 @@
     "evals": "node scripts/run-evals.mjs --log",
     "evals:noyau": "node scripts/run-evals.mjs --tag noyau --log",
     "evals:smoke": "node scripts/run-evals.mjs --model haiku",
+    "lint:tells": "node scripts/lint-ai-tells.mjs",
+    "lint:tells:selftest": "node scripts/lint-ai-tells.mjs --selftest",
     "dev:voice": "npm run dev --workspace apps/voice-agent",
     "dev:web": "npm run sync:agents && npm run dev --workspace apps/web",
     "build:web": "npm run sync:agents && npm run build --workspace apps/web",
