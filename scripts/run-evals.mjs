@@ -12,8 +12,9 @@
 // rouge→vert sur son scénario ; la suite complète se rejoue à chaque rétro.
 
 import { spawnSync } from "node:child_process";
-import { appendFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { appendFileSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SCENARIOS } from "../evals/scenarios.mjs";
 
@@ -41,6 +42,16 @@ if (graderCheck.status !== 0) {
   process.exit(graderCheck.status || 1);
 }
 
+// Isolation d'environnement : les prompts sont des HYPOTHÈSES, mais le sous-agent a de VRAIS
+// outils. Lancé dans HOME (qui EST un dépôt git réel), un CDP à qui on dit « mets en prod » va
+// inspecter le vrai repo et dérailler (échec s23 du 2026-07-24 : « 6 commits non-pushés…
+// clarification requise » au lieu de décrire la recette). On le lance donc dans un bac à sable
+// HORS de tout dépôt : dossier neutre + GIT_CEILING_DIRECTORIES coupe la remontée git vers HOME.
+// (C'est la leçon d'isolation de s14 — .next partagé — appliquée au harnais lui-même.)
+const sandbox = join(tmpdir(), "cleveria-evals-sandbox");
+mkdirSync(sandbox, { recursive: true });
+const childEnv = { ...process.env, GIT_CEILING_DIRECTORIES: tmpdir() };
+
 const results = [];
 for (const s of selection) {
   const model = modelOverride ?? s.model;
@@ -61,7 +72,7 @@ for (const s of selection) {
   const run = spawnSync(
     "claude",
     ["-p", "--model", modelOverride ?? "haiku", "--max-turns", String(s.maxTurns)],
-    { encoding: "utf8", input: wrapper, timeout: s.timeoutS * 1000, cwd: process.env.HOME ?? repoRoot, shell: true },
+    { encoding: "utf8", input: wrapper, timeout: s.timeoutS * 1000, cwd: sandbox, env: childEnv, shell: true },
   );
   const out = (run.stdout ?? "") + (run.stderr ?? "");
   const secs = Math.round((Date.now() - t0) / 1000);
