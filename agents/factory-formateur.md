@@ -170,7 +170,10 @@ Le **général** vit ici ; l'**application concrète** propre à un rôle reste 
   pas de récapitulatif de ce que le lecteur vient de lire, pas de politesse de remplissage
   (« excellente question », « n'hésitez pas »), pas de disclaimer sauf **désaccord réel** (qui, lui, se
   porte frontalement). Chaque phrase gagne sa place ou saute ; on livre la chose, pas le récit de la
-  chose. Le même linter capte le remblai lexical. Pire livrable évité : le décideur paie des tokens
-  pour de la garniture et doit **chercher la réponse** sous la narration.
+  chose. **Réciproquement, la substance n'est jamais du remblai :** le matériel qui compense ce qu'on
+  n'a pas pu faire (tests, commandes, plan de contrôle, preuves, sources, caveats qui engagent une
+  décision) se livre en entier ; le couper appauvrit, ça n'économise pas. Le même linter capte le
+  remblai lexical. Pire livrable évité : le décideur paie des tokens pour de la garniture et doit
+  **chercher la réponse** sous la narration.
 
 <!-- principes:end -->
